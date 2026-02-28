@@ -17,6 +17,8 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const { admin } = require('../middleware/authMiddleware');
 
+const { updateProfile } = require('../controllers/authController'); 
+
 // Rate limiter: max 10 login attempts per 15 minutes per IP
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -47,6 +49,9 @@ router.delete('/admin/users/:id', protect, admin, require('../controllers/authCo
 const { getCertificationFile } = require('../controllers/authController');
 // Get certification file
 router.get('/admin/manufacturers/:id/certification', protect, admin, getCertificationFile);
+
+// Profile update route
+router.put('/profile', protect, updateProfile);
 
 // File upload for certification documents (manufacturer)
 const storage = multer.memoryStorage();

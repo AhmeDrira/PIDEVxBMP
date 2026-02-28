@@ -1,86 +1,221 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { FolderKanban, ShoppingCart, FileText, Clock, Package, TrendingUp, Eye, Activity, ArrowRight } from 'lucide-react';
+import { FolderKanban, ShoppingCart, FileText, Clock, Package, TrendingUp, Eye, Activity, ArrowRight, CheckCircle, Receipt, XCircle } from 'lucide-react';
 import StatsCard from '../common/StatsCard';
 import { Badge } from '../ui/badge';
+import axios from 'axios';
 
 interface ArtisanHomeProps {
-  onNavigate: (view: string) => void;
+  onNavigate: (view: string, projectId?: string) => void;
 }
 
+const getTimeAgo = (date: Date) => {
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + " years ago";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + " months ago";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + " days ago";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + " hours ago";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + " minutes ago";
+  return "Just now";
+};
+
 export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
-  const stats = [
+  const userStorage = localStorage.getItem('user');
+  const user = userStorage ? JSON.parse(userStorage) : null;
+  const firstName = user?.firstName || 'Artisan';
+
+  const[projects, setProjects] = useState<any[]>([]);
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const[loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const getToken = () => {
+    let token = localStorage.getItem('token');
+    const userStorage = localStorage.getItem('user');
+    if (!token && userStorage) {
+      token = JSON.parse(userStorage).token;
+    }
+    return token;
+  };
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setLoading(true);
+        const token = getToken();
+        if (!token) return;
+
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+
+        // On lance les 3 requêtes en parallèle pour aller plus vite !
+        const[resProjects, resQuotes, resInvoices] = await Promise.all([
+          axios.get(`${API_URL}/projects`, config),
+          axios.get(`${API_URL}/quotes`, config),
+          axios.get(`${API_URL}/invoices`, config)
+        ]);
+
+        setProjects(resProjects.data);
+        setQuotes(resQuotes.data);
+        setInvoices(resInvoices.data);
+
+      } catch (err) {
+        console.error('Erreur chargement dashboard:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, [API_URL]);
+
+  
+  // ==========================================
+  // CALCUL DES STATISTIQUES DYNAMIQUES
+  // ==========================================
+  const activeProjectsCount = projects.filter(p => p.status === 'active' || p.status === 'in-progress').length;
+  const projectsThisMonth = projects.filter(p => new Date(p.createdAt).getMonth() === new Date().getMonth()).length;
+  
+  const pendingQuotesCount = quotes.filter(q => q.status === 'pending').length;
+  const approvedQuotesCount = quotes.filter(q => q.status === 'approved').length;
+
+  const paidInvoicesCount = invoices.filter(i => i.status === 'paid').length;
+  
+  // Factures bientôt expirées (dans les 7 prochains jours)
+  const today = new Date();
+  const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const dueSoonInvoices = invoices.filter(i => i.status === 'pending' && new Date(i.dueDate) <= nextWeek && new Date(i.dueDate) >= today).length;
+
+  const stats =[
     { 
       label: 'Total Projects', 
-      value: '12', 
+      value: projects.length.toString(), 
       icon: <FolderKanban size={28} />, 
       color: '#1E40AF',
-      trend: '+3 this month',
-      trendUp: true,
-      subtitle: '5 active projects'
+      trend: `+${projectsThisMonth} this month`,
+      trendUp: projectsThisMonth > 0,
+      subtitle: `${activeProjectsCount} active projects`
     },
     { 
       label: 'Pending Quotes', 
-      value: '8', 
+      value: pendingQuotesCount.toString(), 
       icon: <FileText size={28} />, 
       color: '#F59E0B',
-      trend: '2 new',
-      trendUp: true,
+      trend: `${approvedQuotesCount} approved`,
+      trendUp: approvedQuotesCount > 0,
       subtitle: 'Awaiting response'
     },
     { 
-      label: 'Recent Orders', 
-      value: '23', 
-      icon: <Package size={28} />, 
-      color: '#10B981',
-      trend: '+5 this week',
-      trendUp: true,
-      subtitle: 'From marketplace'
-    },
-    { 
-      label: 'Active Tasks', 
-      value: '15', 
+      label: 'Paid Invoices', 
+      value: paidInvoicesCount.toString(), 
       icon: <Activity size={28} />, 
       color: '#8B5CF6',
-      trend: '3 due soon',
-      trendUp: false,
-      subtitle: 'Across all projects'
+      trend: `${dueSoonInvoices} due soon`,
+      trendUp: dueSoonInvoices === 0,
+      subtitle: 'From all projects'
     },
+    { 
+      label: 'Total Orders', 
+      value: '0', // Statique comme tu l'as demandé
+      icon: <Package size={28} />, 
+      color: '#10B981',
+      trend: '0 this week',
+      trendUp: true,
+      subtitle: 'From marketplace'
+    }
   ];
 
-  const recentProjects = [
-    {
-      id: 1,
-      title: 'Villa Construction - Tunis',
-      location: 'La Marsa, Tunis',
-      budget: '150,000 TND',
-      status: 'in-progress',
-      progress: 65,
-      deadline: '2026-06-15',
-      priority: 'high'
-    },
-    {
-      id: 2,
-      title: 'Office Renovation',
-      location: 'Centre Ville, Tunis',
-      budget: '45,000 TND',
-      status: 'in-progress',
-      progress: 30,
-      deadline: '2026-04-20',
-      priority: 'medium'
-    },
-    {
-      id: 3,
-      title: 'Apartment Restoration',
-      location: 'Sousse',
-      budget: '80,000 TND',
-      status: 'planning',
-      progress: 10,
-      deadline: '2026-08-10',
-      priority: 'low'
-    },
-  ];
+  // ==========================================
+  // GÉNÉRATEUR D'ACTIVITÉS RÉCENTES
+  // ==========================================
+  const generateActivities = () => {
+    const activities: any[] =[];
+
+    // 1. Activités des projets
+    projects.forEach(p => {
+      activities.push({
+        type: 'project_created',
+        date: new Date(p.createdAt),
+        text: `Project "${p.title}" was created`,
+        icon: <FolderKanban size={20} />,
+        color: '#1E40AF'
+      });
+      if (p.progress > 0) {
+        activities.push({
+          type: 'project_progress',
+          date: new Date(p.updatedAt),
+          text: `Project "${p.title}" reached ${p.progress}% completion`,
+          icon: <TrendingUp size={20} />,
+          color: '#1E40AF'
+        });
+      }
+    });
+
+    // 2. Activités des Devis (Quotes)
+    quotes.forEach(q => {
+      activities.push({
+        type: 'quote_created',
+        date: new Date(q.createdAt),
+        text: `Quote ${q.quoteNumber} generated for project ${q.project?.title || ''}`,
+        icon: <FileText size={20} />,
+        color: '#F59E0B'
+      });
+      if (q.status === 'approved') {
+        activities.push({
+          type: 'quote_approved',
+          date: new Date(q.updatedAt),
+          text: `Quote ${q.quoteNumber} was approved!`,
+          icon: <CheckCircle size={20} />,
+          color: '#10B981'
+        });
+      } else if (q.status === 'rejected') {
+        activities.push({
+          type: 'quote_rejected',
+          date: new Date(q.updatedAt),
+          text: `Quote ${q.quoteNumber} was rejected`,
+          icon: <XCircle size={20} />,
+          color: '#EF4444'
+        });
+      }
+    });
+
+    // 3. Activités des Factures (Invoices)
+    invoices.forEach(i => {
+      activities.push({
+        type: 'invoice_created',
+        date: new Date(i.createdAt),
+        text: `Invoice ${i.invoiceNumber} generated for ${i.clientName}`,
+        icon: <Receipt size={20} />,
+        color: '#8B5CF6'
+      });
+      if (i.status === 'paid') {
+        activities.push({
+          type: 'invoice_paid',
+          date: new Date(i.updatedAt),
+          text: `Payment received for Invoice ${i.invoiceNumber} 💰`,
+          icon: <CheckCircle size={20} />,
+          color: '#10B981'
+        });
+      }
+    });
+
+    // On trie toutes ces activités par date (de la plus récente à la plus ancienne)
+    activities.sort((a, b) => b.date.getTime() - a.date.getTime());
+    
+    // On ne garde que les 5 dernières pour ne pas surcharger l'affichage
+    return activities.slice(0, 5);
+  };
+
+  const recentActivities = generateActivities();
 
   const quickActions = [
     { 
@@ -128,14 +263,28 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     }
   };
 
+    const formatBudget = (budget: number) => {
+      return new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 }).format(budget);
+    };
+
+    const formatDate = (dateString: string) => {
+      if (!dateString) return 'N/A';
+      return new Date(dateString).toLocaleDateString('en-GB');
+    };
+
+    // Limiter aux 5 projets les plus récents pour l'affichage "Recent Projects"
+    const recentProjects = projects.slice(0, 5);
+
+      if (loading) return <div className="p-10 text-center text-muted-foreground">Loading your dashboard...</div>;
+
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
       <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-8 text-white shadow-2xl">
         <div className="max-w-3xl">
-          <h1 className="text-4xl font-bold mb-3">Welcome Back, Ahmed! 👋</h1>
+          <h1 className="text-4xl font-bold mb-3 capitalize">Welcome Back, {firstName}! 👋</h1>
           <p className="text-xl text-white/90 leading-relaxed">
-            You have 5 active projects and 8 pending quotes. Here's your dashboard overview.
+            You have {activeProjectsCount} active projects and {pendingQuotesCount} pending quotes. Here's your dashboard overview.
           </p>
         </div>
       </div>
@@ -183,6 +332,54 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       </Card>
 
       {/* Recent Projects */}
+      
+    <div className="space-y-8">
+      {/* Header avec message de bienvenue */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Projects stats
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Here's what's happening with your projects today.
+          </p>
+        </div>
+        
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid md:grid-cols-4 gap-6">
+        <StatsCard 
+          label="Active Projects" 
+          value={projects.filter(p => p.status === 'active').length.toString()} 
+          icon={<Activity size={28} />} 
+          color="#10B981" 
+          subtitle="In progress"
+        />
+        <StatsCard 
+          label="Pending" 
+          value={projects.filter(p => p.status === 'pending').length.toString()} 
+          icon={<Clock size={28} />} 
+          color="#F59E0B" 
+          subtitle="Awaiting approval"
+        />
+        <StatsCard 
+          label="Completed" 
+          value={projects.filter(p => p.status === 'completed').length.toString()} 
+          icon={<Package size={28} />} 
+          color="#3B82F6" 
+          subtitle="Finished"
+        />
+        <StatsCard 
+          label="Total Budget" 
+          value={formatBudget(projects.reduce((sum, p) => sum + (p.budget || 0), 0))} 
+          icon={<TrendingUp size={28} />} 
+          color="#8B5CF6" 
+          subtitle="All projects"
+        />
+      </div>
+
+      {/* Recent Projects */}
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -198,105 +395,96 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             <ArrowRight size={16} className="ml-2" />
           </Button>
         </div>
-        <div className="space-y-4">
-          {recentProjects.map((project) => (
-            <div
-              key={project.id}
-              className="p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-xl font-semibold text-foreground">{project.title}</h3>
-                    <Badge className={`${getStatusColor(project.status)} px-3 py-1 text-xs font-semibold`}>
-                      {getStatusLabel(project.status)}
-                    </Badge>
-                    <Badge className={`${getPriorityColor(project.priority)} px-3 py-1 text-xs font-semibold`}>
-                      {project.priority}
-                    </Badge>
-                  </div>
-                  <p className="text-muted-foreground mb-4 flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1">
-                      📍 {project.location}
-                    </span>
-                    <span className="text-gray-300">•</span>
-                    <span>Budget: <strong className="text-foreground">{project.budget}</strong></span>
-                    <span className="text-gray-300">•</span>
-                    <span>Due: <strong className="text-foreground">{project.deadline}</strong></span>
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-muted-foreground">Progress</span>
-                      <span className="text-xl font-bold text-primary">{project.progress}%</span>
-                    </div>
-                    <div className="h-3 rounded-full overflow-hidden bg-gray-200">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500 shadow-lg"
-                        style={{ width: `${project.progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="rounded-xl border-2 hover:bg-primary hover:text-white hover:border-primary whitespace-nowrap"
-                >
-                  View Details
-                  <ArrowRight size={16} className="ml-2" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
 
-      {/* Activity Timeline */}
+        {loading ? (
+          <div className="text-center py-10 text-muted-foreground">Loading projects...</div>
+        ) : error ? (
+          <div className="text-center py-10 text-red-500">{error}</div>
+        ) : recentProjects.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            No projects yet. Create your first project!
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {recentProjects.map((project) => (
+              <div
+                key={project._id}
+                className="p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-xl font-semibold text-foreground">{project.title}</h3>
+                      <Badge className={`${getStatusColor(project.status)} px-3 py-1 text-xs font-semibold`}>
+                        {getStatusLabel(project.status)}
+                      </Badge>
+                      {project.priority && (
+                        <Badge className={`${getPriorityColor(project.priority)} px-3 py-1 text-xs font-semibold`}>
+                          {project.priority}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground mb-4 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1">
+                        📍 {project.location.length > 25 ? project.location.substring(0, 25) + '…' : project.location}
+                      </span>
+                      <span className="text-gray-300">•</span>
+                      <span>Budget: <strong className="text-foreground">{formatBudget(project.budget)}</strong></span>
+                      <span className="text-gray-300">•</span>
+                      <span>Due: <strong className="text-foreground">{formatDate(project.endDate)}</strong></span>
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-muted-foreground">Progress</span>
+                        <span className="text-xl font-bold text-primary">{project.progress}%</span>
+                      </div>
+                      <div className="h-3 rounded-full overflow-hidden bg-gray-200">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500 shadow-lg"
+                          style={{ width: `${project.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="rounded-xl border-2 hover:bg-primary hover:text-white hover:border-primary whitespace-nowrap"
+                    onClick={() => onNavigate('details', project._id)}
+                  >
+                    View Details
+                    <ArrowRight size={16} className="ml-2" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  
+
+      {/* Activity Timeline (100% Dynamique) */}
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
         <h2 className="text-2xl font-bold text-foreground mb-6">Recent Activity</h2>
         <div className="space-y-6">
-          {[
-            { 
-              icon: <FileText size={20} />, 
-              color: '#10B981', 
-              text: 'Quote #Q-2024-045 approved by client Mohamed Ali', 
-              time: '2 hours ago',
-              type: 'success'
-            },
-            { 
-              icon: <Package size={20} />, 
-              color: '#F59E0B', 
-              text: 'Order #ORD-1234 shipped from BuildMaster Ltd', 
-              time: '5 hours ago',
-              type: 'info'
-            },
-            { 
-              icon: <Clock size={20} />, 
-              color: '#EF4444', 
-              text: 'Payment reminder for Invoice #INV-789', 
-              time: '1 day ago',
-              type: 'warning'
-            },
-            { 
-              icon: <TrendingUp size={20} />, 
-              color: '#1E40AF', 
-              text: 'Project "Villa Construction" reached 65% completion', 
-              time: '2 days ago',
-              type: 'success'
-            },
-          ].map((activity, index) => (
-            <div key={index} className="flex items-start gap-4">
-              <div 
-                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md"
-                style={{ backgroundColor: `${activity.color}15` }}
-              >
-                <div style={{ color: activity.color }}>{activity.icon}</div>
+          {recentActivities.length === 0 ? (
+            <p className="text-muted-foreground">No recent activity detected. Create a project to get started!</p>
+          ) : (
+            recentActivities.map((activity, index) => (
+              <div key={index} className="flex items-start gap-4">
+                <div 
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md"
+                  style={{ backgroundColor: `${activity.color}15` }}
+                >
+                  <div style={{ color: activity.color }}>{activity.icon}</div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-foreground font-medium leading-relaxed">{activity.text}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{getTimeAgo(activity.date)}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-foreground font-medium leading-relaxed">{activity.text}</p>
-                <p className="text-sm text-muted-foreground mt-1">{activity.time}</p>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </Card>
     </div>

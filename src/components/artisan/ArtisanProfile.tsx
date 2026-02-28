@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,32 +6,127 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { User, Mail, Phone, MapPin, Briefcase, Save, Camera } from 'lucide-react';
+import axios from 'axios';
 
 export default function ArtisanProfile() {
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
+  // L'URL de notre API configurée dans le .env
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   const [formData, setFormData] = useState({
-    name: 'Ahmed Ben Salah',
-    email: 'ahmed.bensalah@example.com',
-    phone: '+216 98 123 456',
-    location: 'Tunis, Tunisia',
-    bio: 'Experienced construction artisan with over 10 years of expertise in residential and commercial projects.',
-    specialization: 'General Construction, Renovation',
-    experience: '10+ years',
-    licenseNumber: 'LIC-TN-2014-5678'
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    location: '',
+    bio: '',
+    domain: '', // domain correspond à specialization
+    yearsExperience: '',
+    licenseNumber: ''
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  // 1. Récupérer les données de l'artisan au chargement
+  // 1. Récupérer les données de l'artisan au chargement
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {// Remplace la partie "VÉRIFICATION DU TOKEN" par ceci :
+  let token = null;
+  
+  // On cherche d'abord si la clé s'appelle directement 'token'
+  const directToken = localStorage.getItem('token');
+  
+  // Sinon on regarde si c'est stocké dans un objet 'user'
+  const userStorage = localStorage.getItem('user');
+
+  if (directToken) {
+    token = directToken;
+  } else if (userStorage) {
+    // Si c'est un objet, on le transforme en JSON pour extraire le token
+    const parsedUser = JSON.parse(userStorage);
+    token = parsedUser.token; // Assure-toi que c'est bien ".token" que le backend renvoie lors du login
+  }
+
+  console.log("1. Token extrait :", token);
+
+  if (!token) {
+    console.error("Toujours aucun token ! Il faut vérifier le authService.ts");
+    setLoading(false);
+    return;
+  }
+
+        const response = await axios.get(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        console.log("2. Réponse du Backend :", response.data);
+
+        // Adaptation si le backend renvoie { user: { ... } } ou directement les données
+        const userData = response.data.user ? response.data.user : response.data;
+        
+        console.log("3. Données extraites :", userData);
+
+        setFormData({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          phone: userData.phone || '',
+          location: userData.location || '',
+          bio: userData.bio || '',
+          domain: userData.domain || '',
+          yearsExperience: userData.yearsExperience?.toString() || '',
+          licenseNumber: userData.licenseNumber || ''
+        });
+        setLoading(false);
+      } catch (error: any) {
+        console.error("Erreur détaillée lors du chargement du profil:", error.response?.data || error.message);
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [API_URL]);
+
+  // 2. Sauvegarder les modifications
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsEditing(false);
-    // In a real app, this would save to backend
+    try {
+      // --- ON RÉCUPÈRE LE TOKEN DE LA MÊME FAÇON ---
+      let token = localStorage.getItem('token');
+      const userStorage = localStorage.getItem('user');
+      
+      if (!token && userStorage) {
+        const parsedUser = JSON.parse(userStorage);
+        token = parsedUser.token; 
+      }
+
+      if (!token) {
+        alert("Erreur de sécurité : Impossible de trouver le token.");
+        return;
+      }
+      // ---------------------------------------------
+
+      await axios.put(`${API_URL}/auth/profile`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setIsEditing(false);
+      alert('Profil mis à jour avec succès !');
+      
+      // Optionnel : tu peux recharger la page pour voir les changements confirmés
+      // window.location.reload(); 
+      
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour:", error);
+      alert('Erreur lors de la sauvegarde. Regarde la console.');
+    }
   };
 
-  const stats = [
-    { label: 'Completed Projects', value: '47' },
-    { label: 'Client Rating', value: '4.8/5' },
-    { label: 'Years Experience', value: '10+' },
-    { label: 'Active Projects', value: '5' }
-  ];
+  if (loading) return <div className="p-8 text-center">Chargement du profil...</div>;
+
+  const fullName = `${formData.firstName} ${formData.lastName}`;
+  const initials = `${formData.firstName?.charAt(0) || ''}${formData.lastName?.charAt(0) || ''}`.toUpperCase();
 
   return (
     <div className="space-y-6">
@@ -45,7 +140,7 @@ export default function ArtisanProfile() {
                   className="text-4xl"
                   style={{ backgroundColor: '#1F3A8A', color: '#FFFFFF' }}
                 >
-                  AB
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <button
@@ -61,10 +156,10 @@ export default function ArtisanProfile() {
           <div className="flex-1">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-2xl mb-1" style={{ color: '#111827' }}>{formData.name}</h2>
+                <h2 className="text-2xl mb-1" style={{ color: '#111827' }}>{fullName}</h2>
                 <p className="flex items-center gap-2 mb-2" style={{ color: '#6B7280' }}>
                   <Briefcase size={16} />
-                  {formData.specialization}
+                  {formData.domain}
                 </p>
                 <p className="flex items-center gap-2" style={{ color: '#6B7280' }}>
                   <MapPin size={16} />
@@ -80,15 +175,6 @@ export default function ArtisanProfile() {
                 {isEditing ? 'Cancel' : 'Edit Profile'}
               </Button>
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center p-4 rounded-lg" style={{ backgroundColor: '#F3F4F6' }}>
-                  <p className="text-2xl mb-1" style={{ color: '#1F3A8A' }}>{stat.value}</p>
-                  <p className="text-sm" style={{ color: '#6B7280' }}>{stat.label}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </Card>
@@ -101,27 +187,26 @@ export default function ArtisanProfile() {
           <form onSubmit={handleSave} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="firstName">First Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
                   <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    id="firstName"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     className="pl-10"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="lastName">Last Name</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
                   <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     className="pl-10"
                   />
                 </div>
@@ -154,20 +239,21 @@ export default function ArtisanProfile() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="specialization">Specialization</Label>
+                <Label htmlFor="domain">Specialization (Domain)</Label>
                 <Input
-                  id="specialization"
-                  value={formData.specialization}
-                  onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                  id="domain"
+                  value={formData.domain}
+                  onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="experience">Experience</Label>
+                <Label htmlFor="yearsExperience">Years of Experience</Label>
                 <Input
-                  id="experience"
-                  value={formData.experience}
-                  onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                  id="yearsExperience"
+                  type="number"
+                  value={formData.yearsExperience}
+                  onChange={(e) => setFormData({ ...formData, yearsExperience: e.target.value })}
                 />
               </div>
             </div>
@@ -191,11 +277,7 @@ export default function ArtisanProfile() {
               />
             </div>
 
-            <Button
-              type="submit"
-              className="text-white"
-              style={{ backgroundColor: '#10B981' }}
-            >
+            <Button type="submit" className="text-white" style={{ backgroundColor: '#10B981' }}>
               <Save size={20} className="mr-2" />
               Save Changes
             </Button>
@@ -205,38 +287,38 @@ export default function ArtisanProfile() {
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Full Name</p>
-                <p style={{ color: '#111827' }}>{formData.name}</p>
+                <p style={{ color: '#111827' }}>{fullName}</p>
               </div>
               <div>
                 <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Email Address</p>
-                <p style={{ color: '#111827' }}>{formData.email}</p>
+                <p style={{ color: '#111827' }}>{formData.email} <span className="text-xs bg-gray-100 px-2 py-1 rounded ml-2">(Read-only)</span></p>
               </div>
               <div>
                 <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Phone Number</p>
-                <p style={{ color: '#111827' }}>{formData.phone}</p>
+                <p style={{ color: '#111827' }}>{formData.phone || 'Not provided'}</p>
               </div>
               <div>
                 <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Location</p>
-                <p style={{ color: '#111827' }}>{formData.location}</p>
+                <p style={{ color: '#111827' }}>{formData.location || 'Not provided'}</p>
               </div>
               <div>
                 <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Specialization</p>
-                <p style={{ color: '#111827' }}>{formData.specialization}</p>
+                <p style={{ color: '#111827' }}>{formData.domain || 'Not provided'}</p>
               </div>
               <div>
                 <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Experience</p>
-                <p style={{ color: '#111827' }}>{formData.experience}</p>
+                <p style={{ color: '#111827' }}>{formData.yearsExperience ? `${formData.yearsExperience} years` : 'Not provided'}</p>
               </div>
             </div>
 
             <div>
               <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Bio</p>
-              <p style={{ color: '#111827' }}>{formData.bio}</p>
+              <p style={{ color: '#111827' }}>{formData.bio || 'No bio written yet.'}</p>
             </div>
 
             <div>
               <p className="text-sm mb-1" style={{ color: '#6B7280' }}>License Number</p>
-              <p style={{ color: '#111827' }}>{formData.licenseNumber}</p>
+              <p style={{ color: '#111827' }}>{formData.licenseNumber || 'Not provided'}</p>
             </div>
           </div>
         )}
