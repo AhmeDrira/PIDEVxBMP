@@ -15,9 +15,16 @@ interface ArtisanDashboardProps {
 }
 
 export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
-  const [activeView, setActiveView] = useState('home');
+  const[activeView, setActiveView] = useState('home');
 
-  const menuItems = [
+  // --- NOUVEAU : Récupération dynamique de l'utilisateur ---
+  const userStorage = localStorage.getItem('user');
+  const user = userStorage ? JSON.parse(userStorage) : null;
+  const fullName = user ? `${user.firstName} ${user.lastName}` : 'Artisan';
+  const role = user ? user.role : 'artisan';
+  // ---------------------------------------------------------
+
+  const menuItems =[
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'projects', label: 'My Projects', icon: <FolderKanban size={20} /> },
     { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
@@ -66,8 +73,8 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       onLogout={onLogout}
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}
-      userRole="artisan"
-      userName="Ahmed Ben Salah"
+      userRole={role}
+      userName={fullName}
     >
       {renderContent()}
     </DashboardLayout>

@@ -324,6 +324,52 @@ const getCertificationFile = async (req, res) => {
   }
 };
 
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Mise à jour des champs de base
+    user.firstName = req.body.firstName || user.firstName;
+    user.lastName = req.body.lastName || user.lastName;
+    user.phone = req.body.phone || user.phone;
+
+    // Mise à jour spécifique à l'artisan
+    if (user.role === 'artisan') {
+      user.location = req.body.location || user.location;
+      user.domain = req.body.domain || user.domain; // Utilisé pour specialization
+      user.yearsExperience = req.body.yearsExperience || user.yearsExperience;
+      user.bio = req.body.bio || user.bio;
+      user.licenseNumber = req.body.licenseNumber || user.licenseNumber;
+    }
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      _id: updatedUser._id,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+      location: updatedUser.location,
+      domain: updatedUser.domain,
+      yearsExperience: updatedUser.yearsExperience,
+      bio: updatedUser.bio,
+      licenseNumber: updatedUser.licenseNumber,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error during profile update' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -341,6 +387,7 @@ module.exports = {
   activateUser,
   deleteUser,
   getCertificationFile,
+  updateProfile
 };
 
 // Email utilities

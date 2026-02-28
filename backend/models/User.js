@@ -75,6 +75,8 @@ const Artisan = User.discriminator('artisan', new mongoose.Schema({
   location: { type: String, required: true },
   domain: { type: String, required: true },
   yearsExperience: { type: Number },
+  bio: { type: String, default: '' },
+  licenseNumber: { type: String, default: '' }
 }));
 
 const Expert = User.discriminator('expert', new mongoose.Schema({
