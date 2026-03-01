@@ -14,7 +14,15 @@ interface ManufacturerDashboardProps {
 export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboardProps) {
   const [activeView, setActiveView] = useState('home');
 
-  const menuItems = [
+  // --- RÉCUPÉRATION DYNAMIQUE ---
+  const userStorage = localStorage.getItem('user');
+  const user = userStorage ? JSON.parse(userStorage) : null;
+  // Pour un manufacturer, on affiche le nom de l'entreprise. S'il n'y en a pas, on met le nom du gérant.
+  const displayName = user?.companyName || (user ? `${user.firstName} ${user.lastName}` : 'Manufacturer');
+  const role = user?.role || 'manufacturer';
+  // ------------------------------
+
+  const menuItems =[
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'products', label: 'My Products', icon: <Package size={20} /> },
     { id: 'orders', label: 'Orders', icon: <ShoppingBag size={20} /> },
@@ -38,24 +46,16 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
     }
   };
 
-  const handleViewProfile = () => {
-    setActiveView('profile');
-  };
-
-  const handleEditProfile = () => {
-    setActiveView('profile');
-  };
-
   return (
     <DashboardLayout
       menuItems={menuItems}
       activeItem={activeView}
       onMenuItemClick={setActiveView}
       onLogout={onLogout}
-      onViewProfile={handleViewProfile}
-      onEditProfile={handleEditProfile}
-      userRole="manufacturer"
-      userName="BuildMaster Ltd"
+      onViewProfile={() => setActiveView('profile')}
+      onEditProfile={() => setActiveView('profile')}
+      userRole={role}
+      userName={displayName}
     >
       {renderContent()}
     </DashboardLayout>

@@ -14,5 +14,6 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
 app.use('/api/invoices', require('./routes/invoiceRoutes'));
 app.use('/api/quotes', require('./routes/quoteRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
 
 module.exports = app;

@@ -348,6 +348,13 @@ const updateProfile = async (req, res) => {
       user.bio = req.body.bio || user.bio;
       user.licenseNumber = req.body.licenseNumber || user.licenseNumber;
     }
+     //  Mise à jour spécifique au MANUFACTURER ---
+    if (user.role === 'manufacturer') {
+      user.companyName = req.body.companyName || user.companyName;
+      user.location = req.body.location || user.location;
+      user.description = req.body.description || user.description;
+      user.certificationNumber = req.body.certificationNumber || user.certificationNumber;
+    }
 
     const updatedUser = await user.save();
 
