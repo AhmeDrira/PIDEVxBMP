@@ -1,21 +1,16 @@
-// backend/routes/productRoutes.js
 const express = require('express');
 const router = express.Router();
-const { 
-  getProducts, 
-  createProduct, 
-  updateProduct, 
-  deleteProduct 
-} = require('../controllers/productController');
+const { createProduct, getProducts, updateProduct, deleteProduct, getMarketplaceProducts, createProductReview } = require('../controllers/productController');
+const { protect } = require('../middleware/authMiddleware');
 
-// IMPORT IMPORTANT: Ton middleware qui vérifie le Token JWT
-// Modifie le chemin ou le nom selon comment tu l'as appelé dans ton dossier middleware
-const { protect } = require('../middleware/authMiddleware'); 
+// ---> NOUVELLES ROUTES POUR LA MARKETPLACE
+router.get('/marketplace', protect, getMarketplaceProducts);
+router.post('/:id/reviews', protect, createProductReview);
 
-// Toutes les routes produits doivent être protégées (il faut être connecté)
+// Anciennes routes
 router.route('/')
-  .get(protect, getProducts)
-  .post(protect, createProduct);
+  .post(protect, createProduct)
+  .get(protect, getProducts);
 
 router.route('/:id')
   .put(protect, updateProduct)
