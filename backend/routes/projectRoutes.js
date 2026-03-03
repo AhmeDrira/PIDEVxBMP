@@ -1,9 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const { createProject,getProjects,updateProject } = require('../controllers/projectController');
-const { protect } = require('../middleware/authMiddleware'); // On utilise ton middleware existant
+const { 
+  createProject, 
+  getProjects, 
+  updateProject,
+  getProjectsByArtisan 
+} = require('../controllers/projectController');
 
-// Protège la route (seuls les utilisateurs connectés peuvent créer un projet)
+const { protect } = require('../middleware/authMiddleware');
+
+// =========================
+// Public Route (Expert view)
+// =========================
+router.get('/artisan/:artisanId', getProjectsByArtisan);
+
+// =========================
+// Private Routes (Artisan)
+// =========================
 router.post('/', protect, createProject);
 router.get('/', protect, getProjects);
 router.put('/:id', protect, updateProject);
