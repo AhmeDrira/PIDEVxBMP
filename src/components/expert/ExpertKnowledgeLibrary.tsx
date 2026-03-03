@@ -6,9 +6,11 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Plus, Search, Filter, BookOpen, Eye, ThumbsUp, Calendar, ArrowRight } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import KnowledgeDetailPage from '../knowledge/KnowledgeDetailPage';
 
 export default function ExpertKnowledgeLibrary() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
 
   const articles = [
     {
@@ -66,6 +68,16 @@ export default function ExpertKnowledgeLibrary() {
     article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     article.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Show article detail if selected
+  if (selectedArticleId) {
+    return (
+      <KnowledgeDetailPage
+        articleId={selectedArticleId}
+        onBack={() => setSelectedArticleId(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -133,7 +145,12 @@ export default function ExpertKnowledgeLibrary() {
                         <span>{article.publishedDate}</span>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="rounded-xl border-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="rounded-xl border-2"
+                      onClick={() => setSelectedArticleId(article.id.toString())}
+                    >
                       Read More
                     </Button>
                   </div>

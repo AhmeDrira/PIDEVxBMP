@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,9 +6,11 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Award } from 'lucide-react';
+import axios from 'axios';
 
 export default function ExpertProfile() {
   const [isEditing, setIsEditing] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const [formData, setFormData] = useState({
     name: 'Dr. Karim Mansour',
     email: 'k.mansour@expert.com',
@@ -20,9 +22,89 @@ export default function ExpertProfile() {
     institution: 'National Engineering School of Tunis'
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        let token: string | null = localStorage.getItem('token');
+        const userStorage = localStorage.getItem('user');
+
+        if (!token && userStorage) {
+          const parsedUser = JSON.parse(userStorage);
+          token = parsedUser.token;
+        }
+
+        console.log('ExpertProfile GET - Token:', token);
+
+        if (!token) {
+          console.error('ExpertProfile: no token found');
+          return;
+        }
+
+        const response = await axios.get(`${API_URL}/experts/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log('ExpertProfile GET - Response:', response.data);
+
+        const data = response.data;
+
+        setFormData((prev) => ({
+          ...prev,
+          name: `${data.firstName || ''} ${data.lastName || ''}`.trim() || prev.name,
+          email: data.email || prev.email,
+          phone: data.phone || '',
+          specialization: data.domain || '',
+        }));
+      } catch {
+        // Silently fail for now; UI remains with default static data
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsEditing(false);
+
+    try {
+      let token: string | null = localStorage.getItem('token');
+      const userStorage = localStorage.getItem('user');
+
+      if (!token && userStorage) {
+        const parsedUser = JSON.parse(userStorage);
+        token = parsedUser.token;
+      }
+
+      console.log('ExpertProfile PUT - Token:', token);
+
+      if (!token) {
+        setIsEditing(false);
+        return;
+      }
+
+      const fullName = formData.name.trim();
+      const [firstName, ...rest] = fullName.split(' ');
+      const lastName = rest.join(' ');
+
+      const response = await axios.put(
+        `${API_URL}/experts/me`,
+        {
+          firstName: firstName || '',
+          lastName: lastName || '',
+          phone: formData.phone,
+          domain: formData.specialization,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log('ExpertProfile PUT - Response:', response.data);
+    } finally {
+      setIsEditing(false);
+    }
   };
 
   const stats = [

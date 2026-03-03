@@ -15,6 +15,11 @@ interface ExpertDashboardProps {
 export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   const [activeView, setActiveView] = useState('home');
 
+  const userStorage = localStorage.getItem('user');
+  const user = userStorage ? JSON.parse(userStorage) : null;
+  const fullName = user ? `${user.firstName} ${user.lastName}` : 'Expert';
+  const role = user ? user.role : 'expert';
+
   const menuItems = [
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'library', label: 'Knowledge Library', icon: <BookOpen size={20} /> },
@@ -58,8 +63,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
       onLogout={onLogout}
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}
-      userRole="expert"
-      userName="Dr. Karim Mansour"
+      userRole={role}
+      userName={fullName}
     >
       {renderContent()}
     </DashboardLayout>
