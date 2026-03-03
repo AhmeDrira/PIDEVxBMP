@@ -85,6 +85,9 @@ const Expert = User.discriminator('expert', new mongoose.Schema({
 
 const Manufacturer = User.discriminator('manufacturer', new mongoose.Schema({
   companyName: { type: String, required: true },
+  location: { type: String, default: '' },
+  description: { type: String, default: '' },
+  certificationNumber: { type: String, default: '' },
   certificationFile: {
     data: Buffer,
     contentType: String,
