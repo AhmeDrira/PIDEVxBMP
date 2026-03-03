@@ -60,15 +60,16 @@ export default function Messages() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const userData = response.data.user ? response.data.user : response.data;
-        setCurrentUserId(userData._id || userData.id || null);
+        const id = userData._id || userData.id || null;
+        setCurrentUserId(id);
+        console.log('Current User ID:', id);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching current user:', err);
       }
     };
     fetchCurrentUser();
   }, []);
 
-  // Map conversation backend → frontend
   const mapConversation = (c: any): Conversation => {
     const otherUser = c.participants.find((p: any) => p._id !== currentUserId);
     const name = `${otherUser.firstName ?? ''} ${otherUser.lastName ?? ''}`.trim() || 'Conversation';
@@ -92,15 +93,33 @@ export default function Messages() {
     };
   };
 
-  // Map message backend → frontend
   const mapMessage = (m: any): Message => {
     const tsSource = m.createdAt || m.timestamp;
     const timestamp = tsSource
       ? new Date(tsSource).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
       : '';
-    const senderName = m.sender?.name || `${m.sender?.firstName ?? ''} ${m.sender?.lastName ?? ''}`.trim() || 'User';
-    const senderId = m.senderId || m.sender?._id || m.sender?.id;
+
+    let senderId: string | undefined;
+    let senderName: string = 'User';
+
+    if (typeof m.sender === 'string') {
+      senderId = m.sender;
+    } else if (typeof m.sender === 'object') {
+      senderId = m.sender._id || m.sender.id || m.senderId;
+      senderName = m.sender.name || `${m.sender.firstName ?? ''} ${m.sender.lastName ?? ''}`.trim() || 'User';
+    } else {
+      senderId = m.senderId || undefined;
+    }
+
     const isSelf = currentUserId ? senderId === currentUserId : false;
+
+    console.log('Mapping message:', {
+      messageId: m._id || m.id,
+      senderId,
+      senderName,
+      isSelf,
+      content: m.content,
+    });
 
     return {
       id: m._id || m.id,
@@ -112,7 +131,6 @@ export default function Messages() {
     };
   };
 
-  // Récupération des conversations
   const fetchConversations = useCallback(async () => {
     try {
       setLoadingConversations(true);
@@ -128,7 +146,6 @@ export default function Messages() {
       const mapped = convs.map(mapConversation);
       setConversations(mapped);
 
-      // Si on a sélectionné un artisan depuis ExpertArtisanDirectory
       const selectedArtisanId = localStorage.getItem('selectedArtisanId');
       if (selectedArtisanId) {
         let existingConv = mapped.find(c => c.participantId === selectedArtisanId);
@@ -149,13 +166,12 @@ export default function Messages() {
         setSelectedConversationId(mapped[0].id);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching conversations:', err);
     } finally {
       setLoadingConversations(false);
     }
   }, [selectedConversationId, currentUserId]);
 
-  // Récupération des messages
   const fetchMessages = useCallback(
     async (conversationId: string) => {
       try {
@@ -170,9 +186,11 @@ export default function Messages() {
         });
 
         const msgs = Array.isArray(response.data) ? response.data : [];
-        setMessages(msgs.map(mapMessage));
+        const mappedMsgs = msgs.map(mapMessage);
+        console.log('Fetched messages:', mappedMsgs);
+        setMessages(mappedMsgs);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching messages:', err);
       } finally {
         setLoadingMessages(false);
       }
@@ -180,7 +198,6 @@ export default function Messages() {
     [currentUserId]
   );
 
-  // Initial fetch
   useEffect(() => {
     const storedConversationId = localStorage.getItem('selectedConversationId');
     if (storedConversationId) {
@@ -202,19 +219,27 @@ export default function Messages() {
     if (!messageInput.trim() || !selectedConversationId) return;
     try {
       const token = getToken();
-      if (!token) return;
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
 
-      await axios.post(
+      console.log('Sending message:', messageInput);
+
+      const response = await axios.post(
         `${API_URL}/messages`,
         { conversationId: selectedConversationId, content: messageInput.trim() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      console.log('Message response:', response.data);
+
+      const newMsg = mapMessage(response.data);
+      setMessages(prev => [...prev, newMsg]);
       setMessageInput('');
-      fetchMessages(selectedConversationId);
       fetchConversations();
     } catch (err) {
-      console.error(err);
+      console.error('Error sending message:', err);
     }
   };
 
@@ -302,8 +327,17 @@ export default function Messages() {
             {messages.map(message => (
               <div key={message.id} className={`flex ${message.isSelf ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-md ${message.isSelf ? 'order-2' : 'order-1'}`}>
-                  {!message.isSelf && <p className="text-xs font-medium text-muted-foreground mb-2">{message.senderName}</p>}
-                  <div className={`px-5 py-3 rounded-2xl shadow-sm ${message.isSelf ? 'bg-primary text-white rounded-br-sm' : 'bg-white text-foreground rounded-bl-sm'}`}>
+                  {!message.isSelf && (
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{message.senderName}</p>
+                  )}
+                  <div
+  className={`px-5 py-3 rounded-2xl shadow-sm ${
+    message.isSelf
+      ? 'rounded-br-sm text-white'
+      : 'bg-white text-foreground rounded-bl-sm'
+  }`}
+  style={message.isSelf ? { backgroundColor: '#1E40AF' } : {}}
+>
                     <p className="leading-relaxed">{message.content}</p>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 px-1">{message.timestamp}</p>
