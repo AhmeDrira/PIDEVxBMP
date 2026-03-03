@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -11,68 +12,169 @@ interface ViewArtisanProfileProps {
   onContact?: () => void;
 }
 
+interface ArtisanContact {
+  phone: string;
+  email: string;
+}
+
+interface ArtisanPortfolioItem {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  completedDate: string;
+}
+
+interface ArtisanProfile {
+  firstName: string;
+  lastName: string;
+  domain: string;
+  location: string;
+  yearsExperience: number;
+  rating: number;
+  reviewCount: number;
+  completedProjects: number;
+  profileImage: string;
+  bio: string;
+  contact: ArtisanContact;
+  skills: string[];
+  certifications: string[];
+  portfolio: ArtisanPortfolioItem[];
+}
+
 export default function ViewArtisanProfile({ artisanId, onBack, onContact }: ViewArtisanProfileProps) {
-  // Mock artisan data - in real app this would come from API/props
-  const artisan = {
-    id: artisanId || '1',
-    firstName: 'Ahmed',
-    lastName: 'Ben Salah',
-    domain: 'General Construction & Masonry',
-    location: 'Tunis, Tunisia',
-    yearsExperience: 12,
-    rating: 4.8,
-    reviewCount: 47,
-    completedProjects: 156,
-    profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-    bio: 'Experienced construction artisan specializing in residential and commercial projects. Committed to quality workmanship and client satisfaction. Licensed and insured professional with extensive experience in modern building techniques.',
-    contact: {
-      phone: '+216 98 765 432',
-      email: 'ahmed.bensalah@email.com'
-    },
-    skills: [
-      'Masonry',
-      'Concrete Work',
-      'Foundation Building',
-      'Brickwork',
-      'Stone Work',
-      'Plastering'
-    ],
-    certifications: [
-      'Licensed General Contractor',
-      'OSHA Safety Certified',
-      'Advanced Masonry Techniques'
-    ],
-    portfolio: [
-      {
-        id: 1,
-        title: 'Villa Residence - Carthage',
-        description: 'Complete masonry and foundation work',
-        image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop',
-        completedDate: '2026-01-15'
-      },
-      {
-        id: 2,
-        title: 'Commercial Building - La Marsa',
-        description: 'Structural masonry for 3-story building',
-        image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=300&fit=crop',
-        completedDate: '2025-12-10'
-      },
-      {
-        id: 3,
-        title: 'Residential Complex - Sousse',
-        description: 'Foundation and brickwork for 10 units',
-        image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=400&h=300&fit=crop',
-        completedDate: '2025-11-20'
-      },
-      {
-        id: 4,
-        title: 'Historic Renovation - Medina',
-        description: 'Traditional stonework restoration',
-        image: 'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=400&h=300&fit=crop',
-        completedDate: '2025-10-05'
+  const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchArtisan = async () => {
+      if (!artisanId) {
+        setError('Artisan not found');
+        setLoading(false);
+        return;
       }
-    ]
-  };
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await axios.get(`http://localhost:5000/api/artisans/${artisanId}`);
+        const data = response.data;
+
+        const mappedArtisan: ArtisanProfile = {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          domain: data.domain,
+          location: data.location,
+          yearsExperience: data.yearsExperience,
+          bio: data.bio,
+          contact: {
+            phone: data.phone,
+            email: data.email,
+          },
+          rating: 4.8,
+          reviewCount: 47,
+          completedProjects: 120,
+          skills: [
+            'Masonry',
+            'Concrete Work',
+            'Foundation Building',
+            'Brickwork',
+            'Stone Work',
+            'Plastering',
+          ],
+          certifications: [
+            'Licensed General Contractor',
+            'OSHA Safety Certified',
+            'Advanced Masonry Techniques',
+          ],
+          portfolio: [
+            {
+              id: '1',
+              title: 'Villa Residence - Carthage',
+              description: 'Complete masonry and foundation work',
+              image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop',
+              completedDate: '2026-01-15',
+            },
+            {
+              id: '2',
+              title: 'Commercial Building - La Marsa',
+              description: 'Structural masonry for 3-story building',
+              image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=300&fit=crop',
+              completedDate: '2025-12-10',
+            },
+            {
+              id: '3',
+              title: 'Residential Complex - Sousse',
+              description: 'Foundation and brickwork for 10 units',
+              image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=400&h=300&fit=crop',
+              completedDate: '2025-11-20',
+            },
+            {
+              id: '4',
+              title: 'Historic Renovation - Medina',
+              description: 'Traditional stonework restoration',
+              image: 'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=400&h=300&fit=crop',
+              completedDate: '2025-10-05',
+            },
+          ],
+          profileImage:
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
+        };
+
+        setArtisan(mappedArtisan);
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.message ||
+          err?.message ||
+          'Failed to load artisan';
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArtisan();
+  }, [artisanId]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {onBack && (
+          <Button 
+            variant="outline" 
+            onClick={onBack} 
+            className="rounded-xl border-2"
+          >
+            <ArrowRight size={20} className="mr-2 rotate-180" />
+            Back to Artisan Directory
+          </Button>
+        )}
+        <p className="text-sm text-muted-foreground">Loading artisan profile...</p>
+      </div>
+    );
+  }
+
+  if (error || !artisan) {
+    return (
+      <div className="space-y-6">
+        {onBack && (
+          <Button 
+            variant="outline" 
+            onClick={onBack} 
+            className="rounded-xl border-2"
+          >
+            <ArrowRight size={20} className="mr-2 rotate-180" />
+            Back to Artisan Directory
+          </Button>
+        )}
+        <p className="text-sm text-red-500">
+          {error || 'Artisan not found'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

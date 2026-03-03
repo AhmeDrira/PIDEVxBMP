@@ -1,4 +1,4 @@
-import ArtisanMessages from '../artisan/ArtisanMessages';
+import Messages from '../common/Messages';
 
 // Expert uses the same messaging component as Artisan
-export default ArtisanMessages;
+export default Messages;

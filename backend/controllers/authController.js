@@ -11,7 +11,7 @@ async function verifyCaptcha(token) {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
   if (!secret) {
     console.warn('RECAPTCHA_SECRET_KEY not set — skipping verification');
-    return true;
+    return true;  
   }
   try {
     const response = await axios.post(
