@@ -146,6 +146,7 @@ router.get('/', async (req, res) => {
     res.json({
       totalUsers,
       activeUsers,
+      projects: totalProjects,
       activeProjects,
       totalProjects,
       totalInvoices,

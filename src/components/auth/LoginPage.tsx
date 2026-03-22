@@ -29,7 +29,13 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
   useEffect(() => {
     fetch('/api/stats')
       .then(r => r.json())
-      .then(data => setSiteStats(data))
+      .then((data) => {
+        setSiteStats({
+          activeUsers: Number(data?.activeUsers) || 0,
+          projects: Number(data?.projects ?? data?.totalProjects ?? data?.activeProjects) || 0,
+          satisfaction: Number(data?.satisfaction) || 0,
+        });
+      })
       .catch(() => {});
   }, []);
 

@@ -34,7 +34,11 @@ const register = async (userData: any) => {
 };
 
 const login = async (userData: any) => {
-  const response = await axios.post(`${API_URL}/login`, userData);
+  const payload = {
+    ...userData,
+    email: typeof userData?.email === 'string' ? userData.email.trim() : userData?.email,
+  };
+  const response = await axios.post(`${API_URL}/login`, payload);
   if (response.data) {
     localStorage.setItem('user', JSON.stringify(response.data));
   }

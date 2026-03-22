@@ -98,12 +98,16 @@ const findUserByPhone = async (phone) => {
   });
 };
 
-const findUserByEmail = async (email) => {
+const findUserByEmail = async (email, options = {}) => {
   if (!email || typeof email !== 'string') return null;
   const trimmed = email.trim().toLowerCase();
   if (!trimmed) return null;
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return User.findOne({ email: { $regex: new RegExp(`^${escaped}$`, 'i') } });
+  const query = User.findOne({ email: { $regex: new RegExp(`^${escaped}$`, 'i') } });
+  if (options.selectPassword) {
+    query.select('+password');
+  }
+  return query;
 };
 
 // @desc    Register new user
@@ -211,7 +215,11 @@ const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email }).select('+password');
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const user = await findUserByEmail(email, { selectPassword: true });
 
     if (user && (await user.matchPassword(password))) {
       // Check if email is verified
