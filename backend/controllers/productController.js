@@ -1,5 +1,6 @@
 // backend/controllers/productController.js
 const Product = require('../models/Product');
+const { logAction } = require('../utils/actionLogger');
 
 // Fonction pour déterminer le statut automatiquement selon le stock
 const calculateStatus = (stock) => {
@@ -37,9 +38,104 @@ const createProduct = async (req, res) => {
     });
 
     const savedProduct = await newProduct.save();
+
+    await logAction(req, {
+      actionKey: 'manufacturer.product.create',
+      actionLabel: 'Added Marketplace Material',
+      entityType: 'product',
+      entityId: savedProduct._id,
+      description: `Manufacturer added product \"${savedProduct.name}\" to marketplace.`,
+      metadata: {
+        name: savedProduct.name,
+        category: savedProduct.category,
+        price: savedProduct.price,
+        stock: savedProduct.stock,
+      },
+    });
+
     res.status(201).json(savedProduct);
   } catch (error) {
     res.status(500).json({ message: 'Failed to create product', error: error.message });
+  }
+};
+
+// @desc    Checkout marketplace cart
+// @route   POST /api/products/checkout
+const checkoutProducts = async (req, res) => {
+  try {
+    if (!req.user || !['expert', 'artisan'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only expert or artisan accounts can checkout materials' });
+    }
+
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!items.length) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    const normalizedItems = items
+      .map((item) => ({
+        productId: item.productId,
+        quantity: Number(item.quantity),
+      }))
+      .filter((item) => item.productId && Number.isFinite(item.quantity) && item.quantity > 0);
+
+    if (!normalizedItems.length) {
+      return res.status(400).json({ message: 'Invalid cart items' });
+    }
+
+    const productIds = normalizedItems.map((item) => item.productId);
+    const products = await Product.find({ _id: { $in: productIds } });
+    const productsMap = new Map(products.map((product) => [String(product._id), product]));
+
+    let totalAmount = 0;
+    const summaryItems = [];
+
+    for (const item of normalizedItems) {
+      const product = productsMap.get(String(item.productId));
+      if (!product) {
+        return res.status(404).json({ message: 'One or more products no longer exist' });
+      }
+
+      if (product.stock < item.quantity) {
+        return res.status(400).json({
+          message: `Not enough stock for ${product.name}`,
+        });
+      }
+
+      product.stock -= item.quantity;
+      product.status = calculateStatus(product.stock);
+      await product.save();
+
+      totalAmount += product.price * item.quantity;
+      summaryItems.push({
+        productId: product._id,
+        name: product.name,
+        quantity: item.quantity,
+        unitPrice: product.price,
+      });
+    }
+
+    await logAction(req, {
+      actionKey: 'marketplace.checkout',
+      actionLabel: 'Purchased Materials',
+      entityType: 'order',
+      entityId: null,
+      description: `${req.user.role} completed a marketplace checkout (${summaryItems.length} items).`,
+      metadata: {
+        itemCount: summaryItems.length,
+        totalAmount,
+        items: summaryItems,
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Checkout completed successfully',
+      itemCount: summaryItems.length,
+      totalAmount,
+      items: summaryItems,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to complete checkout', error: error.message });
   }
 };
 
@@ -144,5 +240,6 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getMarketplaceProducts,
-  createProductReview
+  createProductReview,
+  checkoutProducts,
 };

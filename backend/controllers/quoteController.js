@@ -1,4 +1,5 @@
 const Quote = require('../models/Quote');
+const { logAction } = require('../utils/actionLogger');
 
 // @desc    Create a new quote
 // @route   POST /api/quotes
@@ -23,6 +24,18 @@ const createQuote = async (req, res) => {
       description,
       validUntil,
       paymentTerms
+    });
+
+    await logAction(req, {
+      actionKey: 'artisan.quote.create',
+      actionLabel: 'Generated Quote',
+      entityType: 'quote',
+      entityId: quote._id,
+      description: `Generated quote ${quote.quoteNumber}.`,
+      metadata: {
+        quoteNumber,
+        amount,
+      },
     });
 
     res.status(201).json(quote);

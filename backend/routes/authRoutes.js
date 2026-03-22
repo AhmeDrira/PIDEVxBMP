@@ -20,6 +20,7 @@ const {
   updatePassword,
   subAdminForgotPassword,
   resetSubAdminPassword,
+  updateSubAdminPermissions,
   sendPhoneVerification,
   verifyPhone,
   forgotPasswordPhone,
@@ -75,6 +76,7 @@ router.post('/admin/users/:id/suspend', protect, admin, require('../controllers/
 router.post('/admin/users/:id/activate', protect, admin, require('../controllers/authController').activateUser);
 router.delete('/admin/users/:id', protect, admin, require('../controllers/authController').deleteUser);
 router.post('/admin/subadmins/:id/reset-password', protect, admin, require('../middleware/authMiddleware').superAdminOnly, resetSubAdminPassword);
+router.put('/admin/subadmins/:id/permissions', protect, admin, require('../middleware/authMiddleware').superAdminOnly, updateSubAdminPermissions);
 
 const { getCertificationFile } = require('../controllers/authController');
 // Get certification file

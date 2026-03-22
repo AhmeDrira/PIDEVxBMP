@@ -8,6 +8,7 @@ const axios = require('axios');
 const { OAuth2Client } = require('google-auth-library');
 const { User, Artisan, Expert, Manufacturer, Admin } = require('../models/User');
 const Notification = require('../models/Notification');
+const { logAction } = require('../utils/actionLogger');
 
 // Force IPv4 for all DNS lookups and outbound HTTP(S) connections.
 // Node.js 20+ / 22 uses "happy eyeballs" which tries IPv4 + IPv6 in parallel;
@@ -453,6 +454,28 @@ const createSubAdmin = async (req, res) => {
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
     await sendVerificationEmail(email, verificationUrl);
 
+    await logAction(req, {
+      actorOverride: {
+        role: 'admin',
+        adminType: 'super',
+        isSuperAdmin: true,
+        firstName: 'Super',
+        lastName: 'Admin',
+      },
+      actionKey: 'admin.subadmin.create',
+      actionLabel: 'Created Sub-Admin',
+      entityType: 'user',
+      entityId: newAdmin._id,
+      targetName: `${newAdmin.firstName || ''} ${newAdmin.lastName || ''}`.trim() || newAdmin.email,
+      targetRole: 'admin',
+      description: 'Super admin created a sub-admin account.',
+      metadata: {
+        email: newAdmin.email,
+        adminType: newAdmin.adminType,
+        permissions: newAdmin.permissions,
+      },
+    });
+
     return res.status(201).json({
       message: 'Sub-admin account created successfully. Verification email sent.',
       email,
@@ -712,9 +735,71 @@ async function resetSubAdminPassword(req, res) {
       relatedId: user._id,
     });
 
+    await logAction(req, {
+      actionKey: 'admin.subadmin.password.reset',
+      actionLabel: 'Reset Sub-Admin Password',
+      entityType: 'user',
+      entityId: user._id,
+      targetName: fullName,
+      targetRole: 'admin',
+      description: 'Super admin reset a sub-admin password and sent a temporary one-time password.',
+      metadata: {
+        email: user.email,
+      },
+    });
+
     return res.status(200).json({ message: 'Temporary password sent' });
   } catch (error) {
     console.error(error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// @desc    Super admin updates sub-admin permissions
+// @route   PUT /api/auth/admin/subadmins/:id/permissions
+// @access  Private (Super Admin)
+async function updateSubAdminPermissions(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (!user || user.role !== 'admin' || user.adminType !== 'sub') {
+      return res.status(404).json({ message: 'Sub-admin not found' });
+    }
+
+    const previousPermissions = coercePermissions(user.permissions || {});
+    const nextPermissions = coercePermissions(req.body?.permissions || {});
+
+    user.permissions = nextPermissions;
+    await user.save({ validateBeforeSave: false });
+
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    await logAction(req, {
+      actionKey: 'admin.subadmin.permissions.update',
+      actionLabel: 'Updated Sub-Admin Permissions',
+      entityType: 'user',
+      entityId: user._id,
+      targetName: fullName,
+      targetRole: 'admin',
+      description: 'Super admin updated sub-admin permissions.',
+      metadata: {
+        email: user.email,
+        before: previousPermissions,
+        after: nextPermissions,
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Sub-admin permissions updated',
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        permissions: user.permissions,
+      },
+    });
+  } catch (error) {
+    console.error('updateSubAdminPermissions error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 }
@@ -735,6 +820,7 @@ module.exports = {
   updatePassword,
   subAdminForgotPassword,
   resetSubAdminPassword,
+  updateSubAdminPermissions,
   sendPhoneVerification,
   verifyPhone,
   forgotPasswordPhone,
@@ -1293,6 +1379,20 @@ async function approveManufacturer(req, res) {
       });
     }
 
+    await logAction(req, {
+      actionKey: 'admin.manufacturer.approve',
+      actionLabel: 'Approved Manufacturer',
+      entityType: 'manufacturer',
+      entityId: m._id,
+      targetName: m.companyName || m.email,
+      targetRole: 'manufacturer',
+      description: 'Admin approved a manufacturer verification request.',
+      metadata: {
+        companyName: m.companyName,
+        email: m.email,
+      },
+    });
+
     return res.status(200).json({ message: 'Manufacturer approved' });
   } catch (error) {
     console.error(error);
@@ -1312,6 +1412,8 @@ async function rejectManufacturer(req, res) {
     const { reason } = req.body;
     const m = await Manufacturer.findById(id);
     if (!m) return res.status(404).json({ message: 'Manufacturer not found' });
+    const companyName = m.companyName;
+    const manufacturerEmail = m.email;
     m.verificationStatus = 'rejected';
     m.reviewedAt = new Date();
     m.reviewedBy = req.user._id;
@@ -1343,6 +1445,21 @@ async function rejectManufacturer(req, res) {
       });
     }
 
+    await logAction(req, {
+      actionKey: 'admin.manufacturer.reject',
+      actionLabel: 'Rejected Manufacturer',
+      entityType: 'manufacturer',
+      entityId: m._id,
+      targetName: companyName || manufacturerEmail,
+      targetRole: 'manufacturer',
+      description: 'Admin rejected a manufacturer verification request and removed the account.',
+      metadata: {
+        companyName,
+        email: manufacturerEmail,
+        reason: m.rejectionReason,
+      },
+    });
+
     // Delete the account as per workflow
     await m.deleteOne();
 
@@ -1358,7 +1475,7 @@ async function rejectManufacturer(req, res) {
 // @access  Private (Admin)
 async function listUsers(req, res) {
   try {
-    const users = await User.find().select('firstName lastName email role status createdAt adminType');
+    const users = await User.find().select('firstName lastName email role status createdAt adminType permissions');
     return res.status(200).json(users);
   } catch (error) {
     console.error(error);
@@ -1380,8 +1497,23 @@ async function suspendUser(req, res) {
     if (req.user?.adminType === 'sub' && user.role === 'admin') {
       return res.status(403).json({ message: 'Sub-admins cannot suspend admin accounts' });
     }
+    const targetName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
     user.status = 'suspended';
     await user.save({ validateBeforeSave: false });
+
+    await logAction(req, {
+      actionKey: 'admin.user.suspend',
+      actionLabel: 'Suspended User',
+      entityType: 'user',
+      entityId: user._id,
+      targetName,
+      targetRole: user.role,
+      description: 'Admin suspended a user account.',
+      metadata: {
+        email: user.email,
+      },
+    });
+
     return res.status(200).json({ message: 'User suspended' });
   } catch (error) {
     console.error(error);
@@ -1403,8 +1535,23 @@ async function activateUser(req, res) {
     if (req.user?.adminType === 'sub' && user.role === 'admin') {
       return res.status(403).json({ message: 'Sub-admins cannot update admin accounts' });
     }
+    const targetName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
     user.status = 'active';
     await user.save({ validateBeforeSave: false });
+
+    await logAction(req, {
+      actionKey: 'admin.user.activate',
+      actionLabel: 'Activated User',
+      entityType: 'user',
+      entityId: user._id,
+      targetName,
+      targetRole: user.role,
+      description: 'Admin activated a user account.',
+      metadata: {
+        email: user.email,
+      },
+    });
+
     return res.status(200).json({ message: 'User activated' });
   } catch (error) {
     console.error(error);
@@ -1426,7 +1573,22 @@ async function deleteUser(req, res) {
     if (req.user?.adminType === 'sub' && user.role === 'admin') {
       return res.status(403).json({ message: 'Sub-admins cannot delete admin accounts' });
     }
+    const targetName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
     await user.deleteOne();
+
+    await logAction(req, {
+      actionKey: 'admin.user.delete',
+      actionLabel: 'Deleted User',
+      entityType: 'user',
+      entityId: user._id,
+      targetName,
+      targetRole: user.role,
+      description: 'Admin deleted a user account.',
+      metadata: {
+        email: user.email,
+      },
+    });
+
     return res.status(200).json({ message: 'User deleted' });
   } catch (error) {
     console.error(error);

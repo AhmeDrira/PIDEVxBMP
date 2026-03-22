@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { KeyRound, Search, Trash2, Shield, UserCheck, UserX } from 'lucide-react';
+import { KeyRound, Search, Trash2, Shield, UserCheck, UserX, Settings2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Checkbox } from '../ui/checkbox';
 import authService from '../../services/authService';
 import { toast } from 'sonner';
 
@@ -14,15 +15,45 @@ interface AdminUserManagementProps {
   canDeleteUsers?: boolean;
 }
 
+type PermissionSet = {
+  canVerifyManufacturers: boolean;
+  canManageKnowledge: boolean;
+  canSuspendUsers: boolean;
+  canDeleteUsers: boolean;
+};
+
+type ManagedUser = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt?: string;
+  adminType?: string;
+  permissions?: Partial<PermissionSet>;
+};
+
+const emptyPermissions: PermissionSet = {
+  canVerifyManufacturers: false,
+  canManageKnowledge: false,
+  canSuspendUsers: false,
+  canDeleteUsers: false,
+};
+
 export default function AdminUserManagement({ canSuspendUsers = false, canDeleteUsers = false }: AdminUserManagementProps) {
   const currentUser = authService.getCurrentUser();
   const isSubAdmin = currentUser?.role === 'admin' && currentUser?.adminType === 'sub';
   const isSuperAdmin = currentUser?.role === 'admin' && (currentUser?.adminType === 'super' || currentUser?.isSuperAdmin);
   const [searchQuery, setSearchQuery] = useState('');
-  const [users, setUsers] = useState<Array<{ _id: string; firstName?: string; lastName?: string; email: string; role: string; status: string; createdAt?: string; adminType?: string }>>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeFilter, setActiveFilter] = useState('Total Users');
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [editingSubAdmin, setEditingSubAdmin] = useState<ManagedUser | null>(null);
+  const [editingPermissions, setEditingPermissions] = useState<PermissionSet>(emptyPermissions);
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -90,9 +121,42 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
     }
   };
 
-  const displayName = (u: any) => {
+  const displayName = (u: ManagedUser) => {
     if (u.firstName || u.lastName) return `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
     return u.email;
+  };
+
+  const openPermissionsEditor = (user: ManagedUser) => {
+    if (!isSuperAdmin || user.role !== 'admin' || user.adminType !== 'sub') {
+      toast.error('Only super admins can edit sub-admin permissions.');
+      return;
+    }
+
+    setEditingSubAdmin(user);
+    setEditingPermissions({
+      canVerifyManufacturers: Boolean(user.permissions?.canVerifyManufacturers),
+      canManageKnowledge: Boolean(user.permissions?.canManageKnowledge),
+      canSuspendUsers: Boolean(user.permissions?.canSuspendUsers),
+      canDeleteUsers: Boolean(user.permissions?.canDeleteUsers),
+    });
+    setPermissionsDialogOpen(true);
+  };
+
+  const savePermissions = async () => {
+    if (!editingSubAdmin) return;
+    setSavingPermissions(true);
+    try {
+      await authService.updateSubAdminPermissions(editingSubAdmin._id, editingPermissions);
+      toast.success('Sub-admin permissions updated successfully.');
+      setPermissionsDialogOpen(false);
+      setEditingSubAdmin(null);
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Unable to update permissions.';
+      toast.error(message);
+    } finally {
+      setSavingPermissions(false);
+    }
   };
 
   const filteredUsers = users.filter(user => {
@@ -256,6 +320,17 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
             <div className="flex gap-2">
               {isSuperAdmin && user.role === 'admin' && user.adminType === 'sub' && (
                 <Button
+                  onClick={() => openPermissionsEditor(user)}
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-4 rounded-xl border-2"
+                  title="Edit permissions"
+                >
+                  <Settings2 size={16} />
+                </Button>
+              )}
+              {isSuperAdmin && user.role === 'admin' && user.adminType === 'sub' && (
+                <Button
                   onClick={() => resetSubAdminPassword(user._id)}
                   variant="outline"
                   size="sm"
@@ -322,6 +397,99 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
           </Card>
         ))}
       </div>
+
+      {permissionsDialogOpen && (
+        <div className="fixed inset-0 z-[1000]">
+          <button
+            type="button"
+            aria-label="Close permissions modal"
+            className="absolute inset-0 bg-black/55"
+            onClick={() => setPermissionsDialogOpen(false)}
+          />
+
+          <div className="relative z-[1001] w-full h-full flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl p-6">
+              <div className="mb-4">
+                <h3 className="text-xl font-bold text-foreground">Edit Sub-Admin Permissions</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {editingSubAdmin ? `Update access rights for ${displayName(editingSubAdmin)}.` : 'Select permissions.'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+                <div className="rounded-xl border p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={editingPermissions.canVerifyManufacturers}
+                      onCheckedChange={(checked) => {
+                        setEditingPermissions((prev) => ({ ...prev, canVerifyManufacturers: checked === true }));
+                      }}
+                    />
+                    <div>
+                      <p className="font-semibold text-foreground">Manufacturer Verification</p>
+                      <p className="text-sm text-muted-foreground">Review and approve manufacturer applications.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={editingPermissions.canManageKnowledge}
+                      onCheckedChange={(checked) => {
+                        setEditingPermissions((prev) => ({ ...prev, canManageKnowledge: checked === true }));
+                      }}
+                    />
+                    <div>
+                      <p className="font-semibold text-foreground">Knowledge Library</p>
+                      <p className="text-sm text-muted-foreground">Publish and manage knowledge articles.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={editingPermissions.canSuspendUsers}
+                      onCheckedChange={(checked) => {
+                        setEditingPermissions((prev) => ({ ...prev, canSuspendUsers: checked === true }));
+                      }}
+                    />
+                    <div>
+                      <p className="font-semibold text-foreground">Suspend Users</p>
+                      <p className="text-sm text-muted-foreground">Pause accounts that violate platform policy.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={editingPermissions.canDeleteUsers}
+                      onCheckedChange={(checked) => {
+                        setEditingPermissions((prev) => ({ ...prev, canDeleteUsers: checked === true }));
+                      }}
+                    />
+                    <div>
+                      <p className="font-semibold text-foreground">Delete Users</p>
+                      <p className="text-sm text-muted-foreground">Permanently remove accounts.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setPermissionsDialogOpen(false)} disabled={savingPermissions}>
+                  Cancel
+                </Button>
+                <Button onClick={savePermissions} disabled={savingPermissions}>
+                  {savingPermissions ? 'Saving...' : 'Save Permissions'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

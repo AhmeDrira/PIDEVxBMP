@@ -1,4 +1,5 @@
 const Project = require('../models/Project');
+const { logAction } = require('../utils/actionLogger');
 
 // @desc    Create a new project
 // @route   POST /api/projects
@@ -21,6 +22,18 @@ const createProject = async (req, res) => {
       startDate,
       endDate,
       artisan: req.user._id 
+    });
+
+    await logAction(req, {
+      actionKey: 'artisan.project.create',
+      actionLabel: 'Created Project',
+      entityType: 'project',
+      entityId: project._id,
+      description: `Project \"${project.title}\" created by artisan.`,
+      metadata: {
+        title: project.title,
+        budget: project.budget,
+      },
     });
 
     res.status(201).json(project);

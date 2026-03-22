@@ -58,7 +58,7 @@ const loginWithGoogle = async (credential: string, role?: string) => {
 };
 
 const adminLogin = async (secretKey: string) => {
-  const response = await axios.post(`${API_URL}/admin/login`, { secretKey });
+  const response = await axios.post(`${API_URL}/admin/login`, { secretKey: secretKey?.trim?.() ?? secretKey });
   if (response.data) {
     localStorage.setItem('user', JSON.stringify(response.data));
   }
@@ -201,6 +201,18 @@ const authService = {
   },
   resetSubAdminPassword: async (id: string) => {
     const response = await api.post(`/auth/admin/subadmins/${id}/reset-password`);
+    return response.data;
+  },
+  updateSubAdminPermissions: async (
+    id: string,
+    permissions: {
+      canVerifyManufacturers: boolean;
+      canManageKnowledge: boolean;
+      canSuspendUsers: boolean;
+      canDeleteUsers: boolean;
+    }
+  ) => {
+    const response = await api.put(`/auth/admin/subadmins/${id}/permissions`, { permissions });
     return response.data;
   },
 };

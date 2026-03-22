@@ -261,7 +261,7 @@ export default function DashboardLayout({
         {/* Mobile Bottom Navigation */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
           <div className="flex items-center justify-around px-2 py-3">
-            {menuItems.slice(0, 4).map((item) => (
+            {menuItems.slice(0, 5).map((item) => (
               <button
                 key={item.id}
                 onClick={() => onMenuItemClick(item.id)}

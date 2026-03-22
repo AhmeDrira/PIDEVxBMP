@@ -1,4 +1,5 @@
 const Invoice = require('../models/Invoice');
+const { logAction } = require('../utils/actionLogger');
 
 // @desc    Create a new invoice
 // @route   POST /api/invoices
@@ -25,6 +26,19 @@ const createInvoice = async (req, res) => {
       description,
       issueDate,
       dueDate
+    });
+
+    await logAction(req, {
+      actionKey: 'artisan.invoice.create',
+      actionLabel: 'Generated Invoice',
+      entityType: 'invoice',
+      entityId: invoice._id,
+      description: `Generated invoice ${invoice.invoiceNumber}.`,
+      metadata: {
+        invoiceNumber,
+        amount,
+        clientName,
+      },
     });
 
     res.status(201).json(invoice);

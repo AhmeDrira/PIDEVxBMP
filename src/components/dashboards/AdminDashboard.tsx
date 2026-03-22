@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, Users, CheckSquare, BookOpen, BarChart3, ShieldOff } from 'lucide-react';
+import { Home, Users, CheckSquare, BookOpen, BarChart3, ShieldOff, History } from 'lucide-react';
 import AdminUserManagement from '../admin/AdminUserManagement';
 import AdminManufacturerVerification from '../admin/AdminManufacturerVerification';
 import AdminKnowledgeManagement from '../admin/AdminKnowledgeManagement';
@@ -9,6 +9,7 @@ import NotificationBell from '../admin/NotificationBell';
 import { Card } from '../ui/card';
 import AdminProfile from '../admin/AdminProfile';
 import UpdatePasswordPage from '../common/UpdatePasswordPage';
+import AdminActionLogs from '../admin/AdminActionLogs';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -52,7 +53,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       icon: <BookOpen size={20} />,
       visible: isSuperAdmin || permissions.canManageKnowledge,
     },
-  ].filter((item) => item.visible !== false)), [isSuperAdmin, permissions]);
+    {
+      id: 'logs',
+      label: 'Logs (Historiques)',
+      icon: <History size={20} />,
+      visible: isSuperAdmin || isSubAdmin,
+    },
+  ].filter((item) => item.visible !== false)), [isSuperAdmin, isSubAdmin, permissions]);
 
   const canSuspendUsers = isSuperAdmin || permissions.canSuspendUsers;
   const canDeleteUsers = isSuperAdmin || permissions.canDeleteUsers;
@@ -103,6 +110,12 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <AdminKnowledgeManagement canManageKnowledge />
         ) : (
           <PermissionNotice message="Knowledge library management is disabled for this admin." />
+        );
+      case 'logs':
+        return (isSuperAdmin || isSubAdmin) ? (
+          <AdminActionLogs />
+        ) : (
+          <PermissionNotice message="Only admins can access action logs." />
         );
       case 'analytics':
         return <AdminAnalytics />;

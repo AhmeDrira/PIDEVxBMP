@@ -29,6 +29,7 @@ export default function ArtisanMarketplace() {
   const [toastMessage, setToastMessage] = useState('');
   const [ratingHover, setRatingHover] = useState(0);
   const [userRating, setUserRating] = useState(0);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -118,6 +119,36 @@ export default function ArtisanMarketplace() {
     else setCart(cart.map(item => item._id === productId ? { ...item, quantity } : item));
   };
   const getTotalPrice = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+  const handleCheckout = async () => {
+    if (!cart.length || isCheckoutLoading) return;
+    try {
+      setIsCheckoutLoading(true);
+      const token = getToken();
+      if (!token) {
+        showToast('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+
+      await axios.post(
+        `${API_URL}/products/checkout`,
+        {
+          items: cart.map((item) => ({
+            productId: item._id,
+            quantity: item.quantity,
+          })),
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setView('confirmation');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Erreur lors du checkout.';
+      showToast(message);
+    } finally {
+      setIsCheckoutLoading(false);
+    }
+  };
 
   // --- FILTRES DYNAMIQUES ---
   const getManufacturerName = (p: any) => p.manufacturer?.companyName || p.manufacturer?.firstName || 'Unknown';
@@ -298,8 +329,8 @@ export default function ArtisanMarketplace() {
                   </div>
                 </div>
               </div>
-              <Button className="w-full h-12 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-lg" onClick={() => setView('confirmation')} disabled={cart.length === 0}>
-                Proceed to Checkout
+              <Button className="w-full h-12 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-lg" onClick={handleCheckout} disabled={cart.length === 0 || isCheckoutLoading}>
+                {isCheckoutLoading ? 'Processing...' : 'Proceed to Checkout'}
               </Button>
             </Card>
           </div>
