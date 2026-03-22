@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import LoginPage from './components/auth/LoginPage';
 import AdminLoginPage from './components/auth/AdminLoginPage';
+import SubAdminRegisterPage from './components/auth/SubAdminRegisterPage';
+import SubAdminLoginPage from './components/auth/SubAdminLoginPage';
+import SubAdminForgotPasswordPage from './components/auth/SubAdminForgotPasswordPage';
 import RegisterPage from './components/auth/RegisterPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
 import ResetPasswordPage from './components/auth/ResetPasswordPage';
@@ -16,7 +19,18 @@ import { Toaster } from 'sonner';
 import RoleGuard from './components/common/RoleGuard';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin' | null;
-type AuthView = 'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email' | 'email-sent' | 'manufacturer-waiting' | 'admin-login';
+type AuthView =
+  | 'login'
+  | 'register'
+  | 'forgot-password'
+  | 'reset-password'
+  | 'verify-email'
+  | 'email-sent'
+  | 'manufacturer-waiting'
+  | 'admin-login'
+  | 'sub-admin-login'
+  | 'sub-admin-forgot'
+  | 'sub-admin-register';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserRole>(null);
@@ -24,6 +38,7 @@ export default function App() {
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState<string>('');
   const [forgotEmail, setForgotEmail] = useState<string>('');
+  const [emailSentTarget, setEmailSentTarget] = useState<'login' | 'admin-login' | 'sub-admin-login'>('login');
 
   useEffect(() => {
     const user = authService.getCurrentUser();
@@ -42,14 +57,29 @@ export default function App() {
     }
     
     // Check for /admin path or setup=admin
-    if (window.location.pathname === '/admin' || params.get('setup') === 'admin') {
+    const path = window.location.pathname;
+    if (path === '/admin/sub-admin') {
+      setAuthView('sub-admin-login');
+    } else if (path === '/admin' || params.get('setup') === 'admin') {
       setAuthView('admin-login');
-      // Clean up URL without reload
-      window.history.replaceState({}, '', '/');
     } else if (params.get('view') === 'register') {
       setAuthView('register');
     }
   }, []);
+
+  const navigateToAdminLogin = () => {
+    setAuthView('admin-login');
+    if (window.location.pathname !== '/admin') {
+      window.history.pushState({}, '', '/admin');
+    }
+  };
+
+  const navigateToSubAdminLogin = () => {
+    setAuthView('sub-admin-login');
+    if (window.location.pathname !== '/admin/sub-admin') {
+      window.history.pushState({}, '', '/admin/sub-admin');
+    }
+  };
 
   const handleLogin = (role: UserRole, isPending: boolean = false) => {
     if (isPending || (role === 'manufacturer' && authService.getCurrentUser()?.verificationStatus === 'pending')) {
@@ -67,19 +97,46 @@ export default function App() {
     authService.logout();
     setCurrentUser(null);
     if (isAdmin) {
-      setAuthView('admin-login');
+      const adminType = user?.adminType;
+      if (adminType === 'sub') {
+        navigateToSubAdminLogin();
+      } else {
+        navigateToAdminLogin();
+      }
     } else {
       setAuthView('login');
+      if (window.location.pathname !== '/') {
+        window.history.pushState({}, '', '/');
+      }
     }
   };
 
   const handleRegister = (role: UserRole, isPending: boolean = false, email?: string) => {
     if (email) {
       setRegisteredEmail(email);
+      setEmailSentTarget('login');
       setAuthView('email-sent');
     } else {
       handleLogin(role, isPending);
     }
+  };
+
+  const handleSubAdminEmailSent = (email: string) => {
+    setRegisteredEmail(email);
+    setEmailSentTarget('admin-login');
+    setAuthView('email-sent');
+  };
+
+  const handleEmailSentBack = () => {
+    if (emailSentTarget === 'admin-login') {
+      navigateToAdminLogin();
+      return;
+    }
+    if (emailSentTarget === 'sub-admin-login') {
+      navigateToSubAdminLogin();
+      return;
+    }
+    setAuthView('login');
   };
 
   return (
@@ -98,6 +155,24 @@ export default function App() {
           {authView === 'admin-login' && (
             <AdminLoginPage
               onLogin={(role) => handleLogin(role)}
+              onCreateSubAdmin={() => setAuthView('sub-admin-register')}
+            />
+          )}
+          {authView === 'sub-admin-login' && (
+            <SubAdminLoginPage
+              onLogin={(role) => handleLogin(role)}
+              onForgotPassword={() => setAuthView('sub-admin-forgot')}
+            />
+          )}
+          {authView === 'sub-admin-forgot' && (
+            <SubAdminForgotPasswordPage
+              onBackToLogin={navigateToSubAdminLogin}
+            />
+          )}
+          {authView === 'sub-admin-register' && (
+            <SubAdminRegisterPage
+              onBackToAdminLogin={navigateToAdminLogin}
+              onEmailSent={handleSubAdminEmailSent}
             />
           )}
           {authView === 'register' && (
@@ -109,7 +184,7 @@ export default function App() {
           {authView === 'email-sent' && (
             <EmailSentPage
               email={registeredEmail}
-              onBackToLogin={() => setAuthView('login')}
+              onBackToLogin={handleEmailSentBack}
             />
           )}
           {authView === 'forgot-password' && (

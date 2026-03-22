@@ -10,11 +10,30 @@ interface StatsCardProps {
   trend?: string;
   trendUp?: boolean;
   subtitle?: string;
+  onClick?: () => void;
+  isActive?: boolean;
 }
 
-export default function StatsCard({ label, value, icon, color, trend, trendUp = true, subtitle }: StatsCardProps) {
+export default function StatsCard({ 
+  label, 
+  value, 
+  icon, 
+  color, 
+  trend, 
+  trendUp = true, 
+  subtitle,
+  onClick,
+  isActive 
+}: StatsCardProps) {
   return (
-    <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <Card 
+      onClick={onClick}
+      className={`p-6 bg-white rounded-2xl border-0 shadow-lg transition-all duration-300 ${
+        onClick ? 'cursor-pointer hover:-translate-y-1 hover:shadow-xl' : ''
+      } ${
+        isActive ? 'ring-2 ring-primary bg-blue-50/50' : ''
+      }`}
+    >
       <div className="flex items-start justify-between mb-4">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-md"

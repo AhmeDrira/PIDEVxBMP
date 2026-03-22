@@ -13,9 +13,10 @@ import { adminSecretSchema, AdminSecretFormValues } from '../../lib/validations'
 
 interface AdminLoginPageProps {
   onLogin: (role: 'admin') => void;
+  onCreateSubAdmin: () => void;
 }
 
-export default function AdminLoginPage({ onLogin }: AdminLoginPageProps) {
+export default function AdminLoginPage({ onLogin, onCreateSubAdmin }: AdminLoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -92,6 +93,18 @@ export default function AdminLoginPage({ onLogin }: AdminLoginPageProps) {
                 )}
               </Button>
             </form>
+
+            <div className="mt-8 text-center">
+              <p className="text-sm text-muted-foreground mb-2">Need to onboard a new admin?</p>
+              <Button
+                type="button"
+                className="text-white font-semibold rounded-xl px-6"
+                style={{ backgroundColor: '#1F3A8A' }}
+                onClick={onCreateSubAdmin}
+              >
+                Create Sub-Admin Account
+              </Button>
+            </div>
           </Card>
         </div>
       </div>

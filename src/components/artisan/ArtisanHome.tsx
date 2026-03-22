@@ -279,16 +279,6 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
 
   return (
     <div className="space-y-8">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-8 text-white shadow-2xl">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl font-bold mb-3 capitalize">Welcome Back, {firstName}! 👋</h1>
-          <p className="text-xl text-white/90 leading-relaxed">
-            You have {activeProjectsCount} active projects and {pendingQuotesCount} pending quotes. Here's your dashboard overview.
-          </p>
-        </div>
-      </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (

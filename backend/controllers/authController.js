@@ -6,7 +6,7 @@ const dns = require('dns');
 const https = require('https');
 const axios = require('axios');
 const { OAuth2Client } = require('google-auth-library');
-const { User, Artisan, Expert, Manufacturer } = require('../models/User');
+const { User, Artisan, Expert, Manufacturer, Admin } = require('../models/User');
 const Notification = require('../models/Notification');
 
 // Force IPv4 for all DNS lookups and outbound HTTP(S) connections.
@@ -47,6 +47,37 @@ const isValidAdminSecret = (input) => {
     return false;
   }
   return crypto.timingSafeEqual(incoming, expected);
+};
+
+const superAdminPermissions = {
+  canVerifyManufacturers: true,
+  canManageKnowledge: true,
+  canSuspendUsers: true,
+  canDeleteUsers: true,
+};
+
+const coercePermissions = (source = {}) => ({
+  canVerifyManufacturers: Boolean(source.canVerifyManufacturers),
+  canManageKnowledge: Boolean(source.canManageKnowledge),
+  canSuspendUsers: Boolean(source.canSuspendUsers),
+  canDeleteUsers: Boolean(source.canDeleteUsers),
+});
+
+const isSuperAdminUser = (user) => {
+  if (!user) return false;
+  if (user.role !== 'admin') return false;
+  return !user._id || user.isSuperAdmin === true || user.adminType === 'super';
+};
+
+const ensureAdminPermission = (req, res, permissionKey) => {
+  if (isSuperAdminUser(req.user)) {
+    return true;
+  }
+  if (req.user?.permissions?.[permissionKey]) {
+    return true;
+  }
+  res.status(403).json({ message: 'You do not have permission to perform this action' });
+  return false;
 };
 
 // Normalize phone for duplicate check (digits only, optional leading +)
@@ -203,12 +234,20 @@ const loginUser = async (req, res) => {
         return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
       }
 
+      if (user.role === 'admin' && !user.adminType) {
+        user.adminType = 'sub';
+        await user.save();
+      }
+
       res.json({
         _id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        phone: user.phone,
+        permissions: user.permissions || undefined,
+        adminType: user.adminType,
         profilePhoto: user.profilePhoto,
         token: generateToken(user._id),
       });
@@ -322,6 +361,9 @@ async function googleLogin(req, res) {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      phone: user.phone,
+      permissions: user.permissions || undefined,
+      adminType: user.adminType,
       profilePhoto: user.profilePhoto,
       token: generateToken(user._id),
     });
@@ -354,7 +396,70 @@ const adminLogin = async (req, res) => {
     token: generateToken({ role: 'admin' }),
     role: 'admin',
     tokenType: 'Bearer',
+    isSuperAdmin: true,
+    adminType: 'super',
+    permissions: superAdminPermissions,
   });
+};
+
+// @desc    Create a new sub-admin using the shared secret
+// @route   POST /api/auth/admin/subadmins
+// @access  Protected via secret key
+const createSubAdmin = async (req, res) => {
+  try {
+    const { secretKey, firstName, lastName, email, password, phone, permissions } = req.body || {};
+
+    if (!isValidAdminSecret(secretKey)) {
+      return res.status(401).json({ message: 'Invalid admin secret key' });
+    }
+
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const existing = await findUserByEmail(email);
+    if (existing) {
+      return res.status(400).json({ message: 'An account with this email already exists' });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
+    const adminData = {
+      firstName,
+      lastName,
+      email,
+      phone: phone || '',
+      password,
+      role: 'admin',
+      isVerified: false,
+      verificationToken: verificationTokenHash,
+      verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      adminType: 'sub',
+      permissions: coercePermissions(permissions),
+    };
+
+    const newAdmin = await Admin.create(adminData);
+
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+    await sendVerificationEmail(email, verificationUrl);
+
+    return res.status(201).json({
+      message: 'Sub-admin account created successfully. Verification email sent.',
+      email,
+      admin: {
+        _id: newAdmin._id,
+        firstName: newAdmin.firstName,
+        lastName: newAdmin.lastName,
+        email: newAdmin.email,
+        permissions: newAdmin.permissions,
+      },
+    });
+  } catch (error) {
+    console.error('createSubAdmin error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
 };
 
 // @desc    Get current user
@@ -544,11 +649,74 @@ async function confirmEmailChange(req, res) {
   }
 }
 
+// @desc    Sub-admin forgot password request (notify super admin)
+// @route   POST /api/auth/sub-admin/forgot
+// @access  Public
+async function subAdminForgotPassword(req, res) {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await findUserByEmail(email);
+    if (!user || user.role !== 'admin' || user.adminType !== 'sub') {
+      return res.status(200).json({ message: 'If the email exists, the request has been sent.' });
+    }
+
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    await Notification.create({
+      type: 'sub_admin_password_request',
+      title: 'Sub-admin password request',
+      message: `${fullName} requested a password reset.`,
+      relatedId: user._id,
+    });
+
+    return res.status(200).json({ message: 'If the email exists, the request has been sent.' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// @desc    Super admin resets sub-admin password and emails a temporary password
+// @route   POST /api/auth/admin/subadmins/:id/reset-password
+// @access  Private (Super Admin)
+async function resetSubAdminPassword(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select('+password');
+    if (!user || user.role !== 'admin' || user.adminType !== 'sub') {
+      return res.status(404).json({ message: 'Sub-admin not found' });
+    }
+
+    const tempPassword = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+    user.password = tempPassword;
+    await user.save({ validateBeforeSave: false });
+
+    await sendTemporaryPasswordEmail(user.email, tempPassword);
+
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    await Notification.create({
+      type: 'sub_admin_password_sent',
+      title: 'Temporary password sent',
+      message: `A temporary password was sent to ${fullName}.`,
+      relatedId: user._id,
+    });
+
+    return res.status(200).json({ message: 'Temporary password sent' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   registerUser,
   loginUser,
   googleLogin,
   adminLogin,
+  createSubAdmin,
   getMe,
   checkEmail,
   checkPhone,
@@ -556,6 +724,9 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  updatePassword,
+  subAdminForgotPassword,
+  resetSubAdminPassword,
   sendPhoneVerification,
   verifyPhone,
   forgotPasswordPhone,
@@ -640,6 +811,27 @@ async function sendVerificationEmail(email, verificationUrl) {
   }
   
   console.log('[DEV] Verification URL:', verificationUrl);
+}
+
+async function sendTemporaryPasswordEmail(email, tempPassword) {
+  const fromName = process.env.EMAIL_FROM_NAME || 'BMP';
+  const subject = `Your temporary ${fromName} password`;
+  const html = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2>Temporary Password</h2><p>You requested a password reset. Use the temporary password below to sign in, then update it immediately:</p><p style="font-size:20px;font-weight:bold;letter-spacing:1px;">${tempPassword}</p><p>If you did not request this, please contact the admin.</p></div>`;
+
+  const transporter = getTransporter();
+  const fromEmail = process.env.EMAIL_FROM || 'no-reply@bmp.tn';
+  const from = `"${fromName}" <${fromEmail}>`;
+
+  if (transporter) {
+    try {
+      await transporter.sendMail({ from, to: email, subject, html });
+      return;
+    } catch (error) {
+      console.error('Nodemailer temp password send failed:', error);
+    }
+  }
+
+  console.log('[DEV] Temporary password:', tempPassword);
 }
 
 // Normalize phone to E.164 format (handles Tunisian local numbers)
@@ -921,6 +1113,49 @@ async function verifyEmail(req, res) {
   }
 }
 
+// @desc    Update password (requires current password)
+// @route   POST /api/auth/update-password
+// @access  Private
+async function updatePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current and new passwords are required' });
+    }
+
+    if (!req.user?._id) {
+      return res.status(403).json({ message: 'Password updates are not available for this session' });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
+
+    if (user.role === 'admin' && user.adminType === 'sub') {
+      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+      const when = new Date().toISOString();
+      await Notification.create({
+        type: 'admin_password_change',
+        title: 'Sub-admin password updated',
+        message: `${fullName} updated their password at ${when}.`,
+        relatedId: user._id,
+      });
+    }
+
+    return res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
 // @desc    Update user profile
 // @route   PUT /api/auth/profile
 // @access  Private
@@ -996,6 +1231,9 @@ async function updateProfile(req, res) {
 // @access  Private (Admin)
 async function getPendingManufacturers(req, res) {
   try {
+    if (!ensureAdminPermission(req, res, 'canVerifyManufacturers')) {
+      return;
+    }
     const list = await Manufacturer.find({ verificationStatus: 'pending' }).select('-password');
     return res.status(200).json(list);
   } catch (error) {
@@ -1009,6 +1247,9 @@ async function getPendingManufacturers(req, res) {
 // @access  Private (Admin)
 async function approveManufacturer(req, res) {
   try {
+    if (!ensureAdminPermission(req, res, 'canVerifyManufacturers')) {
+      return;
+    }
     const id = req.params.id;
     const m = await Manufacturer.findById(id);
     if (!m) return res.status(404).json({ message: 'Manufacturer not found' });
@@ -1056,6 +1297,9 @@ async function approveManufacturer(req, res) {
 // @access  Private (Admin)
 async function rejectManufacturer(req, res) {
   try {
+    if (!ensureAdminPermission(req, res, 'canVerifyManufacturers')) {
+      return;
+    }
     const id = req.params.id;
     const { reason } = req.body;
     const m = await Manufacturer.findById(id);
@@ -1106,7 +1350,7 @@ async function rejectManufacturer(req, res) {
 // @access  Private (Admin)
 async function listUsers(req, res) {
   try {
-    const users = await User.find().select('firstName lastName email role status createdAt');
+    const users = await User.find().select('firstName lastName email role status createdAt adminType');
     return res.status(200).json(users);
   } catch (error) {
     console.error(error);
@@ -1119,9 +1363,15 @@ async function listUsers(req, res) {
 // @access  Private (Admin)
 async function suspendUser(req, res) {
   try {
+    if (!ensureAdminPermission(req, res, 'canSuspendUsers')) {
+      return;
+    }
     const id = req.params.id;
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+    if (req.user?.adminType === 'sub' && user.role === 'admin') {
+      return res.status(403).json({ message: 'Sub-admins cannot suspend admin accounts' });
+    }
     user.status = 'suspended';
     await user.save({ validateBeforeSave: false });
     return res.status(200).json({ message: 'User suspended' });
@@ -1136,9 +1386,15 @@ async function suspendUser(req, res) {
 // @access  Private (Admin)
 async function activateUser(req, res) {
   try {
+    if (!ensureAdminPermission(req, res, 'canSuspendUsers')) {
+      return;
+    }
     const id = req.params.id;
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+    if (req.user?.adminType === 'sub' && user.role === 'admin') {
+      return res.status(403).json({ message: 'Sub-admins cannot update admin accounts' });
+    }
     user.status = 'active';
     await user.save({ validateBeforeSave: false });
     return res.status(200).json({ message: 'User activated' });
@@ -1153,9 +1409,15 @@ async function activateUser(req, res) {
 // @access  Private (Admin)
 async function deleteUser(req, res) {
   try {
+    if (!ensureAdminPermission(req, res, 'canDeleteUsers')) {
+      return;
+    }
     const id = req.params.id;
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+    if (req.user?.adminType === 'sub' && user.role === 'admin') {
+      return res.status(403).json({ message: 'Sub-admins cannot delete admin accounts' });
+    }
     await user.deleteOne();
     return res.status(200).json({ message: 'User deleted' });
   } catch (error) {

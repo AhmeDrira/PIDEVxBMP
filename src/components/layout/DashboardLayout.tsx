@@ -17,12 +17,14 @@ interface DashboardLayoutProps {
   menuItems: MenuItem[];
   activeItem: string;
   onMenuItemClick: (id: string) => void;
+  onLogoClick?: () => void;
   onLogout: () => void;
   userRole: string;
   userName?: string;
   profilePhoto?: string;
   onViewProfile: () => void;
   onEditProfile: () => void;
+  onUpdatePassword?: () => void;
   /** Optional custom notification bell component (e.g. for admin) */
   bellComponent?: React.ReactNode;
 }
@@ -32,12 +34,14 @@ export default function DashboardLayout({
   menuItems,
   activeItem,
   onMenuItemClick,
+  onLogoClick,
   onLogout,
   userRole,
   userName = 'User',
   profilePhoto,
   onViewProfile,
   onEditProfile,
+  onUpdatePassword,
   bellComponent,
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -59,7 +63,15 @@ export default function DashboardLayout({
         <div className="flex flex-col flex-1 min-h-0">
           {/* Logo */}
           <div className="flex items-center h-20 px-6 border-b border-gray-200">
-            <Logo />
+            <button
+              type="button"
+              onClick={onLogoClick}
+              className={onLogoClick ? 'cursor-pointer' : 'cursor-default'}
+              aria-label="Go to home"
+              disabled={!onLogoClick}
+            >
+              <Logo />
+            </button>
           </div>
 
           {/* Navigation */}
@@ -118,12 +130,18 @@ export default function DashboardLayout({
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onLogoClick}
+          className={onLogoClick ? 'flex items-center gap-2 cursor-pointer' : 'flex items-center gap-2 cursor-default'}
+          aria-label="Go to home"
+          disabled={!onLogoClick}
+        >
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <span className="text-white font-bold">B</span>
           </div>
           <h1 className="text-lg font-bold text-primary">BMP.tn</h1>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           {bellComponent ?? (
             <button className="p-2 rounded-lg hover:bg-gray-100 relative">
@@ -215,9 +233,6 @@ export default function DashboardLayout({
             <h2 className="text-2xl font-bold text-foreground">
               {menuItems.find((item) => item.id === activeItem)?.label || 'Dashboard'}
             </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Welcome back, {userName.split(' ')[0]}
-            </p>
           </div>
           <div className="flex items-center gap-4">
             {bellComponent ?? (
@@ -232,6 +247,7 @@ export default function DashboardLayout({
               profilePhoto={profilePhoto}
               onViewProfile={onViewProfile}
               onEditProfile={onEditProfile}
+              onUpdatePassword={onUpdatePassword}
               onLogout={onLogout}
             />
           </div>

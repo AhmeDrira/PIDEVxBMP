@@ -68,11 +68,16 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     setActiveView('profile');
   };
 
+  const handleUpdatePassword = () => {
+    setActiveView('update-password');
+  };
+
   return (
     <DashboardLayout
       menuItems={menuItems}
       activeItem={activeView}
       onMenuItemClick={setActiveView}
+      onLogoClick={() => setActiveView('home')}
       onLogout={onLogout}
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}

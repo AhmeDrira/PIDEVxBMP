@@ -9,6 +9,7 @@ const {
   loginUser,
   googleLogin,
   adminLogin,
+  createSubAdmin,
   getMe,
   checkEmail,
   checkPhone,
@@ -16,6 +17,9 @@ const {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  updatePassword,
+  subAdminForgotPassword,
+  resetSubAdminPassword,
   sendPhoneVerification,
   verifyPhone,
   forgotPasswordPhone,
@@ -38,6 +42,7 @@ const loginLimiter = rateLimit({
 
 router.post('/login', loginLimiter, loginUser);
 router.post('/admin/login', loginLimiter, adminLogin);
+router.post('/admin/subadmins', loginLimiter, createSubAdmin);
 router.post('/google', googleLogin);
 router.get('/check-email', checkEmail);
 router.get('/check-phone', checkPhone);
@@ -45,6 +50,8 @@ router.post('/forgot', forgotPassword);
 router.post('/check-reset-options', checkResetOptions);
 router.post('/reset', resetPassword);
 router.post('/verify-email', verifyEmail);
+router.post('/update-password', protect, updatePassword);
+router.post('/sub-admin/forgot', subAdminForgotPassword);
 
 // Phone verification & SMS reset
 router.post('/phone/send-verification', protect, sendPhoneVerification);
@@ -67,6 +74,7 @@ router.get('/admin/users', protect, admin, require('../controllers/authControlle
 router.post('/admin/users/:id/suspend', protect, admin, require('../controllers/authController').suspendUser);
 router.post('/admin/users/:id/activate', protect, admin, require('../controllers/authController').activateUser);
 router.delete('/admin/users/:id', protect, admin, require('../controllers/authController').deleteUser);
+router.post('/admin/subadmins/:id/reset-password', protect, admin, require('../middleware/authMiddleware').superAdminOnly, resetSubAdminPassword);
 
 const { getCertificationFile } = require('../controllers/authController');
 // Get certification file

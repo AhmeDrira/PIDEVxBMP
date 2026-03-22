@@ -1,79 +1,56 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Plus, Search, Filter, BookOpen, Eye, ThumbsUp, Calendar, ArrowRight } from 'lucide-react';
+import { Search, Filter, BookOpen, Eye, ThumbsUp, Calendar } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import KnowledgeDetailPage from '../knowledge/KnowledgeDetailPage';
+import knowledgeService, { KnowledgeArticle } from '../../services/knowledgeService';
+import { toast } from 'sonner';
 
 export default function ExpertKnowledgeLibrary() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
 
-  const articles = [
-    {
-      id: 1,
-      title: 'Modern Foundation Techniques for Residential Buildings',
-      category: 'Structural Engineering',
-      excerpt: 'Comprehensive guide to modern foundation methods including deep foundations, raft foundations, and pile systems...',
-      views: 1234,
-      likes: 89,
-      publishedDate: '2026-02-05',
-      readTime: '12 min'
-    },
-    {
-      id: 2,
-      title: 'Sustainable Materials in Construction',
-      category: 'Materials Science',
-      excerpt: 'Exploring eco-friendly construction materials and their applications in modern building practices...',
-      views: 987,
-      likes: 76,
-      publishedDate: '2026-02-01',
-      readTime: '8 min'
-    },
-    {
-      id: 3,
-      title: 'Safety Standards for High-Rise Construction',
-      category: 'Safety & Compliance',
-      excerpt: 'Essential safety protocols and regulations for high-rise building construction projects...',
-      views: 1567,
-      likes: 123,
-      publishedDate: '2026-01-28',
-      readTime: '15 min'
-    },
-    {
-      id: 4,
-      title: 'Advanced Waterproofing Techniques',
-      category: 'Technical Guide',
-      excerpt: 'Modern waterproofing solutions for basements, roofs, and foundations in various climates...',
-      views: 876,
-      likes: 64,
-      publishedDate: '2026-01-20',
-      readTime: '10 min'
-    },
-  ];
+  const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const categories = [
-    'Structural Engineering',
-    'Materials Science',
-    'Safety & Compliance',
-    'Technical Guide',
-    'Best Practices',
-    'Project Management'
-  ];
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await knowledgeService.list();
+        setArticles(data);
+      } catch (error: any) {
+        const message = error.response?.data?.message || 'Unable to load knowledge articles.';
+        toast.error(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-  const filteredArticles = articles.filter(article =>
-    article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    article.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredArticles = articles.filter((article) => {
+    const normalizedQuery = searchQuery.toLowerCase();
+    return (
+      article.title.toLowerCase().includes(normalizedQuery) ||
+      article.category.toLowerCase().includes(normalizedQuery) ||
+      (article.summary || '').toLowerCase().includes(normalizedQuery)
+    );
+  });
+
+  const categories = useMemo(() => {
+    const set = new Set(articles.map((a) => a.category));
+    return Array.from(set);
+  }, [articles]);
 
   // Show article detail if selected
   if (selectedArticleId) {
     return (
       <KnowledgeDetailPage
         articleId={selectedArticleId}
+        userRole="expert"
         onBack={() => setSelectedArticleId(null)}
       />
     );
@@ -108,8 +85,18 @@ export default function ExpertKnowledgeLibrary() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          {filteredArticles.map((article) => (
-            <Card key={article.id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+          {loading && (
+            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+              <p className="text-muted-foreground">Loading articles...</p>
+            </Card>
+          )}
+          {!loading && filteredArticles.length === 0 && (
+            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+              <p className="text-muted-foreground">No articles found.</p>
+            </Card>
+          )}
+          {!loading && filteredArticles.map((article) => (
+            <Card key={article._id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex items-start gap-6">
                 <div
                   className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
@@ -124,32 +111,32 @@ export default function ExpertKnowledgeLibrary() {
                       {article.category}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
-                      {article.readTime} read
+                      ~{Math.max(3, Math.round((article.content?.split(' ').length || 200) / 200))} min read
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                    {article.excerpt}
+                    {article.summary}
                   </p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-6 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <Eye size={16} />
-                        <span className="font-semibold">{article.views}</span>
+                        <span className="font-semibold">{article.views || 0}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <ThumbsUp size={16} />
-                        <span className="font-semibold">{article.likes}</span>
+                        <span className="font-semibold">{article.likes || 0}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar size={16} />
-                        <span>{article.publishedDate}</span>
+                        <span>{new Date(article.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="rounded-xl border-2"
-                      onClick={() => setSelectedArticleId(article.id.toString())}
+                      onClick={() => setSelectedArticleId(article._id)}
                     >
                       Read More
                     </Button>
@@ -180,15 +167,15 @@ export default function ExpertKnowledgeLibrary() {
             <div className="space-y-6">
               <div>
                 <p className="text-sm text-muted-foreground font-medium mb-2">Total Articles</p>
-                <p className="text-4xl font-bold text-primary">24</p>
+                <p className="text-4xl font-bold text-primary">{articles.length}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium mb-2">Total Views</p>
-                <p className="text-4xl font-bold text-secondary">12.5K</p>
+                <p className="text-4xl font-bold text-secondary">{articles.reduce((sum, article) => sum + (article.views || 0), 0)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium mb-2">Total Likes</p>
-                <p className="text-4xl font-bold text-accent">892</p>
+                <p className="text-4xl font-bold text-accent">{articles.reduce((sum, article) => sum + (article.likes || 0), 0)}</p>
               </div>
             </div>
           </Card>

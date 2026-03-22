@@ -48,10 +48,40 @@ export const registerSchema = registerBaseSchema.superRefine((data, ctx) => {
   }
 });
 
+const subAdminPermissionsSchema = z.object({
+  canVerifyManufacturers: z.boolean().default(false),
+  canManageKnowledge: z.boolean().default(false),
+  canSuspendUsers: z.boolean().default(false),
+  canDeleteUsers: z.boolean().default(false),
+});
+
+export const subAdminSchema = registerBaseSchema.extend({
+  secretKey: z.string().min(1, 'Admin secret key is required'),
+  permissions: subAdminPermissionsSchema,
+}).superRefine((data, ctx) => {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Passwords don't match",
+      path: ['confirmPassword'],
+    });
+  }
+
+  const hasAnyPermission = Object.values(data.permissions || {}).some(Boolean);
+  if (!hasAnyPermission) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Select at least one permission for the sub-admin',
+      path: ['permissions'],
+    });
+  }
+});
+
 // Helper types
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 export type AdminSecretFormValues = z.infer<typeof adminSecretSchema>;
+export type SubAdminFormValues = z.infer<typeof subAdminSchema>;
 
 export const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
@@ -71,3 +101,25 @@ export const resetPasswordSchema = z.object({
   }
 });
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+
+export const updatePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+  confirmPassword: z.string().min(1, 'Confirm password is required'),
+}).superRefine((data, ctx) => {
+  if (data.newPassword !== data.confirmPassword) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Passwords don't match",
+      path: ['confirmPassword'],
+    });
+  }
+  if (data.currentPassword === data.newPassword) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'New password must be different from current password',
+      path: ['newPassword'],
+    });
+  }
+});
+export type UpdatePasswordFormValues = z.infer<typeof updatePasswordSchema>;

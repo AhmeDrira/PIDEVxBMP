@@ -7,6 +7,10 @@ import StatsCard from '../common/StatsCard';
 import authService from '../../services/authService';
 import { toast } from 'sonner';
 
+interface AdminManufacturerVerificationProps {
+  canVerifyManufacturers?: boolean;
+}
+
 type CertificationFile = string | { fileName?: string; data?: unknown; contentType?: string } | null;
 
 type ManufacturerItem = {
@@ -24,7 +28,7 @@ const getCertFileName = (cf: CertificationFile): string => {
   return cf.fileName || 'Document uploaded';
 };
 
-export default function AdminManufacturerVerification() {
+export default function AdminManufacturerVerification({ canVerifyManufacturers = false }: AdminManufacturerVerificationProps) {
   const [pendingManufacturers, setPendingManufacturers] = useState<ManufacturerItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -46,11 +50,19 @@ export default function AdminManufacturerVerification() {
   }, []);
 
   const approve = async (id: string) => {
+    if (!canVerifyManufacturers) {
+      toast.error('You do not have permission to verify manufacturers.');
+      return;
+    }
     await authService.approveManufacturer(id);
     await loadData();
   };
 
   const reject = async (id: string) => {
+    if (!canVerifyManufacturers) {
+      toast.error('You do not have permission to verify manufacturers.');
+      return;
+    }
     await authService.rejectManufacturer(id, rejectReason);
     setRejectingId(null);
     setRejectReason('');
@@ -142,11 +154,21 @@ export default function AdminManufacturerVerification() {
                   </Button>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => approve(manufacturer._id)} className="flex-1 h-12 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-md">
+                  <Button
+                    onClick={() => approve(manufacturer._id)}
+                    className="flex-1 h-12 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-md"
+                    disabled={!canVerifyManufacturers}
+                    title={canVerifyManufacturers ? 'Approve manufacturer' : 'Permission required'}
+                  >
                     <CheckCircle size={18} className="mr-2" />
                     Approve
                   </Button>
-                  <Button onClick={() => setRejectingId(manufacturer._id)} className="flex-1 h-12 text-white bg-destructive hover:bg-destructive/90 rounded-xl shadow-md">
+                  <Button
+                    onClick={() => setRejectingId(manufacturer._id)}
+                    className="flex-1 h-12 text-white bg-destructive hover:bg-destructive/90 rounded-xl shadow-md"
+                    disabled={!canVerifyManufacturers}
+                    title={canVerifyManufacturers ? 'Reject manufacturer' : 'Permission required'}
+                  >
                     <XCircle size={18} className="mr-2" />
                     Reject
                   </Button>
@@ -161,7 +183,13 @@ export default function AdminManufacturerVerification() {
                     />
                     <div className="flex gap-2">
                       <Button variant="outline" className="flex-1" onClick={() => { setRejectingId(null); setRejectReason(''); }}>Cancel</Button>
-                      <Button className="flex-1 bg-destructive text-white" onClick={() => reject(manufacturer._id)}>Confirm Reject</Button>
+                      <Button
+                        className="flex-1 bg-destructive text-white"
+                        onClick={() => reject(manufacturer._id)}
+                        disabled={!canVerifyManufacturers}
+                      >
+                        Confirm Reject
+                      </Button>
                     </div>
                   </div>
                 )}

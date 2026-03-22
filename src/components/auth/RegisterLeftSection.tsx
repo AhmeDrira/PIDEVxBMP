@@ -9,7 +9,11 @@ export default function RegisterLeftSection() {
   useEffect(() => {
     fetch('/api/stats')
       .then(r => r.json())
-      .then(data => setSiteStats(data))
+      .then(data => setSiteStats({
+        activeUsers: data.activeUsers ?? 0,
+        projects: data.totalProjects ?? data.projects ?? 0,
+        satisfaction: data.satisfaction ?? 0,
+      }))
       .catch(() => {});
   }, []);
 

@@ -64,6 +64,7 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
       menuItems={menuItems}
       activeItem={activeView}
       onMenuItemClick={setActiveView}
+      onLogoClick={() => setActiveView('home')}
       onLogout={onLogout}
       onViewProfile={() => setActiveView('profile')}
       onEditProfile={() => setActiveView('profile')}

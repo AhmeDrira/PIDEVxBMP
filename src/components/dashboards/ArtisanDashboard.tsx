@@ -76,11 +76,16 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     setActiveView('profile');
   };
 
+  const handleUpdatePassword = () => {
+    setActiveView('update-password');
+  };
+
   return (
     <DashboardLayout
       menuItems={menuItems}
       activeItem={activeView}
       onMenuItemClick={setActiveView}
+      onLogoClick={() => setActiveView('home')}
       onLogout={onLogout}
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}

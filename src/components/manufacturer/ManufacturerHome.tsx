@@ -127,18 +127,6 @@ export default function ManufacturerHome({ onNavigate }: ManufacturerHomeProps) 
 
   return (
     <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-8 text-white shadow-2xl">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl font-bold mb-3">Welcome Back, {displayName}! 👋</h1>
-          <p className="text-xl text-white/90 leading-relaxed">
-            {loading
-              ? 'Loading your dashboard...'
-              : `You have ${totalProducts} products listed and ${activeConversations} active conversations. Manage your catalog and grow your business!`}
-          </p>
-        </div>
-      </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (

@@ -38,6 +38,17 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'artisan', 'expert', 'manufacturer', 'admin'],
     default: 'user',
   },
+  adminType: {
+    type: String,
+    enum: ['super', 'sub'],
+    default: undefined,
+  },
+  permissions: {
+    canVerifyManufacturers: { type: Boolean, default: false },
+    canManageKnowledge: { type: Boolean, default: false },
+    canSuspendUsers: { type: Boolean, default: false },
+    canDeleteUsers: { type: Boolean, default: false },
+  },
   isVerified: {
     type: Boolean,
     default: false,

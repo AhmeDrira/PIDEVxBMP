@@ -8,14 +8,17 @@ import { ArrowRight, Upload, FileText } from 'lucide-react';
 
 interface AddKnowledgePageProps {
   onBack?: () => void;
-  onSave?: (data: any) => void;
+  onSave?: (data: { title: string; category: string; summary: string; content: string; authorName: string }) => Promise<void> | void;
+  isSaving?: boolean;
 }
 
-export default function AddKnowledgePage({ onBack, onSave }: AddKnowledgePageProps) {
+export default function AddKnowledgePage({ onBack, onSave, isSaving = false }: AddKnowledgePageProps) {
   const [formData, setFormData] = useState({
     title: '',
     category: '',
-    description: '',
+    authorName: 'BMP Admin',
+    summary: '',
+    content: '',
   });
   const [uploadedFile, setUploadedFile] = useState<string>('');
 
@@ -31,10 +34,16 @@ export default function AddKnowledgePage({ onBack, onSave }: AddKnowledgePagePro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSave) {
-      onSave({ ...formData, file: uploadedFile });
+      onSave({
+        title: formData.title,
+        category: formData.category,
+        summary: formData.summary,
+        content: formData.content,
+        authorName: formData.authorName,
+      });
     }
     // Reset form
-    setFormData({ title: '', category: '', description: '' });
+    setFormData({ title: '', category: '', authorName: 'BMP Admin', summary: '', content: '' });
     setUploadedFile('');
     if (onBack) onBack();
   };
@@ -95,16 +104,48 @@ export default function AddKnowledgePage({ onBack, onSave }: AddKnowledgePagePro
             </select>
           </div>
 
-          {/* Description */}
+          {/* Author */}
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-base font-semibold text-foreground">
-              Description *
+            <Label htmlFor="authorName" className="text-base font-semibold text-foreground">
+              Author *
+            </Label>
+            <Input
+              id="authorName"
+              type="text"
+              placeholder="e.g., Dr. Karim Mansour"
+              value={formData.authorName}
+              onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
+              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              required
+            />
+          </div>
+
+          {/* Summary */}
+          <div className="space-y-2">
+            <Label htmlFor="summary" className="text-base font-semibold text-foreground">
+              Summary *
             </Label>
             <Textarea
-              id="description"
+              id="summary"
+              placeholder="Short overview that appears in the list..."
+              value={formData.summary}
+              onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+              rows={4}
+              className="rounded-xl border-2 border-gray-200 focus:border-primary"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="content" className="text-base font-semibold text-foreground">
+              Full Content *
+            </Label>
+            <Textarea
+              id="content"
               placeholder="Provide detailed information about this article..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               rows={8}
               className="rounded-xl border-2 border-gray-200 focus:border-primary"
               required
@@ -138,9 +179,16 @@ export default function AddKnowledgePage({ onBack, onSave }: AddKnowledgePagePro
             <Button
               type="submit"
               className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg"
+              disabled={isSaving}
             >
-              <Upload size={20} className="mr-2" />
-              Publish Article
+              {isSaving ? (
+                'Publishing...'
+              ) : (
+                <>
+                  <Upload size={20} className="mr-2" />
+                  Publish Article
+                </>
+              )}
             </Button>
             {onBack && (
               <Button 

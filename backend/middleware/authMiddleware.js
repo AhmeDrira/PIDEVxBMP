@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models/User');
 
+const superAdminPermissions = {
+  canVerifyManufacturers: true,
+  canManageKnowledge: true,
+  canSuspendUsers: true,
+  canDeleteUsers: true,
+};
+
 const protect = async (req, res, next) => {
   let token;
 
@@ -14,7 +21,12 @@ const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       if (decoded && decoded.role === 'admin') {
-        req.user = { role: 'admin' };
+        req.user = {
+          role: 'admin',
+          isSuperAdmin: true,
+          adminType: 'super',
+          permissions: superAdminPermissions,
+        };
         return next();
       }
 
@@ -43,4 +55,11 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin };
+const superAdminOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'admin' && (req.user.isSuperAdmin || req.user.adminType === 'super')) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Not authorized as a super admin' });
+};
+
+module.exports = { protect, admin, superAdminOnly };

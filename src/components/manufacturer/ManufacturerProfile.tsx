@@ -5,11 +5,12 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { LocationInput } from '../ui/location-input';
+import { Checkbox } from '../ui/checkbox';
 import { toast } from 'sonner';
 import { Building2, Mail, Phone, MapPin, Save, CheckCircle, AlertCircle, User, Camera, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
+import { TUNISIA_STATES } from '../../lib/tunisiaStates';
 
 export default function ManufacturerProfile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -29,6 +30,7 @@ export default function ManufacturerProfile() {
     verificationStatus: 'pending',
     profilePhoto: ''
   });
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
 
   const API_URL = '/api';
 
@@ -75,18 +77,26 @@ export default function ManufacturerProfile() {
         
         const userData = response.data;
         // 2. Mettre à jour l'état avec les prénoms et noms venant du backend
+        const locationValue = userData.location || '';
+        const parsedStates = locationValue
+          .split(',')
+          .map((state: string) => state.trim())
+          .filter(Boolean);
+
         setFormData({
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           companyName: userData.companyName || '',
           email: userData.email || '',
           phone: userData.phone || '',
-          location: userData.location || '',
+          location: locationValue,
           description: userData.description || '',
           certificationNumber: userData.certificationNumber || '',
           verificationStatus: userData.verificationStatus || 'pending',
           profilePhoto: userData.profilePhoto || ''
         });
+
+        setSelectedStates(parsedStates);
 
         // Sync localStorage so header/dropdown avatars reflect the DB photo on load
         const storedUser = localStorage.getItem('user');
@@ -111,6 +121,13 @@ export default function ManufacturerProfile() {
 
     fetchProfile();
   }, [API_URL]);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      location: selectedStates.join(', '),
+    }));
+  }, [selectedStates]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,13 +263,30 @@ export default function ManufacturerProfile() {
                   <Input className="pl-10 h-12 rounded-xl border-2" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="Enter your phone number" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="font-semibold">Location</Label>
-                <LocationInput
-                  value={formData.location}
-                  onChange={(val) => setFormData({...formData, location: val})}
-                  mapHeight={400}
-                />
+              <div className="space-y-3 md:col-span-2">
+                <Label className="font-semibold">Location (Tunisia)</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {TUNISIA_STATES.map((state) => (
+                    <label
+                      key={state}
+                      className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-foreground"
+                    >
+                      <Checkbox
+                        checked={selectedStates.includes(state)}
+                        onCheckedChange={(checked) => {
+                          const isChecked = Boolean(checked);
+                          setSelectedStates((prev) => (
+                            isChecked
+                              ? [...prev, state]
+                              : prev.filter((item) => item !== state)
+                          ));
+                        }}
+                      />
+                      <span>{state}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Select one or more governorates.</p>
               </div>
             </div>
 

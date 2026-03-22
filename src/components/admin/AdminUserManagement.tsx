@@ -2,17 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Search, Trash2, Shield, UserCheck, UserX } from 'lucide-react';
+import { KeyRound, Search, Trash2, Shield, UserCheck, UserX } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import authService from '../../services/authService';
+import { toast } from 'sonner';
 
-export default function AdminUserManagement() {
+interface AdminUserManagementProps {
+  canSuspendUsers?: boolean;
+  canDeleteUsers?: boolean;
+}
+
+export default function AdminUserManagement({ canSuspendUsers = false, canDeleteUsers = false }: AdminUserManagementProps) {
+  const currentUser = authService.getCurrentUser();
+  const isSubAdmin = currentUser?.role === 'admin' && currentUser?.adminType === 'sub';
+  const isSuperAdmin = currentUser?.role === 'admin' && (currentUser?.adminType === 'super' || currentUser?.isSuperAdmin);
   const [searchQuery, setSearchQuery] = useState('');
-  const [users, setUsers] = useState<Array<{ _id: string; firstName?: string; lastName?: string; email: string; role: string; status: string; createdAt?: string }>>([]);
+  const [users, setUsers] = useState<Array<{ _id: string; firstName?: string; lastName?: string; email: string; role: string; status: string; createdAt?: string; adminType?: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeFilter, setActiveFilter] = useState('Total Users');
 
   useEffect(() => {
     const load = async () => {
@@ -28,12 +38,47 @@ export default function AdminUserManagement() {
   }, [refreshKey]);
 
   const stats = useMemo(() => ([
-    { label: 'Total Users', value: users.length, icon: <UserCheck size={28} />, color: '#1E40AF' },
-    { label: 'Artisans', value: users.filter(u => u.role === 'artisan').length, icon: <UserCheck size={28} />, color: '#F59E0B' },
-    { label: 'Experts', value: users.filter(u => u.role === 'expert').length, icon: <UserCheck size={28} />, color: '#10B981' },
-    { label: 'Manufacturers', value: users.filter(u => u.role === 'manufacturer').length, icon: <UserCheck size={28} />, color: '#8B5CF6' },
-    { label: 'Admins', value: users.filter(u => u.role === 'admin').length, icon: <Shield size={28} />, color: '#EF4444' },
-  ]), [users]);
+    { 
+      label: 'Total Users', 
+      value: users.length, 
+      icon: <UserCheck size={28} />, 
+      color: '#1E40AF',
+      onClick: () => setActiveFilter('Total Users'),
+      isActive: activeFilter === 'Total Users'
+    },
+    { 
+      label: 'Artisans', 
+      value: users.filter(u => u.role === 'artisan').length, 
+      icon: <UserCheck size={28} />, 
+      color: '#F59E0B',
+      onClick: () => setActiveFilter('Artisans'),
+      isActive: activeFilter === 'Artisans'
+    },
+    { 
+      label: 'Experts', 
+      value: users.filter(u => u.role === 'expert').length, 
+      icon: <UserCheck size={28} />, 
+      color: '#10B981',
+      onClick: () => setActiveFilter('Experts'),
+      isActive: activeFilter === 'Experts'
+    },
+    { 
+      label: 'Manufacturers', 
+      value: users.filter(u => u.role === 'manufacturer').length, 
+      icon: <UserCheck size={28} />, 
+      color: '#8B5CF6',
+      onClick: () => setActiveFilter('Manufacturers'),
+      isActive: activeFilter === 'Manufacturers'
+    },
+    { 
+      label: 'Admins', 
+      value: users.filter(u => u.role === 'admin').length, 
+      icon: <Shield size={28} />, 
+      color: '#EF4444',
+      onClick: () => setActiveFilter('Admins'),
+      isActive: activeFilter === 'Admins'
+    },
+  ]), [users, activeFilter]);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -52,26 +97,91 @@ export default function AdminUserManagement() {
 
   const filteredUsers = users.filter(user => {
     const name = displayName(user);
-    return (
+    const matchesSearch = (
       name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.role.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    let matchesFilter = true;
+    if (activeFilter === 'Artisans') matchesFilter = user.role === 'artisan';
+    else if (activeFilter === 'Experts') matchesFilter = user.role === 'expert';
+    else if (activeFilter === 'Manufacturers') matchesFilter = user.role === 'manufacturer';
+    else if (activeFilter === 'Admins') matchesFilter = user.role === 'admin';
+
+    return matchesSearch && matchesFilter;
   });
 
   const suspend = async (id: string) => {
-    await authService.suspendUser(id);
-    setRefreshKey((k) => k + 1);
+    if (!canSuspendUsers) {
+      toast.error('You do not have permission to suspend users.');
+      return;
+    }
+    const target = users.find((u) => u._id === id);
+    if (isSubAdmin && target?.role === 'admin') {
+      toast.error('Sub-admins cannot suspend admin accounts.');
+      return;
+    }
+    try {
+      await authService.suspendUser(id);
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Unable to suspend user.';
+      toast.error(message);
+    }
   };
 
   const activate = async (id: string) => {
-    await authService.activateUser(id);
-    setRefreshKey((k) => k + 1);
+    if (!canSuspendUsers) {
+      toast.error('You do not have permission to update user status.');
+      return;
+    }
+    const target = users.find((u) => u._id === id);
+    if (isSubAdmin && target?.role === 'admin') {
+      toast.error('Sub-admins cannot update admin accounts.');
+      return;
+    }
+    try {
+      await authService.activateUser(id);
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Unable to activate user.';
+      toast.error(message);
+    }
   };
 
   const remove = async (id: string) => {
-    await authService.deleteUser(id);
-    setRefreshKey((k) => k + 1);
+    if (!canDeleteUsers) {
+      toast.error('You do not have permission to delete users.');
+      return;
+    }
+    const target = users.find((u) => u._id === id);
+    if (isSubAdmin && target?.role === 'admin') {
+      toast.error('Sub-admins cannot delete admin accounts.');
+      return;
+    }
+    try {
+      await authService.deleteUser(id);
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Unable to delete user.';
+      toast.error(message);
+    }
+  };
+
+  const resetSubAdminPassword = async (id: string) => {
+    if (!isSuperAdmin) {
+      toast.error('Only super admins can reset sub-admin passwords.');
+      return;
+    }
+    try {
+      await authService.resetSubAdminPassword(id);
+      toast.success('Temporary password sent to sub-admin email.');
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Unable to reset password.';
+      toast.error(message);
+    }
   };
 
   return (
@@ -81,7 +191,7 @@ export default function AdminUserManagement() {
         <p className="text-lg text-muted-foreground">Manage all platform users</p>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {stats.map((stat, index) => (
           <StatsCard key={index} {...stat} />
         ))}
@@ -91,7 +201,7 @@ export default function AdminUserManagement() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <Input
-            placeholder="Search users by name, email, or role..."
+            placeholder={`Search ${activeFilter.toLowerCase()}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-12 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
@@ -101,6 +211,15 @@ export default function AdminUserManagement() {
 
       <div className="grid md:grid-cols-2 gap-6">
         {loading && <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg"><p className="text-muted-foreground">Loading users...</p></Card>}
+        
+        {!loading && filteredUsers.length === 0 && (
+          <div className="col-span-full py-12 text-center bg-white rounded-2xl border-0 shadow-lg">
+            <UserX className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="text-xl font-bold text-foreground mb-1">No users found</h3>
+            <p className="text-muted-foreground">Try adjusting your search or filter.</p>
+          </div>
+        )}
+
         {!loading && filteredUsers.map((user) => (
           <Card key={user._id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="flex items-start gap-4 mb-4">
@@ -135,18 +254,68 @@ export default function AdminUserManagement() {
             </div>
 
             <div className="flex gap-2">
+              {isSuperAdmin && user.role === 'admin' && user.adminType === 'sub' && (
+                <Button
+                  onClick={() => resetSubAdminPassword(user._id)}
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-4 rounded-xl border-2"
+                  title="Send temporary password"
+                >
+                  <KeyRound size={16} />
+                </Button>
+              )}
               {user.status === 'active' ? (
-                <Button onClick={() => suspend(user._id)} variant="outline" size="sm" className="flex-1 h-10 rounded-xl border-2">
+                <Button
+                  onClick={() => suspend(user._id)}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-10 rounded-xl border-2"
+                  disabled={!canSuspendUsers || (isSubAdmin && user.role === 'admin')}
+                  title={
+                    !canSuspendUsers
+                      ? 'Permission required'
+                      : (isSubAdmin && user.role === 'admin')
+                        ? 'Sub-admins cannot suspend admin accounts'
+                        : 'Suspend user'
+                  }
+                >
                   <UserX size={16} className="mr-2" />
                   Suspend
                 </Button>
               ) : (
-                <Button onClick={() => activate(user._id)} variant="outline" size="sm" className="flex-1 h-10 rounded-xl border-2">
+                <Button
+                  onClick={() => activate(user._id)}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-10 rounded-xl border-2"
+                  disabled={!canSuspendUsers || (isSubAdmin && user.role === 'admin')}
+                  title={
+                    !canSuspendUsers
+                      ? 'Permission required'
+                      : (isSubAdmin && user.role === 'admin')
+                        ? 'Sub-admins cannot update admin accounts'
+                        : 'Activate user'
+                  }
+                >
                   <UserCheck size={16} className="mr-2" />
                   Activate
                 </Button>
               )}
-              <Button onClick={() => remove(user._id)} variant="outline" size="sm" className="h-10 px-4 rounded-xl border-2">
+              <Button
+                onClick={() => remove(user._id)}
+                variant="outline"
+                size="sm"
+                className="h-10 px-4 rounded-xl border-2"
+                disabled={!canDeleteUsers || (isSubAdmin && user.role === 'admin')}
+                title={
+                  !canDeleteUsers
+                    ? 'Permission required'
+                    : (isSubAdmin && user.role === 'admin')
+                      ? 'Sub-admins cannot delete admin accounts'
+                      : 'Delete user'
+                }
+              >
                 <Trash2 size={16} />
               </Button>
             </div>

@@ -6,9 +6,10 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { User, MapPin, Briefcase, Save, Camera, Loader2 } from 'lucide-react';
-import { LocationInput } from '../ui/location-input';
+import { Checkbox } from '../ui/checkbox';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { TUNISIA_STATES } from '../../lib/tunisiaStates';
 
 export default function ExpertProfile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +28,7 @@ export default function ExpertProfile() {
     institution: '',
     profilePhoto: ''
   });
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -49,17 +51,25 @@ export default function ExpertProfile() {
         });
 
         const userData = response.data.user ? response.data.user : response.data;
+        const locationValue = userData.location || '';
+        const parsedStates = locationValue
+          .split(',')
+          .map((state: string) => state.trim())
+          .filter(Boolean);
+
         setFormData({
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           email: userData.email || '',
           phone: userData.phone || '',
-          location: userData.location || '',
+          location: locationValue,
           bio: userData.bio || '',
           specialization: userData.domain || userData.specialization || '',
           institution: userData.institution || '',
           profilePhoto: userData.profilePhoto || ''
         });
+
+        setSelectedStates(parsedStates);
 
         // Sync localStorage so header/dropdown avatars reflect the DB photo on load
         const storedUser = localStorage.getItem('user');
@@ -81,6 +91,13 @@ export default function ExpertProfile() {
     };
     fetchProfile();
   }, [API_URL]);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      location: selectedStates.join(', '),
+    }));
+  }, [selectedStates]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -275,13 +292,30 @@ export default function ExpertProfile() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <LocationInput
-                  value={formData.location}
-                  onChange={(val) => setFormData({ ...formData, location: val })}
-                  mapHeight={400}
-                />
+              <div className="space-y-3 md:col-span-2">
+                <Label htmlFor="location">Location (Tunisia)</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {TUNISIA_STATES.map((state) => (
+                    <label
+                      key={state}
+                      className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-foreground"
+                    >
+                      <Checkbox
+                        checked={selectedStates.includes(state)}
+                        onCheckedChange={(checked) => {
+                          const isChecked = Boolean(checked);
+                          setSelectedStates((prev) => (
+                            isChecked
+                              ? [...prev, state]
+                              : prev.filter((item) => item !== state)
+                          ));
+                        }}
+                      />
+                      <span>{state}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Select one or more governorates.</p>
               </div>
 
               <div className="space-y-2">

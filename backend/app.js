@@ -33,6 +33,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/knowledge', require('./routes/knowledgeRoutes'));
 
 
 module.exports = app;

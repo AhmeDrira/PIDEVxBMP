@@ -10,6 +10,8 @@ const api = axios.create({
   },
 });
 
+export const authenticatedApi = api;
+
 // Add a request interceptor to add the auth token to every request
 api.interceptors.request.use(
   (config) => {
@@ -56,6 +58,11 @@ const adminLogin = async (secretKey: string) => {
   if (response.data) {
     localStorage.setItem('user', JSON.stringify(response.data));
   }
+  return response.data;
+};
+
+const createSubAdmin = async (payload: any) => {
+  const response = await axios.post(`${API_URL}/admin/subadmins`, payload);
   return response.data;
 };
 
@@ -136,6 +143,7 @@ const authService = {
     const response = await api.delete(`/auth/admin/users/${id}`);
     return response.data;
   },
+  createSubAdmin,
   getCertificationFile: async (id: string): Promise<Blob> => {
     const response = await api.get(`/auth/admin/manufacturers/${id}/certification`, {
       responseType: 'blob',
@@ -177,6 +185,18 @@ const authService = {
   },
   confirmEmailChange: async (code: string) => {
     const response = await api.post('/auth/confirm-email-change', { code });
+    return response.data;
+  },
+  updatePassword: async (payload: { currentPassword: string; newPassword: string }) => {
+    const response = await api.post('/auth/update-password', payload);
+    return response.data;
+  },
+  subAdminForgotPassword: async (email: string) => {
+    const response = await axios.post(`${API_URL}/sub-admin/forgot`, { email });
+    return response.data;
+  },
+  resetSubAdminPassword: async (id: string) => {
+    const response = await api.post(`/auth/admin/subadmins/${id}/reset-password`);
     return response.data;
   },
 };

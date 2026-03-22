@@ -1,90 +1,54 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowRight, Calendar, User, Eye, ThumbsUp, Download, FileText } from 'lucide-react';
+import { ArrowRight, Calendar, Eye, ThumbsUp, Download, FileText } from 'lucide-react';
+import knowledgeService, { KnowledgeArticle } from '../../services/knowledgeService';
+import { toast } from 'sonner';
 
 interface KnowledgeDetailPageProps {
   articleId?: string;
   onBack?: () => void;
+  userRole?: string;
+  article?: KnowledgeArticle;
 }
 
-export default function KnowledgeDetailPage({ articleId, onBack }: KnowledgeDetailPageProps) {
-  // Mock article data - in real app this would come from API/props
-  const article = {
-    id: articleId || '1',
-    title: 'Modern Foundation Techniques for Residential Buildings',
-    category: 'Structural Engineering',
-    author: {
-      name: 'Dr. Karim Mansour',
-      title: 'Structural Engineering Expert',
-      avatar: 'KM'
-    },
-    createdDate: '2026-02-05',
-    views: 1234,
-    likes: 89,
-    readTime: '12 min',
-    content: `
-      <h2>Introduction</h2>
-      <p>Modern foundation techniques have revolutionized the way we approach residential building construction. This comprehensive guide explores the latest methods and best practices in foundation design and implementation.</p>
-      
-      <h2>Types of Foundations</h2>
-      <p>There are several types of foundations commonly used in residential construction:</p>
-      <ul>
-        <li><strong>Shallow Foundations:</strong> Strip foundations, pad foundations, and raft foundations</li>
-        <li><strong>Deep Foundations:</strong> Pile foundations and caisson foundations</li>
-        <li><strong>Specialized Foundations:</strong> For challenging soil conditions</li>
-      </ul>
-      
-      <h2>Deep Foundations</h2>
-      <p>Deep foundations are essential when surface soil cannot support the structural load. They transfer loads to deeper, more stable soil layers or bedrock. Common types include:</p>
-      <ul>
-        <li>Driven piles (concrete, steel, timber)</li>
-        <li>Bored piles</li>
-        <li>Helical piles</li>
-      </ul>
-      
-      <h2>Raft Foundations</h2>
-      <p>Raft foundations, also known as mat foundations, are a type of shallow foundation that covers the entire building footprint. They're particularly useful for:</p>
-      <ul>
-        <li>Poor soil conditions</li>
-        <li>Heavy structural loads</li>
-        <li>Areas with high water tables</li>
-      </ul>
-      
-      <h2>Pile Systems</h2>
-      <p>Pile foundations are deep foundations that transfer structural loads through weak soil to stronger layers below. Key considerations include:</p>
-      <ul>
-        <li>Load-bearing capacity</li>
-        <li>Soil conditions and analysis</li>
-        <li>Installation methods</li>
-        <li>Cost-effectiveness</li>
-      </ul>
-      
-      <h2>Best Practices</h2>
-      <p>When implementing modern foundation techniques, consider the following best practices:</p>
-      <ol>
-        <li>Conduct thorough soil analysis</li>
-        <li>Engage qualified structural engineers</li>
-        <li>Comply with local building codes</li>
-        <li>Consider long-term settlement</li>
-        <li>Plan for proper drainage</li>
-      </ol>
-      
-      <h2>Conclusion</h2>
-      <p>Modern foundation techniques offer improved stability, durability, and cost-effectiveness for residential construction. By understanding the various methods and their applications, builders can make informed decisions that ensure the longevity and safety of structures.</p>
-    `,
-    attachments: [
-      { name: 'Foundation-Technical-Specs.pdf', size: '2.4 MB', type: 'PDF' },
-      { name: 'Soil-Analysis-Report.pdf', size: '1.8 MB', type: 'PDF' },
-      { name: 'Foundation-Diagrams.jpg', size: '856 KB', type: 'Image' }
-    ]
-  };
+export default function KnowledgeDetailPage({ articleId, onBack, userRole = 'expert', article: articleProp }: KnowledgeDetailPageProps) {
+  const [article, setArticle] = useState<KnowledgeArticle | null>(articleProp || null);
+  const [loading, setLoading] = useState(Boolean(articleId) && !articleProp);
+
+  useEffect(() => {
+    if (!articleId) return;
+    const fetchArticle = async () => {
+      setLoading(true);
+      try {
+        const data = await knowledgeService.getById(articleId);
+        setArticle(data);
+      } catch (error: any) {
+        const message = error.response?.data?.message || 'Unable to load the article.';
+        toast.error(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchArticle();
+  }, [articleId]);
+
+  if (loading || !article) {
+    return (
+      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+        <p className="text-muted-foreground">Loading article...</p>
+      </Card>
+    );
+  }
+
+  const attachmentList = article.attachments || [];
+  const likes = article.likes ?? 0;
 
   return (
     <div className="space-y-6">
       {/* Back Button */}
-      {onBack && (
+      <div className="mb-10">
         <Button 
           variant="outline" 
           onClick={onBack} 
@@ -93,7 +57,7 @@ export default function KnowledgeDetailPage({ articleId, onBack }: KnowledgeDeta
           <ArrowRight size={20} className="mr-2 rotate-180" />
           Back to Knowledge Library
         </Button>
-      )}
+      </div>
 
       {/* Article Header */}
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
@@ -108,11 +72,11 @@ export default function KnowledgeDetailPage({ articleId, onBack }: KnowledgeDeta
         <div className="flex flex-wrap items-center gap-6 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-white font-semibold text-lg">{article.author.avatar}</span>
+              <span className="text-white font-semibold text-lg">{(article.authorName || 'Admin').substring(0, 2).toUpperCase()}</span>
             </div>
             <div>
-              <p className="font-semibold text-foreground">{article.author.name}</p>
-              <p className="text-sm text-muted-foreground">{article.author.title}</p>
+              <p className="font-semibold text-foreground">{article.authorName}</p>
+              <p className="text-sm text-muted-foreground">Editorial Contributor</p>
             </div>
           </div>
 
@@ -120,21 +84,21 @@ export default function KnowledgeDetailPage({ articleId, onBack }: KnowledgeDeta
 
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar size={18} />
-            <span className="text-sm">{new Date(article.createdDate).toLocaleDateString('en-GB')}</span>
+            <span className="text-sm">{new Date(article.createdAt).toLocaleDateString('en-GB')}</span>
           </div>
 
           <div className="flex items-center gap-2 text-muted-foreground">
             <Eye size={18} />
-            <span className="text-sm">{article.views.toLocaleString()} views</span>
+            <span className="text-sm">{(article.views || 0).toLocaleString()} views</span>
           </div>
 
           <div className="flex items-center gap-2 text-muted-foreground">
             <ThumbsUp size={18} />
-            <span className="text-sm">{article.likes} likes</span>
+            <span className="text-sm">{likes} likes</span>
           </div>
 
           <div className="flex items-center gap-2 text-muted-foreground">
-            <span className="text-sm">{article.readTime} read</span>
+            <span className="text-sm">~{Math.max(3, Math.round((article.content?.split(' ').length || 200) / 200))} min read</span>
           </div>
         </div>
       </Card>
@@ -148,16 +112,16 @@ export default function KnowledgeDetailPage({ articleId, onBack }: KnowledgeDeta
             lineHeight: '1.75'
           }}
         >
-          <div dangerouslySetInnerHTML={{ __html: article.content }} />
+          <div dangerouslySetInnerHTML={{ __html: (article.content || '').replace(/\n/g, '<br />') }} />
         </div>
       </Card>
 
       {/* Attachments */}
-      {article.attachments.length > 0 && (
+      {attachmentList.length > 0 && (
         <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
           <h2 className="text-2xl font-bold text-foreground mb-6">Attachments</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {article.attachments.map((attachment, idx) => (
+            {attachmentList.map((fileName, idx) => (
               <Card 
                 key={idx}
                 className="p-6 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-primary hover:shadow-md transition-all cursor-pointer group"
@@ -167,12 +131,9 @@ export default function KnowledgeDetailPage({ articleId, onBack }: KnowledgeDeta
                     <FileText size={24} className="text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground mb-1 truncate">{attachment.name}</p>
+                    <p className="font-semibold text-foreground mb-1 truncate">{fileName}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">{attachment.size}</span>
-                      <Badge className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 border-0">
-                        {attachment.type}
-                      </Badge>
+                      <span className="text-xs text-muted-foreground">Attached file</span>
                     </div>
                   </div>
                 </div>
@@ -203,12 +164,12 @@ export default function KnowledgeDetailPage({ articleId, onBack }: KnowledgeDeta
               className="h-11 px-6 rounded-xl border-2 hover:bg-white"
             >
               <ThumbsUp size={18} className="mr-2" />
-              Like ({article.likes})
+              Like ({likes})
             </Button>
             <Button 
               className="h-11 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl"
             >
-              Share Article
+              {userRole === 'admin' ? 'Share with experts' : 'Share Article'}
             </Button>
           </div>
         </div>

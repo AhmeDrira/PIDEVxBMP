@@ -115,18 +115,6 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
 
   return (
     <div className="space-y-8">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-8 text-white shadow-2xl">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl font-bold mb-3">Welcome Back, {firstName} {lastName}! 👋</h1>
-          <p className="text-xl text-white/90 leading-relaxed">
-            {loading
-              ? 'Loading your dashboard...'
-              : `You have ${activeProjects} active projects and ${activeConversations} conversations. Keep sharing your expertise!`}
-          </p>
-        </div>
-      </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
