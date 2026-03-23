@@ -7,6 +7,7 @@ import { Label } from '../ui/label';
 import { Search, ShoppingCart, Package, Check, ArrowRight, X, SlidersHorizontal, Eye, Star } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 export default function ArtisanMarketplace() {
   const [view, setView] = useState<'products' | 'cart' | 'confirmation' | 'detail'>('products');
@@ -26,7 +27,6 @@ export default function ArtisanMarketplace() {
   const [availableOnly, setAvailableOnly] = useState(false);
 
   // States pour les Notifications & Avis
-  const [toastMessage, setToastMessage] = useState('');
   const [ratingHover, setRatingHover] = useState(0);
   const [userRating, setUserRating] = useState(0);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
@@ -71,34 +71,50 @@ export default function ArtisanMarketplace() {
     if (view === 'products') fetchProducts();
   }, [view, API_URL]);
 
-  // --- NOTIFICATION SYSTÈME ---
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3000);
-  };
+  useEffect(() => {
+    const handler = () => setView('cart');
+    window.addEventListener('open-cart', handler as EventListener);
+    return () => {
+      window.removeEventListener('open-cart', handler as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const count = getTotalCount();
+    window.dispatchEvent(new CustomEvent('cart-count', { detail: { count } }));
+  }, [cart]);
 
   // --- SOUMETTRE UN AVIS (ÉTOILES) ---
   const submitRating = async (ratingValue: number) => {
     try {
       const token = getToken();
-      await axios.post(`${API_URL}/products/${selectedProduct._id}/reviews`, 
-        { rating: ratingValue }, 
+      if (!token) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+      const value = Math.max(1, Math.min(5, Number(ratingValue)));
+      const resp = await axios.post(
+        `${API_URL}/products/${selectedProduct._id}/reviews`,
+        { rating: value, comment: '' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      showToast('Merci pour votre vote ! ⭐');
-      setUserRating(ratingValue);
-      // Mettre à jour localement pour l'affichage
-      setSelectedProduct({
-        ...selectedProduct, 
-        rating: ((selectedProduct.rating * selectedProduct.numReviews) + ratingValue) / (selectedProduct.numReviews + 1),
-        numReviews: selectedProduct.numReviews + 1
-      });
+      const updated = !!resp?.data?.updated;
+      toast.success(updated ? 'Votre note a été mise à jour' : 'Merci pour votre vote ! ⭐');
+      setUserRating(value);
+      const newRating = resp?.data?.rating ?? ((selectedProduct.rating * selectedProduct.numReviews) + value) / (selectedProduct.numReviews + 1);
+      const newNum = resp?.data?.numReviews ?? (selectedProduct.numReviews + 1);
+      setSelectedProduct({ ...selectedProduct, rating: newRating, numReviews: newNum });
     } catch (error: any) {
-      if (error.response?.status === 400) {
-        showToast('Vous avez déjà noté ce produit !');
-      } else {
-        showToast('Erreur lors du vote.');
+      const msg = error?.response?.data?.message;
+      if (error?.response?.status === 400) {
+        toast.info(msg || 'Vous avez déjà noté ce produit !');
+        return;
       }
+      if (error?.response?.status === 401) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+      toast.error(msg || 'Erreur lors du vote.');
     }
   };
 
@@ -110,7 +126,7 @@ export default function ArtisanMarketplace() {
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
-    showToast(`${product.name} ajouté au panier ! 🛒`);
+    toast.success(`${product.name} ajouté au panier`);
   };
 
   const removeFromCart = (productId: string) => setCart(cart.filter(item => item._id !== productId));
@@ -119,6 +135,7 @@ export default function ArtisanMarketplace() {
     else setCart(cart.map(item => item._id === productId ? { ...item, quantity } : item));
   };
   const getTotalPrice = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const getTotalCount = () => cart.reduce((total, item) => total + (item.quantity || 0), 0);
 
   const handleCheckout = async () => {
     if (!cart.length || isCheckoutLoading) return;
@@ -126,12 +143,12 @@ export default function ArtisanMarketplace() {
       setIsCheckoutLoading(true);
       const token = getToken();
       if (!token) {
-        showToast('Session expirée. Veuillez vous reconnecter.');
+        toast.error('Session expirée. Veuillez vous reconnecter.');
         return;
       }
 
-      await axios.post(
-        `${API_URL}/products/checkout`,
+      const resp = await axios.post(
+        `${API_URL}/payments/checkout`,
         {
           items: cart.map((item) => ({
             productId: item._id,
@@ -140,11 +157,15 @@ export default function ArtisanMarketplace() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      setView('confirmation');
+      const url = resp?.data?.url;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      toast.error('Échec de la redirection vers le paiement');
     } catch (error: any) {
       const message = error?.response?.data?.message || 'Erreur lors du checkout.';
-      showToast(message);
+        toast.error(message);
     } finally {
       setIsCheckoutLoading(false);
     }
@@ -171,13 +192,6 @@ export default function ArtisanMarketplace() {
   if (view === 'detail' && selectedProduct) {
     return (
       <div className="space-y-6 relative">
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div className="fixed top-24 right-8 bg-gray-800 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 animate-in slide-in-from-top-5">
-            <Check size={20} className="text-green-400"/> {toastMessage}
-          </div>
-        )}
-
         <Button variant="outline" onClick={() => setView('products')} className="rounded-xl border-2">
           <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Products
         </Button>
@@ -344,25 +358,11 @@ export default function ArtisanMarketplace() {
   // ==========================================
   return (
     <div className="space-y-8 relative">
-      {toastMessage && (
-        <div className="fixed top-24 right-8 bg-gray-800 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 animate-in slide-in-from-top-5">
-          <Check size={20} className="text-green-400"/> {toastMessage}
-        </div>
-      )}
-
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Marketplace</h1>
           <p className="text-lg text-muted-foreground">Browse and order construction materials</p>
         </div>
-        <Button onClick={() => setView('cart')} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm">
-          <ShoppingCart size={20} className="mr-2" /> Cart {cart.length > 0 && `(${cart.length})`}
-          {cart.length > 0 && (
-            <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-xs text-white font-bold shadow-lg animate-bounce">
-              {cart.length}
-            </span>
-          )}
-        </Button>
       </div>
 
       <Card className="p-4 md:p-6 bg-white rounded-2xl border-0 shadow-lg">
