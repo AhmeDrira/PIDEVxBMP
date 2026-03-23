@@ -41,7 +41,15 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
     return { totalViews, categoryCount: categories.size || 0 };
   }, [articles]);
 
-  const handleCreateArticle = async (payload: { title: string; category: string; summary: string; content: string; authorName: string }) => {
+  const handleCreateArticle = async (payload: {
+    title: string;
+    category: string;
+    summary: string;
+    content: string;
+    authorName: string;
+    tags?: string[];
+    attachments?: File[];
+  }) => {
     if (!canManageKnowledge) {
       toast.error('You do not have permission to add articles.');
       return;
@@ -93,6 +101,8 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
         articleId={selectedArticleId}
         userRole="admin"
         onBack={() => setSelectedArticleId(null)}
+        onDeleted={loadArticles}
+        onUpdated={loadArticles}
       />
     );
   }

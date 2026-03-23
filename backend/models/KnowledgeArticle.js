@@ -36,12 +36,28 @@ const knowledgeArticleSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  likedBy: {
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'User',
+    default: [],
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   },
-  attachments: {
+  tags: {
     type: [String],
+    default: [],
+  },
+  attachments: {
+    type: [
+      {
+        name: { type: String, required: false },
+        size: { type: String, required: false },
+        type: { type: String, required: false },
+        url: { type: String, required: false },
+      },
+    ],
     default: [],
   },
 }, { timestamps: true });
