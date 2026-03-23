@@ -205,32 +205,56 @@ const getMarketplaceProducts = async (req, res) => {
 // @route   POST /api/products/:id/reviews
 const createProductReview = async (req, res) => {
   try {
-    const { rating, comment } = req.body;
-    const product = await Product.findById(req.params.id);
-
-    if (product) {
-      // Vérifier si l'utilisateur a déjà voté
-      const alreadyReviewed = product.reviews.find(r => r.user.toString() === req.user._id.toString());
-      if (alreadyReviewed) return res.status(400).json({ message: 'Vous avez déjà noté ce produit' });
-
-      const review = {
-        user: req.user._id,
-        rating: Number(rating),
-        comment: comment || ''
-      };
-
-      product.reviews.push(review);
-      product.numReviews = product.reviews.length;
-      // Calcul de la nouvelle moyenne
-      product.rating = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
-
-      await product.save();
-      res.status(201).json({ message: 'Review added' });
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+    const value = Math.max(1, Math.min(5, Number(req.body?.rating)));
+    if (!Number.isFinite(value)) {
+      return res.status(400).json({ message: 'Invalid rating value' });
+    }
+    const product = await Product.findById(req.params.id).select('manufacturer reviews rating numReviews');
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    if (String(product.manufacturer) === String(req.user._id)) {
+      return res.status(403).json({ message: 'Not allowed to rate own product' });
+    }
+    if (req.user.role && !['artisan', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Not allowed to rate' });
+    }
+    const userId = String(req.user._id);
+    const idx = product.reviews.findIndex((r) => String(r.user) === userId);
+    if (idx >= 0) {
+      const old = Number(product.reviews[idx].rating || 0);
+      const total = Number(product.rating || 0) * Number(product.numReviews || 0);
+      const newTotal = total - old + value;
+      const newAvg = product.numReviews > 0 ? newTotal / product.numReviews : value;
+      await Product.updateOne(
+        { _id: product._id, 'reviews.user': req.user._id },
+        {
+          $set: {
+            'reviews.$.rating': value,
+            'reviews.$.comment': typeof req.body?.comment === 'string' ? req.body.comment : '',
+            rating: newAvg,
+          },
+        }
+      );
+      return res.status(200).json({ message: 'Review updated', updated: true, rating: newAvg, numReviews: product.numReviews });
     } else {
-      res.status(404).json({ message: 'Product not found' });
+      const newNum = (product.numReviews || 0) + 1;
+      const newAvg = (((product.rating || 0) * (product.numReviews || 0)) + value) / newNum;
+      await Product.updateOne(
+        { _id: product._id },
+        {
+          $push: { reviews: { user: req.user._id, rating: value, comment: typeof req.body?.comment === 'string' ? req.body.comment : '' } },
+          $set: { numReviews: newNum, rating: newAvg },
+        }
+      );
+      return res.status(201).json({ message: 'Review added', created: true, rating: newAvg, numReviews: newNum });
     }
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('createProductReview error:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
