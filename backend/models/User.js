@@ -98,6 +98,13 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false,
   },
+  subscription: {
+    planId: { type: String, default: 'free' },
+    status: { type: String, enum: ['active', 'inactive', 'canceled'], default: 'inactive' },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    stripeSessionId: { type: String },
+  },
   pendingEmail: {
     type: String,
     select: false,
