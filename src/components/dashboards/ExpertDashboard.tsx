@@ -7,7 +7,9 @@ import ExpertArtisanDirectory from '../expert/ExpertArtisanDirectory';
 import ExpertMessages from '../expert/ExpertMessages';
 import ExpertMarketplace from '../expert/ExpertMarketplace';
 import ExpertProfile from '../expert/ExpertProfile';
+import ArtisanSubscription from '../artisan/ArtisanSubscription';
 import { Button } from '../ui/button';
+import { CreditCard } from 'lucide-react';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -51,6 +53,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     { id: 'directory', label: 'Artisan Directory', icon: <Users size={20} /> },
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
     { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
+    { id: 'subscription', label: 'Subscription', icon: <CreditCard size={20} /> },
   ];
 
   const renderContent = () => {
@@ -65,6 +68,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         return <ExpertMessages />;
       case 'marketplace':
         return <ExpertMarketplace />;
+      case 'subscription':
+        return <ArtisanSubscription />;
       case 'profile':
         return <ExpertProfile />;
       default:
