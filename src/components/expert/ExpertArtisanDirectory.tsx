@@ -134,10 +134,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Artisan Directory</h1>
-        <p className="text-lg text-muted-foreground">Connect with skilled construction professionals</p>
-      </div>
+      
 
       <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
         <div className="flex flex-col md:flex-row gap-4">

@@ -34,6 +34,7 @@
             "class-variance-authority": "^0.7.1",
             "clsx": "^2.1.1",
             "cmdk": "^1.1.1",
+            "embla-carousel-autoplay": "^8.6.0",
             "embla-carousel-react": "^8.6.0",
             "input-otp": "^1.4.2",
             "leaflet": "^1.9.4",
@@ -46,6 +47,7 @@
             "react-hook-form": "^7.55.0",
             "react-leaflet": "^4.2.1",
             "react-resizable-panels": "^2.1.7",
+            "react-router-dom": "^7.13.2",
             "recharts": "^2.15.2",
             "sonner": "^2.0.3",
             "tailwind-merge": "^3.5.0",
@@ -59,6 +61,9 @@
             "@types/react-google-recaptcha": "^2.1.9",
             "@types/react-router-dom": "^5.3.3",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "autoprefixer": "^10.4.27",
+            "postcss": "^8.5.8",
+            "tailwindcss": "^4.2.2",
             "vite": "^6.4.1"
       },
       "scripts": {

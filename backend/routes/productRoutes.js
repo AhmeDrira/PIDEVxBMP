@@ -15,14 +15,15 @@ const upload = require('../middleware/uploadMiddleware');
 
 // Configuration de l'upload pour accepter deux champs différents
 const productUploads = upload.fields([
-  { name: 'document', maxCount: 1 },  // Pour l'image du produit
-  { name: 'techSheet', maxCount: 1 }  // Pour la fiche technique PDF
+  { name: 'document', maxCount: 1 }, // Pour l'image du produit
+  { name: 'techSheet', maxCount: 1 } // Pour la fiche technique PDF
 ]);
 
-// Routes publiques / Marketplace
-router.get('/marketplace', getMarketplaceProducts);
+// ---> NOUVELLES ROUTES POUR LA MARKETPLACE
+router.get('/marketplace', protect, getMarketplaceProducts);
+router.post('/ensure-static', protect, ensureStaticProduct);
 
-// Routes pour les achats et les avis
+// Routes pour les achats et les avis (Déjà présentes en dessous)
 router.post('/checkout', protect, checkoutProducts);
 router.post('/:id/reviews', protect, createProductReview);
 

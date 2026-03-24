@@ -10,6 +10,7 @@ const reviewSchema = new mongoose.Schema({
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, required: true },
+  isStaticProduct: { type: Boolean, default: false },
   price: { type: Number, required: true },
   stock: { type: Number, required: true, default: 0 },
   description: { type: String, default: '' },

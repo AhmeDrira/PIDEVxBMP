@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, BookOpen, Users, MessageSquare, ShoppingCart } from 'lucide-react';
+import { Home, BookOpen, Users, MessageSquare, ShoppingCart, Bell } from 'lucide-react';
 import ExpertHome from '../expert/ExpertHome';
 import ExpertKnowledgeLibrary from '../expert/ExpertKnowledgeLibrary';
 import ExpertArtisanDirectory from '../expert/ExpertArtisanDirectory';
 import ExpertMessages from '../expert/ExpertMessages';
 import ExpertMarketplace from '../expert/ExpertMarketplace';
 import ExpertProfile from '../expert/ExpertProfile';
+import ArtisanSubscription from '../artisan/ArtisanSubscription';
+import { Button } from '../ui/button';
+import { CreditCard } from 'lucide-react';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -14,6 +17,17 @@ interface ExpertDashboardProps {
 
 export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   const [activeView, setActiveView] = useState('home');
+  const [cartCount, setCartCount] = useState(0);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as any;
+      setCartCount(detail?.count || 0);
+    };
+    window.addEventListener('cart-count', handler as EventListener);
+    return () => {
+      window.removeEventListener('cart-count', handler as EventListener);
+    };
+  }, []);
 
   const [currentUser, setCurrentUser] = useState(() => {
     const s = localStorage.getItem('user');
@@ -39,6 +53,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     { id: 'directory', label: 'Artisan Directory', icon: <Users size={20} /> },
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
     { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
+    { id: 'subscription', label: 'Subscription', icon: <CreditCard size={20} /> },
   ];
 
   const renderContent = () => {
@@ -53,6 +68,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         return <ExpertMessages />;
       case 'marketplace':
         return <ExpertMarketplace />;
+      case 'subscription':
+        return <ArtisanSubscription />;
       case 'profile':
         return <ExpertProfile />;
       default:
@@ -84,6 +101,27 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
       userRole={role}
       userName={fullName}
       profilePhoto={profilePhoto}
+      bellComponent={
+        activeView === 'marketplace' ? (
+          <div className="flex items-center gap-3">
+            <button className="p-3 rounded-xl hover:bg-gray-100 relative transition-colors">
+              <Bell size={20} className="text-muted-foreground" />
+            </button>
+            <Button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-cart'))}
+              variant="outline"
+              className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm"
+            >
+              <ShoppingCart size={20} className="mr-2" /> Cart
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-xs text-white font-bold shadow-lg">
+                  {cartCount}
+                </span>
+              )}
+            </Button>
+          </div>
+        ) : undefined
+      }
     >
       {renderContent()}
     </DashboardLayout>

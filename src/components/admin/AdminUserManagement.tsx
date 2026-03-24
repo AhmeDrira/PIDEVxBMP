@@ -421,8 +421,8 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={editingPermissions.canVerifyManufacturers}
-                      onCheckedChange={(checked) => {
-                        setEditingPermissions((prev) => ({ ...prev, canVerifyManufacturers: checked === true }));
+                      onCheckedChange={(val) => {
+                        setEditingPermissions((prev) => ({ ...prev, canVerifyManufacturers: val === true }));
                       }}
                     />
                     <div>
@@ -436,8 +436,8 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={editingPermissions.canManageKnowledge}
-                      onCheckedChange={(checked) => {
-                        setEditingPermissions((prev) => ({ ...prev, canManageKnowledge: checked === true }));
+                      onCheckedChange={(val) => {
+                        setEditingPermissions((prev) => ({ ...prev, canManageKnowledge: val === true }));
                       }}
                     />
                     <div>
@@ -451,8 +451,8 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={editingPermissions.canSuspendUsers}
-                      onCheckedChange={(checked) => {
-                        setEditingPermissions((prev) => ({ ...prev, canSuspendUsers: checked === true }));
+                      onCheckedChange={(val) => {
+                        setEditingPermissions((prev) => ({ ...prev, canSuspendUsers: val === true }));
                       }}
                     />
                     <div>
@@ -466,8 +466,8 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={editingPermissions.canDeleteUsers}
-                      onCheckedChange={(checked) => {
-                        setEditingPermissions((prev) => ({ ...prev, canDeleteUsers: checked === true }));
+                      onCheckedChange={(val) => {
+                        setEditingPermissions((prev) => ({ ...prev, canDeleteUsers: val === true }));
                       }}
                     />
                     <div>

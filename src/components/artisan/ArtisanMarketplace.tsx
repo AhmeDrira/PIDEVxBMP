@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -7,10 +8,17 @@ import { Label } from '../ui/label';
 import { Search, ShoppingCart, Package, Check, ArrowRight, X, SlidersHorizontal, Eye, Star } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 export default function ArtisanMarketplace() {
   const [view, setView] = useState<'products' | 'cart' | 'confirmation' | 'detail'>('products');
   const [cart, setCart] = useState<any[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setProjectId(params.get('projectId'));
+  }, []);
   const[products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -27,11 +35,16 @@ export default function ArtisanMarketplace() {
 
   // States pour les Notifications & Avis
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
   const [ratingHover, setRatingHover] = useState(0);
   const [userRating, setUserRating] = useState(0);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [isAddingToProject, setIsAddingToProject] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const isMongoObjectId = (value: unknown) =>
+    typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
 
   const getToken = () => {
     let token = localStorage.getItem('token');
@@ -51,7 +64,23 @@ export default function ArtisanMarketplace() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const data = response.data;
+      const dbProducts = Array.isArray(response.data) ? response.data : [];
+      const staticProducts = [
+        { _id: 'static1', name: 'Premium Cement 50kg', category: 'Building Materials', price: 45, stock: 150, description: 'High-quality portland cement', status: 'active', rating: 4.8, numReviews: 24, image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=400&h=300&fit=crop', manufacturer: { name: 'BuildCo', companyName: 'BuildCo' } },
+        { _id: 'static2', name: 'Steel Rebar 12mm', category: 'Construction Steel', price: 120, stock: 500, description: 'High-tensile steel reinforcement bars', status: 'active', rating: 4.5, numReviews: 18, image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=300&fit=crop', manufacturer: { name: 'SteelTech', companyName: 'SteelTech' } },
+        { _id: 'static3', name: 'Ceramic Floor Tiles', category: 'Finishing Materials', price: 35, stock: 1000, description: 'Premium ceramic tiles 60x60cm', status: 'active', rating: 4.2, numReviews: 45, image: 'https://images.unsplash.com/photo-1588880331179-70d75068c227?w=400&h=300&fit=crop', manufacturer: { name: 'CeraMak', companyName: 'CeraMak' } }
+      ];
+
+      const signatures = new Set(
+        dbProducts.map((p: any) => `${(p.name || '').toLowerCase()}::${(p.category || '').toLowerCase()}`)
+      );
+
+      const staticWithoutDuplicates = staticProducts.filter((p: any) => {
+        const signature = `${(p.name || '').toLowerCase()}::${(p.category || '').toLowerCase()}`;
+        return !signatures.has(signature);
+      });
+
+      const data = [...staticWithoutDuplicates, ...dbProducts];
       setProducts(data);
 
       // Calcul du prix maximum pour ajuster le slider dynamiquement
@@ -72,45 +101,256 @@ export default function ArtisanMarketplace() {
   }, [view, API_URL]);
 
   // --- NOTIFICATION SYSTÈME ---
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToastMessage(msg);
+    setToastType(type);
     setTimeout(() => setToastMessage(''), 3000);
   };
+  useEffect(() => {
+    const handler = () => setView('cart');
+    window.addEventListener('open-cart', handler as EventListener);
+    return () => {
+      window.removeEventListener('open-cart', handler as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const count = getTotalCount();
+    window.dispatchEvent(new CustomEvent('cart-count', { detail: { count } }));
+  }, [cart]);
 
   // --- SOUMETTRE UN AVIS (ÉTOILES) ---
   const submitRating = async (ratingValue: number) => {
     try {
       const token = getToken();
-      await axios.post(`${API_URL}/products/${selectedProduct._id}/reviews`, 
-        { rating: ratingValue }, 
+      if (!token) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+      const value = Math.max(1, Math.min(5, Number(ratingValue)));
+      const resp = await axios.post(
+        `${API_URL}/products/${selectedProduct._id}/reviews`,
+        { rating: value, comment: '' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      showToast('Merci pour votre vote ! ⭐');
-      setUserRating(ratingValue);
-      // Mettre à jour localement pour l'affichage
-      setSelectedProduct({
-        ...selectedProduct, 
-        rating: ((selectedProduct.rating * selectedProduct.numReviews) + ratingValue) / (selectedProduct.numReviews + 1),
-        numReviews: selectedProduct.numReviews + 1
-      });
+      const updated = !!resp?.data?.updated;
+      toast.success(updated ? 'Votre note a été mise à jour' : 'Merci pour votre vote ! ⭐');
+      setUserRating(value);
+      const newRating = resp?.data?.rating ?? ((selectedProduct.rating * selectedProduct.numReviews) + value) / (selectedProduct.numReviews + 1);
+      const newNum = resp?.data?.numReviews ?? (selectedProduct.numReviews + 1);
+      setSelectedProduct({ ...selectedProduct, rating: newRating, numReviews: newNum });
     } catch (error: any) {
       if (error.response?.status === 400) {
-        showToast('Vous avez déjà noté ce produit !');
+        showToast('Vous avez déjà noté ce produit !', 'warning');
       } else {
-        showToast('Erreur lors du vote.');
+        showToast('Erreur lors du vote.', 'error');
+      const msg = error?.response?.data?.message;
+      if (error?.response?.status === 400) {
+        toast.info(msg || 'Vous avez déjà noté ce produit !');
+        return;
       }
+      if (error?.response?.status === 401) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+      toast.error(msg || 'Erreur lors du vote.');
     }
   };
 
+  const [showProjectConfirm, setShowProjectConfirm] = useState(false);
+  const [productToAdd, setProductToAdd] = useState<any>(null);
+  const [confirmMessage, setConfirmMessage] = useState<string>('');
+
   // --- LOGIQUE PANIER ---
-  const addToCart = (product: any) => {
+  const addToCart = async (product: any) => {
+    if (projectId) {
+      setProductToAdd(product);
+      setConfirmMessage('');
+      setShowProjectConfirm(true);
+      return;
+    }
     const existing = cart.find(item => item._id === product._id);
     if (existing) {
       setCart(cart.map(item => item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
-    showToast(`${product.name} ajouté au panier ! 🛒`);
+    toast.success(`${product.name} ajouté au panier`);
+  };
+
+  const confirmAddToProject = async () => {
+    if (!productToAdd || !projectId) return;
+
+    let productIdToAttach = productToAdd._id;
+    
+    try {
+      setIsAddingToProject(true);
+      const token = getToken();
+
+      if (!isMongoObjectId(productIdToAttach)) {
+        const ensured = await axios.post(
+          `${API_URL}/products/ensure-static`,
+          {
+            name: productToAdd.name,
+            category: productToAdd.category,
+            price: productToAdd.price,
+            stock: productToAdd.stock,
+            description: productToAdd.description,
+            image: productToAdd.image,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        productIdToAttach = ensured?.data?._id;
+      }
+
+      if (!isMongoObjectId(productIdToAttach)) {
+        throw new Error('Invalid product id after static ensure');
+      }
+
+      const projRes = await axios.get(`${API_URL}/projects`, { headers: { Authorization: `Bearer ${token}` } });
+      const currentProject = projRes.data.find((p: any) => p._id === projectId);
+      if (!currentProject) throw new Error('Project not found');
+      
+      let existingIds: string[] = [];
+      if (Array.isArray(currentProject.materials)) {
+        existingIds = currentProject.materials
+         .flatMap((m: any) => (Array.isArray(m) ? m : [m]))
+         .map((m: any) => (typeof m === 'object' && m !== null ? m._id : m))
+         .filter((id: unknown) => isMongoObjectId(id)) as string[];
+      }
+
+      await axios.put(`${API_URL}/projects/${projectId}`, { 
+        materials: [...existingIds, productIdToAttach]
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      setConfirmMessage(`${productToAdd.name} added to project successfully!`);
+
+      setTimeout(() => {
+        setShowProjectConfirm(false);
+        setProductToAdd(null);
+        setConfirmMessage('');
+      }, 1500);
+    } catch (err) {
+      console.error('Error', err);
+      setConfirmMessage('Error adding to project.');
+      setTimeout(() => {
+        setShowProjectConfirm(false);
+        setProductToAdd(null);
+        setConfirmMessage('');
+      }, 1500);
+    } finally {
+      setIsAddingToProject(false);
+    }
+  };
+  
+  const cancelAddToProject = () => {
+    setConfirmMessage(`${productToAdd?.name} was not added.`);
+    setTimeout(() => {
+      setShowProjectConfirm(false);
+      setProductToAdd(null);
+      setConfirmMessage('');
+    }, 1500);
+  };
+
+  const renderToast = () => {
+    if (!toastMessage) return null;
+
+    const styleByType = {
+      success: 'bg-black text-white border border-zinc-900',
+      warning: 'bg-amber-700 text-white border border-amber-800',
+      error: 'bg-red-700 text-white border border-red-800',
+    } as const;
+
+    return (
+      <div className="w-full px-3 md:px-6 flex justify-center pointer-events-none">
+        <div className={`w-full max-w-md text-center px-5 py-3 rounded-xl shadow-2xl flex items-center justify-center gap-2 font-semibold ${styleByType[toastType]} transition-transform duration-200`}>
+          <Check size={18} className="shrink-0 text-white" />
+          <span>{toastMessage}</span>
+        </div>
+      </div>
+    );
+  };
+
+  // FIXED: Centered modal with improved button visibility and centered success message
+  const renderProjectConfirmBar = () => (
+    showProjectConfirm && productToAdd ? (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] pointer-events-auto">
+        <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          {/* Modal Content */}
+          <div className="p-6">
+            {confirmMessage ? (
+              // Success/Error Message - Centered
+              <div className="text-center py-8">
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+                  confirmMessage.includes('successfully') ? 'bg-green-100' : 'bg-red-100'
+                }`}>
+                  {confirmMessage.includes('successfully') ? (
+                    <Check size={32} className="text-green-600" />
+                  ) : (
+                    <X size={32} className="text-red-600" />
+                  )}
+                </div>
+                <p className={`text-lg font-semibold ${
+                  confirmMessage.includes('successfully') ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  {confirmMessage}
+                </p>
+              </div>
+            ) : (
+              // Confirmation Question
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Package size={32} className="text-gray-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Add this material to the project?</h3>
+                  <p className="text-gray-600 font-medium">{productToAdd.name}</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                    onClick={cancelAddToProject}
+                    disabled={isAddingToProject}
+                  >
+                    Non
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                    onClick={confirmAddToProject}
+                    disabled={isAddingToProject}
+                  >
+                    {isAddingToProject ? 'Oui...' : 'Oui'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : null
+  );
+
+  const renderGlobalOverlay = () => {
+    if (typeof document === 'undefined') return null;
+    if (!toastMessage && !showProjectConfirm) return null;
+
+    return createPortal(
+      <>
+        {toastMessage && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none">
+            {renderToast()}
+          </div>
+        )}
+        {renderProjectConfirmBar()}
+      </>,
+      document.body
+    );
   };
 
   const removeFromCart = (productId: string) => setCart(cart.filter(item => item._id !== productId));
@@ -119,6 +359,7 @@ export default function ArtisanMarketplace() {
     else setCart(cart.map(item => item._id === productId ? { ...item, quantity } : item));
   };
   const getTotalPrice = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const getTotalCount = () => cart.reduce((total, item) => total + (item.quantity || 0), 0);
 
   const handleCheckout = async () => {
     if (!cart.length || isCheckoutLoading) return;
@@ -126,12 +367,12 @@ export default function ArtisanMarketplace() {
       setIsCheckoutLoading(true);
       const token = getToken();
       if (!token) {
-        showToast('Session expirée. Veuillez vous reconnecter.');
+        toast.error('Session expirée. Veuillez vous reconnecter.');
         return;
       }
 
-      await axios.post(
-        `${API_URL}/products/checkout`,
+      const resp = await axios.post(
+        `${API_URL}/payments/checkout`,
         {
           items: cart.map((item) => ({
             productId: item._id,
@@ -140,11 +381,15 @@ export default function ArtisanMarketplace() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      setView('confirmation');
+      const url = resp?.data?.url;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      toast.error('Échec de la redirection vers le paiement');
     } catch (error: any) {
       const message = error?.response?.data?.message || 'Erreur lors du checkout.';
-      showToast(message);
+        toast.error(message);
     } finally {
       setIsCheckoutLoading(false);
     }
@@ -171,12 +416,7 @@ export default function ArtisanMarketplace() {
   if (view === 'detail' && selectedProduct) {
     return (
       <div className="space-y-6 relative">
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div className="fixed top-24 right-8 bg-gray-800 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 animate-in slide-in-from-top-5">
-            <Check size={20} className="text-green-400"/> {toastMessage}
-          </div>
-        )}
+        {renderGlobalOverlay()}
 
         <Button variant="outline" onClick={() => setView('products')} className="rounded-xl border-2">
           <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Products
@@ -243,7 +483,7 @@ export default function ArtisanMarketplace() {
                 className="w-full h-14 text-lg text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-lg disabled:opacity-50"
                 onClick={() => addToCart(selectedProduct)}
               >
-                <ShoppingCart size={20} className="mr-2" /> Add to Cart
+                <ShoppingCart size={20} className="mr-2" /> {projectId ? 'Add to Project' : 'Add to Cart'}
               </Button>
             </Card>
           </div>
@@ -253,7 +493,7 @@ export default function ArtisanMarketplace() {
   }
 
   // ==========================================
-  // VUE : PANIER & CONFIRMATION (Maintenues identiques avec IDs corrigés)
+  // VUE : PANIER & CONFIRMATION
   // ==========================================
   if (view === 'confirmation') {
     return (
@@ -344,25 +584,27 @@ export default function ArtisanMarketplace() {
   // ==========================================
   return (
     <div className="space-y-8 relative">
-      {toastMessage && (
-        <div className="fixed top-24 right-8 bg-gray-800 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 animate-in slide-in-from-top-5">
-          <Check size={20} className="text-green-400"/> {toastMessage}
-        </div>
-      )}
+      {renderGlobalOverlay()}
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Marketplace</h1>
-          <p className="text-lg text-muted-foreground">Browse and order construction materials</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{projectId ? 'Select Materials for Project' : 'Marketplace'}</h1>
+          <p className="text-lg text-muted-foreground">{projectId ? 'Add construction materials directly to your project.' : 'Browse and order construction materials'}</p>
         </div>
-        <Button onClick={() => setView('cart')} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm">
-          <ShoppingCart size={20} className="mr-2" /> Cart {cart.length > 0 && `(${cart.length})`}
-          {cart.length > 0 && (
-            <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-xs text-white font-bold shadow-lg animate-bounce">
-              {cart.length}
-            </span>
-          )}
-        </Button>
+        {projectId ? (
+          <Button onClick={() => window.location.href = '/?artisanView=projects'} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm">
+            <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Projects
+          </Button>
+        ) : (
+          <Button onClick={() => setView('cart')} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm">
+            <ShoppingCart size={20} className="mr-2" /> Cart {cart.length > 0 && `(${cart.length})`}
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-xs text-white font-bold shadow-lg animate-bounce">
+                {cart.length}
+              </span>
+            )}
+          </Button>
+        )}
       </div>
 
       <Card className="p-4 md:p-6 bg-white rounded-2xl border-0 shadow-lg">
@@ -473,7 +715,7 @@ export default function ArtisanMarketplace() {
                         <Eye size={16} className="mr-1" /> View
                       </Button>
                       <Button disabled={product.stock === 0} className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors" onClick={() => addToCart(product)}>
-                        <ShoppingCart size={16} className="mr-1" /> Add
+                        <ShoppingCart size={16} className="mr-1" /> {projectId ? 'Add to Project' : 'Add'}
                       </Button>
                     </div>
                   </div>

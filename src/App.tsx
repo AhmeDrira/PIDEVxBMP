@@ -17,6 +17,7 @@ import AdminDashboard from './components/dashboards/AdminDashboard';
 import authService from './services/authService';
 import { Toaster } from 'sonner';
 import RoleGuard from './components/common/RoleGuard';
+import PortfolioGalleryPage from './components/artisan/PortfolioGalleryPage';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin' | null;
 type AuthView =
@@ -67,6 +68,27 @@ export default function App() {
     }
   }, []);
 
+  const renderDashboard = () => {
+    const path = window.location.pathname;
+    if (path.startsWith('/portfolio/gallery/')) {
+      const itemId = path.split('/')[3];
+      return <PortfolioGalleryPage itemId={itemId} />;
+    }
+
+    switch (currentUser) {
+      case 'artisan':
+        return <ArtisanDashboard onLogout={handleLogout} />;
+      case 'expert':
+        return <ExpertDashboard onLogout={handleLogout} />;
+      case 'manufacturer':
+        return <ManufacturerDashboard onLogout={handleLogout} />;
+      case 'admin':
+        return <AdminDashboard onLogout={handleLogout} />;
+      default:
+        return null;
+    }
+  };
+
   const navigateToAdminLogin = () => {
     setAuthView('admin-login');
     if (window.location.pathname !== '/admin') {
@@ -98,16 +120,14 @@ export default function App() {
     setCurrentUser(null);
     if (isAdmin) {
       const adminType = user?.adminType;
-      if (adminType === 'sub') {
+      if (adminType === 'sub-admin') {
         navigateToSubAdminLogin();
       } else {
         navigateToAdminLogin();
       }
     } else {
       setAuthView('login');
-      if (window.location.pathname !== '/') {
-        window.history.pushState({}, '', '/');
-      }
+      window.history.pushState({}, '', '/');
     }
   };
 
@@ -139,93 +159,103 @@ export default function App() {
     setAuthView('login');
   };
 
+  const renderAuthView = () => {
+    switch (authView) {
+      case 'login':
+        return (
+          <LoginPage
+            onLogin={handleLogin}
+            onRegisterClick={() => setAuthView('register')}
+            onForgotPasswordClick={() => setAuthView('forgot-password')}
+            onAdminLoginClick={navigateToAdminLogin}
+          />
+        );
+      case 'register':
+        return (
+          <RegisterPage
+            onRegister={(email) => {
+              setRegisteredEmail(email);
+              setEmailSentTarget('login');
+              setAuthView('email-sent');
+            }}
+            onLoginClick={() => setAuthView('login')}
+          />
+        );
+      case 'forgot-password':
+        return (
+          <ForgotPasswordPage
+            onEmailSent={(email) => {
+              setForgotEmail(email);
+              setAuthView('email-sent');
+              setEmailSentTarget('login');
+            }}
+            onBackToLogin={() => setAuthView('login')}
+          />
+        );
+      case 'reset-password':
+        return <ResetPasswordPage token={resetToken!} onPasswordReset={() => setAuthView('login')} />;
+      case 'verify-email':
+        return <VerifyEmailPage onVerified={() => setAuthView('login')} />;
+      case 'email-sent':
+        return <EmailSentPage email={registeredEmail || forgotEmail} onNavigateBack={() => setAuthView(emailSentTarget)} />;
+      case 'manufacturer-waiting':
+        return <ManufacturerWaitingPage onLogout={handleLogout} />;
+      case 'admin-login':
+        return (
+          <AdminLoginPage
+            onLogin={handleLogin}
+            onSubAdminLoginClick={navigateToSubAdminLogin}
+            onUserLoginClick={() => setAuthView('login')}
+          />
+        );
+      case 'sub-admin-login':
+        return (
+          <SubAdminLoginPage
+            onLogin={handleLogin}
+            onAdminLoginClick={navigateToAdminLogin}
+            onForgotPasswordClick={() => setAuthView('sub-admin-forgot')}
+          />
+        );
+      case 'sub-admin-forgot':
+        return (
+          <SubAdminForgotPasswordPage
+            onEmailSent={(email) => {
+              setForgotEmail(email);
+              setEmailSentTarget('sub-admin-login');
+              setAuthView('email-sent');
+            }}
+            onBackToLogin={navigateToSubAdminLogin}
+          />
+        );
+      case 'sub-admin-register':
+        return (
+          <SubAdminRegisterPage
+            onRegister={(email) => {
+              setRegisteredEmail(email);
+              setEmailSentTarget('sub-admin-login');
+              setAuthView('email-sent');
+            }}
+            onLoginClick={navigateToSubAdminLogin}
+          />
+        );
+      default:
+        return <LoginPage onLogin={handleLogin} onRegisterClick={() => setAuthView('register')} onForgotPasswordClick={() => setAuthView('forgot-password')} onAdminLoginClick={navigateToAdminLogin} />;
+    }
+  };
+
   return (
     <>
-      <Toaster position="top-center" richColors />
-      {/* Main Content */}
-      {!currentUser ? (
-        <>
-          {authView === 'login' && (
-            <LoginPage
-              onLogin={handleLogin}
-              onRegister={() => setAuthView('register')}
-              onForgotPassword={(email) => { setForgotEmail(email || ''); setAuthView('forgot-password'); }}
-            />
-          )}
-          {authView === 'admin-login' && (
-            <AdminLoginPage
-              onLogin={(role) => handleLogin(role)}
-              onCreateSubAdmin={() => setAuthView('sub-admin-register')}
-            />
-          )}
-          {authView === 'sub-admin-login' && (
-            <SubAdminLoginPage
-              onLogin={(role) => handleLogin(role)}
-              onForgotPassword={() => setAuthView('sub-admin-forgot')}
-            />
-          )}
-          {authView === 'sub-admin-forgot' && (
-            <SubAdminForgotPasswordPage
-              onBackToLogin={navigateToSubAdminLogin}
-            />
-          )}
-          {authView === 'sub-admin-register' && (
-            <SubAdminRegisterPage
-              onBackToAdminLogin={navigateToAdminLogin}
-              onEmailSent={handleSubAdminEmailSent}
-            />
-          )}
-          {authView === 'register' && (
-            <RegisterPage
-              onRegister={handleRegister}
-              onBackToLogin={() => setAuthView('login')}
-            />
-          )}
-          {authView === 'email-sent' && (
-            <EmailSentPage
-              email={registeredEmail}
-              onBackToLogin={handleEmailSentBack}
-            />
-          )}
-          {authView === 'forgot-password' && (
-            <ForgotPasswordPage
-              onBackToLogin={() => setAuthView('login')}
-              initialEmail={forgotEmail || undefined}
-            />
-          )}
-          {authView === 'reset-password' && (
-            <ResetPasswordPage
-              onBackToLogin={() => setAuthView('login')}
-              token={resetToken}
-            />
-          )}
-          {authView === 'verify-email' && (
-            <VerifyEmailPage
-              onBackToLogin={() => setAuthView('login')}
-            />
-          )}
-          {authView === 'manufacturer-waiting' && (
-            <ManufacturerWaitingPage
-              onBackToLogin={() => setAuthView('login')}
-            />
-          )}
-        </>
-      ) : (
-        <>
-          <RoleGuard allow={['artisan']}>
-            {currentUser === 'artisan' && <ArtisanDashboard onLogout={handleLogout} />}
-          </RoleGuard>
-          <RoleGuard allow={['expert']}>
-            {currentUser === 'expert' && <ExpertDashboard onLogout={handleLogout} />}
-          </RoleGuard>
-          <RoleGuard allow={['manufacturer']}>
-            {currentUser === 'manufacturer' && <ManufacturerDashboard onLogout={handleLogout} />}
-          </RoleGuard>
-          <RoleGuard allow={['admin']}>
-            {currentUser === 'admin' && <AdminDashboard onLogout={handleLogout} />}
-          </RoleGuard>
-        </>
-      )}
+      <Toaster
+        richColors
+        position="top-center"
+        offset={48}
+        toastOptions={{
+          style: {
+            zIndex: 99999,
+          },
+        }}
+      />
+      {currentUser ? renderDashboard() : renderAuthView()}
     </>
   );
 }

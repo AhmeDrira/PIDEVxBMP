@@ -21,7 +21,8 @@ interface ArtisanPortfolioItem {
   id: string;
   title: string;
   description: string;
-  image: string;
+  image?: string;
+  video?: string;
   completedDate: string;
 }
 
@@ -89,38 +90,26 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
             'OSHA Safety Certified',
             'Advanced Masonry Techniques',
           ],
-          portfolio: [
-            {
-              id: '1',
-              title: 'Villa Residence - Carthage',
-              description: 'Complete masonry and foundation work',
-              image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop',
-              completedDate: '2026-01-15',
-            },
-            {
-              id: '2',
-              title: 'Commercial Building - La Marsa',
-              description: 'Structural masonry for 3-story building',
-              image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=300&fit=crop',
-              completedDate: '2025-12-10',
-            },
-            {
-              id: '3',
-              title: 'Residential Complex - Sousse',
-              description: 'Foundation and brickwork for 10 units',
-              image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=400&h=300&fit=crop',
-              completedDate: '2025-11-20',
-            },
-            {
-              id: '4',
-              title: 'Historic Renovation - Medina',
-              description: 'Traditional stonework restoration',
-              image: 'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=400&h=300&fit=crop',
-              completedDate: '2025-10-05',
-            },
-          ],
-          profileImage:
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
+          portfolio: Array.isArray(data.portfolio)
+            ? data.portfolio.map((item: any) => {
+                const firstImage = Array.isArray(item.media)
+                  ? item.media.find((m: any) => m.type === 'image' && m.url)
+                  : null;
+                const firstVideo = Array.isArray(item.media)
+                  ? item.media.find((m: any) => m.type === 'video' && m.url)
+                  : null;
+
+                return {
+                  id: item._id,
+                  title: item.title,
+                  description: item.description,
+                  image: firstImage?.url,
+                  video: firstVideo?.url,
+                  completedDate: item.completedDate || new Date().toISOString(),
+                };
+              })
+            : [],
+          profileImage: data.profilePhoto || '',
         };
 
         setArtisan(mappedArtisan);
@@ -324,18 +313,27 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
       {/* Portfolio Section */}
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-6">Portfolio</h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          {artisan.portfolio.map((project) => (
+        {artisan.portfolio.length === 0 ? (
+          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <p className="text-muted-foreground">No portfolio projects published yet.</p>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {artisan.portfolio.map((project) => (
             <Card 
               key={project.id}
               className="group bg-white rounded-2xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
             >
               <div className="aspect-video relative overflow-hidden bg-gray-100">
-                <ImageWithFallback
-                  src={project.image}
-                  alt={project.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                />
+                {project.video ? (
+                  <video src={project.video} className="w-full h-full object-cover" controls />
+                ) : (
+                  <ImageWithFallback
+                    src={project.image || 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=400&h=300&fit=crop'}
+                    alt={project.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  />
+                )}
               </div>
               <div className="p-6">
                 <h3 className="text-xl font-bold text-foreground mb-2">{project.title}</h3>
@@ -346,8 +344,9 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
                 </div>
               </div>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

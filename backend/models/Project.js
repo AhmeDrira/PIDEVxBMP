@@ -15,7 +15,8 @@ const projectSchema = new mongoose.Schema({
   },
   budget: {
     type: Number,
-    required: [true, 'Please add a budget'],
+    default: 0,
+    min: 0,
   },
   startDate: {
     type: Date,
@@ -42,7 +43,25 @@ const projectSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  tasks: [
+    {
+      title: {
+        type: String,
+        required: [true, 'Please add a task title'],
+        trim: true,
+      },
+      status: {
+        type: String,
+        enum: ['todo', 'in_progress', 'done'],
+        default: 'todo',
+      },
+    },
+  ],
   // La relation : on relie ce projet à l'artisan (User)
+  materials: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  }],
   artisan: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
