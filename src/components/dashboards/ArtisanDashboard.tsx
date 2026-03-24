@@ -10,6 +10,7 @@ import ArtisanMessages from '../artisan/ArtisanMessages';
 import ArtisanSubscription from '../artisan/ArtisanSubscription';
 import ArtisanProfile from '../artisan/ArtisanProfile';
 import ArtisanPortfolio from '../artisan/ArtisanPortfolio';
+import { Button } from '../ui/button';
 
 interface ArtisanDashboardProps {
   onLogout: () => void;
@@ -21,6 +22,18 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     const fromQuery = params.get('artisanView');
     return fromQuery || 'home';
   });
+  const[activeView, setActiveView] = useState('home');
+  const [cartCount, setCartCount] = useState(0);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as any;
+      setCartCount(detail?.count || 0);
+    };
+    window.addEventListener('cart-count', handler as EventListener);
+    return () => {
+      window.removeEventListener('cart-count', handler as EventListener);
+    };
+  }, []);
 
   const [currentUser, setCurrentUser] = useState(() => {
     const s = localStorage.getItem('user');
@@ -170,7 +183,27 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       userRole={role}
       userName={fullName}
       profilePhoto={profilePhoto}
-      bellComponent={headerActions}
+      bellComponent={
+        activeView === 'marketplace' ? (
+          <div className="flex items-center gap-3">
+            <button className="p-3 rounded-xl hover:bg-gray-100 relative transition-colors">
+              <Bell size={20} className="text-muted-foreground" />
+            </button>
+            <Button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-cart'))}
+              variant="outline"
+              className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm"
+            >
+              <ShoppingCart size={20} className="mr-2" /> Cart
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-xs text-white font-bold shadow-lg">
+                  {cartCount}
+                </span>
+              )}
+            </Button>
+          </div>
+        ) : undefined
+      }
     >
       {renderContent()}
     </DashboardLayout>

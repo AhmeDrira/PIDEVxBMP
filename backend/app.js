@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const path = require('path'); // AJOUTÉ : Pour gérer les chemins de fichiers
 
 dotenv.config();
 connectDB();
@@ -15,7 +16,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use('/uploads', express.static('uploads'));
+
+// MODIFIÉ : Utilisation de path.join pour être sûr que le dossier 'uploads' est accessible
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
 app.use('/api/invoices', require('./routes/invoiceRoutes'));
@@ -35,6 +39,7 @@ app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/knowledge', require('./routes/knowledgeRoutes'));
 app.use('/api/logs', require('./routes/actionLogRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 
 app.use((err, req, res, next) => {
   if (err && err.name === 'MulterError') {
@@ -50,6 +55,5 @@ app.use((err, req, res, next) => {
 
   return next();
 });
-
 
 module.exports = app;

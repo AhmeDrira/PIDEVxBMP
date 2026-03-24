@@ -1475,7 +1475,7 @@ async function rejectManufacturer(req, res) {
 // @access  Private (Admin)
 async function listUsers(req, res) {
   try {
-    const users = await User.find().select('firstName lastName email role status createdAt adminType permissions');
+    const users = await User.find().select('firstName lastName email role status createdAt adminType permissions subscription');
     return res.status(200).json(users);
   } catch (error) {
     console.error(error);
