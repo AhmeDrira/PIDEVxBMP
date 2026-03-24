@@ -15,7 +15,22 @@ const guardKnowledgePermission = (req, res) => {
   return false;
 };
 
-const formatArticleResponse = (article) => ({
+const parseJsonArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      // fallback: comma-separated
+      return value.split(',').map((v) => v.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
+
+const formatArticleResponse = (article, userId) => ({
   _id: article._id,
   title: article.title,
   category: article.category,
@@ -27,13 +42,22 @@ const formatArticleResponse = (article) => ({
   likes: article.likes,
   createdAt: article.createdAt,
   updatedAt: article.updatedAt,
-  attachments: article.attachments || [],
+  tags: article.tags || [],
+  liked: userId ? Boolean((article.likedBy || []).some((id) => String(id) === String(userId))) : false,
+  likedByUser: userId ? Boolean((article.likedBy || []).some((id) => String(id) === String(userId))) : false,
+  attachments: (article.attachments || []).map((a) => {
+    // Backward-compat: old documents could have string arrays
+    if (typeof a === 'string') {
+      return { name: a, size: '', type: '', url: a };
+    }
+    return a;
+  }),
 });
 
 exports.listArticles = async (req, res) => {
   try {
     const articles = await KnowledgeArticle.find({ status: 'published' }).sort({ createdAt: -1 });
-    return res.status(200).json(articles.map(formatArticleResponse));
+    return res.status(200).json(articles.map((a) => formatArticleResponse(a)));
   } catch (error) {
     console.error('listArticles error:', error);
     return res.status(500).json({ message: 'Server error' });
@@ -49,7 +73,7 @@ exports.getArticleById = async (req, res) => {
     }
     article.views += 1;
     await article.save();
-    return res.status(200).json(formatArticleResponse(article));
+    return res.status(200).json(formatArticleResponse(article, req.user?._id));
   } catch (error) {
     console.error('getArticleById error:', error);
     return res.status(500).json({ message: 'Server error' });
@@ -61,7 +85,7 @@ exports.createArticle = async (req, res) => {
     if (!guardKnowledgePermission(req, res)) {
       return;
     }
-    const { title, category, summary, content, authorName, attachments } = req.body || {};
+    const { title, category, summary, content, authorName, tags } = req.body || {};
     if (!title || !category || !summary || !content) {
       return res.status(400).json({ message: 'Title, category, summary, and content are required' });
     }
@@ -70,20 +94,121 @@ exports.createArticle = async (req, res) => {
       ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() || 'BMP Admin'
       : 'BMP Admin');
 
+    const files = Array.isArray(req.files) ? req.files : [];
+    const attachments = files.map((file) => ({
+      name: file.originalname,
+      size: String(file.size ?? ''),
+      type: file.mimetype ?? 'application/octet-stream',
+      url: `/uploads/knowledge-attachments/${file.filename}`,
+    }));
+
+    const parsedTags = parseJsonArray(tags);
+
     const article = await KnowledgeArticle.create({
       title,
       category,
       summary,
       content,
       authorName: authorLabel,
-      attachments: Array.isArray(attachments) ? attachments : [],
+      tags: parsedTags,
+      attachments,
       createdBy: req.user?._id,
       status: 'published',
     });
 
-    return res.status(201).json(formatArticleResponse(article));
+    return res.status(201).json(formatArticleResponse(article, req.user?._id));
   } catch (error) {
     console.error('createArticle error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.updateArticle = async (req, res) => {
+  try {
+    if (!guardKnowledgePermission(req, res)) {
+      return;
+    }
+
+    const { id } = req.params;
+    const article = await KnowledgeArticle.findById(id);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    const { title, category, summary, content, authorName, tags, removeAttachmentUrls } = req.body || {};
+
+    if (!title || !category || !summary || !content) {
+      return res.status(400).json({ message: 'Title, category, summary, and content are required' });
+    }
+
+    const authorLabel = authorName || article.authorName;
+
+    const parsedTags = parseJsonArray(tags);
+    article.title = title;
+    article.category = category;
+    article.summary = summary;
+    article.content = content;
+    article.authorName = authorLabel;
+    article.tags = parsedTags;
+
+    // Preserve existing attachments unless user explicitly removes them or adds new files
+    const parsedRemoveUrls = parseJsonArray(removeAttachmentUrls);
+    if (parsedRemoveUrls.length) {
+      article.attachments = (article.attachments || []).filter((a) => {
+        const url = typeof a === 'string' ? a : a?.url;
+        return url ? !parsedRemoveUrls.includes(url) : true;
+      });
+    }
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (files.length) {
+      const newAttachments = files.map((file) => ({
+        name: file.originalname,
+        size: String(file.size ?? ''),
+        type: file.mimetype ?? 'application/octet-stream',
+        url: `/uploads/knowledge-attachments/${file.filename}`,
+      }));
+      article.attachments = [...(article.attachments || []), ...newAttachments];
+    }
+
+    await article.save();
+    return res.status(200).json(formatArticleResponse(article, req.user?._id));
+  } catch (error) {
+    console.error('updateArticle error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.likeArticle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+    const article = await KnowledgeArticle.findById(id);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    const hasLiked = (article.likedBy || []).some((uid) => String(uid) === String(userId));
+
+    if (hasLiked) {
+      // Unlike: remove user id and decrement likes
+      article.likedBy = (article.likedBy || []).filter((uid) => String(uid) !== String(userId));
+      article.likes = Math.max(0, (article.likes || 0) - 1);
+    } else {
+      // Like: add user id and increment likes
+      article.likedBy = [...(article.likedBy || []), userId];
+      article.likes = (article.likes || 0) + 1;
+    }
+
+    await article.save();
+
+    const updated = formatArticleResponse(article, userId);
+    return res.status(200).json({ likes: updated.likes, liked: updated.liked, ...updated });
+  } catch (error) {
+    console.error('likeArticle error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };
