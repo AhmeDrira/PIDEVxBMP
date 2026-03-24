@@ -85,6 +85,9 @@ export default function KnowledgeDetailPage({
   if (isEditing && userRole === 'admin') {
     return (
       <AddKnowledgePage
+        key={article._id}
+        isEditing
+        articleToEdit={article}
         initialData={{
           title: article.title,
           category: article.category,
@@ -116,7 +119,7 @@ export default function KnowledgeDetailPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-h-screen overflow-hidden">
       {/* Top Actions */}
       <div className="mb-2 flex items-center justify-between gap-3">
         <Button 
@@ -149,15 +152,15 @@ export default function KnowledgeDetailPage({
         )}
       </div>
 
-      <div className="grid lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3 space-y-6">
+      <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
+        <main className="flex-1 min-w-0 space-y-6">
           {/* Article Header */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 lg:p-10 bg-white rounded-2xl border-0 shadow-lg">
             <Badge className="mb-4 bg-primary/10 text-primary border-0 px-3 py-1 text-sm">
               {article.category}
             </Badge>
             
-            <h1 className="text-4xl font-bold text-foreground mb-6 leading-tight">
+            <h1 className="text-4xl font-bold text-foreground mb-6 leading-tight break-words">
               {article.title}
             </h1>
 
@@ -196,12 +199,15 @@ export default function KnowledgeDetailPage({
           </Card>
 
           {/* Article Content */}
-          <Card className="p-8 lg:p-12 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 lg:p-12 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
             <div 
-              className="prose prose-lg max-w-none"
+              className="prose prose-lg max-w-full break-words whitespace-normal overflow-x-auto [&_*]:max-w-full [&_img]:max-w-full [&_img]:h-auto [&_table]:block [&_table]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_code]:whitespace-pre-wrap [&_code]:break-all"
               style={{
                 color: '#374151',
-                lineHeight: '1.75'
+                lineHeight: '1.75',
+                overflowWrap: 'break-word',
+                wordWrap: 'break-word',
+                wordBreak: 'break-word',
               }}
             >
               <div dangerouslySetInnerHTML={{ __html: (article.content || '').replace(/\n/g, '<br />') }} />
@@ -224,10 +230,10 @@ export default function KnowledgeDetailPage({
               </div>
             </Card>
           )}
-        </div>
+        </main>
 
         {/* Sidebar: Attachments only */}
-        <div className="space-y-6">
+        <aside className="w-full lg:w-96 flex-shrink-0 space-y-6">
           {attachmentList.length > 0 && (
             <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
               <h2 className="text-2xl font-bold text-foreground mb-6">Attachments</h2>
@@ -273,7 +279,7 @@ export default function KnowledgeDetailPage({
               </div>
             </Card>
           )}
-        </div>
+        </aside>
       </div>
     </div>
   );

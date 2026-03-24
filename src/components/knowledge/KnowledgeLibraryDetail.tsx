@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -118,7 +118,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
   }
 
   return (
-    <div className="w-full min-h-screen">
+    <div className="w-full min-h-screen overflow-hidden">
       <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
         Back to Library
@@ -131,7 +131,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
               {article.category}
             </Badge>
 
-            <h1 className="text-4xl font-bold text-foreground mb-6 leading-tight">{article.title}</h1>
+            <h1 className="text-4xl font-bold text-foreground mb-6 leading-tight break-words">{article.title}</h1>
 
             <div className="flex flex-wrap items-center gap-6 pb-6 mb-8 border-b-2 border-gray-100">
               <div className="flex items-center gap-3">
@@ -161,11 +161,14 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
             </div>
 
             <div
-              className="prose prose-lg max-w-none mb-8"
+              className="prose prose-lg max-w-full mb-8 break-words whitespace-normal overflow-x-auto [&_*]:max-w-full [&_img]:max-w-full [&_img]:h-auto [&_table]:block [&_table]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_code]:whitespace-pre-wrap [&_code]:break-all"
               dangerouslySetInnerHTML={{ __html: (article.content || '').replace(/\n/g, '<br />') }}
               style={{
                 lineHeight: '1.8',
                 color: '#374151',
+                overflowWrap: 'break-word',
+                wordWrap: 'break-word',
+                wordBreak: 'break-word',
               }}
             />
 

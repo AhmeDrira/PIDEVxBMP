@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -7,6 +7,8 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { ArrowRight, Upload, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import type { KnowledgeAttachment } from '../../services/knowledgeService';
 import type { KnowledgeArticle } from '../../services/knowledgeService';
 
@@ -23,24 +25,42 @@ interface AddKnowledgePageProps {
     removeAttachmentUrls?: string[];
   }) => Promise<void> | void;
   isSaving?: boolean;
+  /** When true, form is in edit mode (title / button labels). */
+  isEditing?: boolean;
+  /** Full article from admin list — used to pre-fill and to detect edit mode reliably. */
+  articleToEdit?: KnowledgeArticle | null;
   initialData?: Partial<Pick<KnowledgeArticle, 'title' | 'category' | 'summary' | 'content' | 'authorName' | 'tags'>> & {
     attachments?: KnowledgeAttachment[];
   };
+}
+
+function formValuesFromArticle(
+  article: KnowledgeArticle | null | undefined,
+  patch?: AddKnowledgePageProps['initialData'],
+) {
+  const title = patch?.title ?? article?.title ?? '';
+  const category = patch?.category ?? article?.category ?? '';
+  const authorName = patch?.authorName ?? article?.authorName ?? 'BMP Admin';
+  const summary = patch?.summary ?? article?.summary ?? '';
+  const content = patch?.content ?? article?.content ?? '';
+  return { title, category, authorName, summary, content };
 }
 
 export default function AddKnowledgePage({
   onBack,
   onSave,
   isSaving = false,
+  isEditing = false,
+  articleToEdit = null,
   initialData,
 }: AddKnowledgePageProps) {
-  const [formData, setFormData] = useState({
-    title: '',
-    category: '',
-    authorName: 'BMP Admin',
-    summary: '',
-    content: '',
-  });
+  const isEditMode = Boolean(isEditing && articleToEdit?._id);
+  const articleRef = useRef(articleToEdit);
+  articleRef.current = articleToEdit;
+
+  const [formData, setFormData] = useState(() =>
+    formValuesFromArticle(articleToEdit, initialData),
+  );
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
 
@@ -52,21 +72,106 @@ export default function AddKnowledgePage({
     return newFiles.reduce((sum, f) => sum + (f.size || 0), 0);
   }, [newFiles]);
 
+  const quillModules = useMemo(
+    () => ({
+      toolbar: [
+        [{ header: [2, 3, 4, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['link'],
+        [{ color: ['#1F3A8A', '#F59E0B', '#10B981', '#6B7280', '#DC2626'] }],
+        [{ size: ['normal', 'large', 'huge'] }],
+        ['clean'],
+      ],
+    }),
+    [],
+  );
+
+  const quillFormats = useMemo(
+    () => ['header', 'bold', 'italic', 'underline', 'strike', 'list', 'bullet', 'link', 'color', 'size'],
+    [],
+  );
+
+  const sanitizeHtml = (html: string) => {
+    const allowedTags = new Set(['P', 'BR', 'STRONG', 'EM', 'U', 'DEL', 'H2', 'H3', 'H4', 'UL', 'OL', 'LI', 'A', 'SPAN']);
+    const allowedColors = new Set(['rgb(31, 58, 138)', 'rgb(245, 158, 11)', 'rgb(16, 185, 129)', 'rgb(107, 114, 128)', 'rgb(220, 38, 38)']);
+    const allowedSizes = new Set(['large', 'huge']);
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html || '', 'text/html');
+
+    const cleanNode = (node: Node) => {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        if (!allowedTags.has(el.tagName)) {
+          const parent = el.parentNode;
+          while (el.firstChild) parent?.insertBefore(el.firstChild, el);
+          parent?.removeChild(el);
+          return;
+        }
+
+        // Remove dangerous inline styles/classes, then whitelist color/size only
+        const originalStyle = el.getAttribute('style') || '';
+        const cls = el.getAttribute('class') || '';
+        el.removeAttribute('style');
+        el.removeAttribute('class');
+
+        if (el.tagName === 'A') {
+          const href = el.getAttribute('href') || '';
+          if (!/^https?:\/\//i.test(href)) {
+            el.removeAttribute('href');
+          }
+          el.setAttribute('target', '_blank');
+          el.setAttribute('rel', 'noopener noreferrer');
+        }
+
+        // Keep only allowed quill size classes
+        const sizeMatch = cls.match(/ql-size-(large|huge)/);
+        if (sizeMatch && allowedSizes.has(sizeMatch[1])) {
+          el.classList.add(`ql-size-${sizeMatch[1]}`);
+        }
+
+        // Keep only allowed colors from quill inline color style (if present in original style attr)
+        const colorMatch = originalStyle.match(/color\s*:\s*([^;]+)/i);
+        const color = colorMatch?.[1]?.trim() || '';
+        if (color && allowedColors.has(color)) {
+          el.style.color = color;
+        }
+      }
+
+      Array.from(node.childNodes).forEach(cleanNode);
+    };
+
+    Array.from(doc.body.childNodes).forEach(cleanNode);
+    return doc.body.innerHTML;
+  };
+
   useEffect(() => {
-    if (!initialData) return;
-    setFormData({
-      title: initialData.title || '',
-      category: initialData.category || '',
-      authorName: initialData.authorName || 'BMP Admin',
-      summary: initialData.summary || '',
-      content: initialData.content || '',
-    });
-    setTags(initialData.tags || []);
-    setExistingAttachments(initialData.attachments || []);
-    setRemovedAttachmentUrls([]);
-    setNewFiles([]);
-    setTagInput('');
-  }, [initialData]);
+    const current = articleRef.current;
+    if (isEditing && current) {
+      setFormData(formValuesFromArticle(current));
+      setTags(current.tags || []);
+      setExistingAttachments(current.attachments || []);
+      setRemovedAttachmentUrls([]);
+      setNewFiles([]);
+      setTagInput('');
+      return;
+    }
+    if (!isEditing) {
+      setFormData({
+        title: '',
+        category: '',
+        authorName: 'BMP Admin',
+        summary: '',
+        content: '',
+      });
+      setTags([]);
+      setExistingAttachments([]);
+      setRemovedAttachmentUrls([]);
+      setNewFiles([]);
+      setTagInput('');
+    }
+  }, [isEditing, articleToEdit?._id]);
 
   const categories = [
     'Structural Engineering',
@@ -106,7 +211,7 @@ export default function AddKnowledgePage({
         title: formData.title,
         category: formData.category,
         summary: formData.summary,
-        content: formData.content,
+        content: sanitizeHtml(formData.content),
         authorName: formData.authorName,
         tags,
         attachments: newFiles.length ? newFiles : undefined,
@@ -138,8 +243,10 @@ export default function AddKnowledgePage({
 
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Add Knowledge Article</h1>
-          <p className="text-lg text-muted-foreground">Create a new article for the knowledge library</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{isEditMode ? 'Edit Knowledge Article' : 'Add Knowledge Article'}</h1>
+          <p className="text-lg text-muted-foreground">
+            {isEditMode ? 'Update this article with rich formatting' : 'Create a new article for the knowledge library'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -252,20 +359,25 @@ export default function AddKnowledgePage({
             )}
           </div>
 
-          {/* Description */}
+          {/* Full content */}
           <div className="space-y-2">
             <Label htmlFor="content" className="text-base font-semibold text-foreground">
               Full Content *
             </Label>
-            <Textarea
-              id="content"
-              placeholder="Provide detailed information about this article..."
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              rows={8}
-              className="rounded-xl border-2 border-gray-200 focus:border-primary"
-              required
-            />
+            <div className="rounded-xl border-2 border-gray-200 overflow-hidden bg-white">
+              <ReactQuill
+                key={articleToEdit?._id ?? 'new-quill'}
+                theme="snow"
+                value={formData.content}
+                onChange={(value) => setFormData({ ...formData, content: value })}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="Write and style your article content..."
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Allowed: H2/H3/H4, bold, italic, underline, strike, lists, links, predefined colors and sizes.
+            </p>
           </div>
 
           {/* File Upload */}
@@ -361,11 +473,11 @@ export default function AddKnowledgePage({
               disabled={isSaving}
             >
               {isSaving ? (
-                'Publishing...'
+                isEditMode ? 'Updating...' : 'Publishing...'
               ) : (
                 <>
                   <Upload size={20} className="mr-2" />
-                  Publish Article
+                  {isEditMode ? 'Update Article' : 'Publish Article'}
                 </>
               )}
             </Button>
