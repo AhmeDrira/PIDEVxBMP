@@ -16,20 +16,16 @@ const productSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   status: { type: String, enum: ['active', 'low-stock', 'out-of-stock'], default: 'active' },
   manufacturer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  documentUrl: { type: String, default: '' },
   
-  // --- NOUVEAUX CHAMPS POUR LA MARKETPLACE ---
+  // --- DOCUMENTS ET FICHIERS ---
+  documentUrl: { type: String, default: '' }, // L'image principale (uploadée)
+  techSheetUrl: { type: String, default: '' }, // LA CORRECTION : Le chemin vers le PDF technique
+  
+  // --- CHAMPS POUR LA MARKETPLACE ---
   image: { type: String, default: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRBrw3v8qGtHADl_B9kBzi3BapmKcOqpWcntg&s' },
-  reviews: [reviewSchema], // Tableau des avis
-  rating: { type: Number, default: 0 }, // Moyenne des étoiles
-  numReviews: { type: Number, default: 0 } // Nombre total de votes
+  reviews: [reviewSchema], 
+  rating: { type: Number, default: 0 }, 
+  numReviews: { type: Number, default: 0 } 
 }, { timestamps: true });
-
-productSchema.pre('save', function(next) {
-  if (this.stock === 0) this.status = 'out-of-stock';
-  else if (this.stock <= 10) this.status = 'low-stock';
-  else this.status = 'active';
-  next();
-});
 
 module.exports = mongoose.model('Product', productSchema);
