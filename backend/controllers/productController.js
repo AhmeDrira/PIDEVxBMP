@@ -1,5 +1,6 @@
 // backend/controllers/productController.js
 const Product = require('../models/Product');
+const { User } = require('../models/User');
 const { logAction } = require('../utils/actionLogger');
 
 // Fonction pour déterminer le statut automatiquement selon le stock
@@ -197,7 +198,76 @@ const getMarketplaceProducts = async (req, res) => {
       .sort({ createdAt: -1 });
     res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Marketplace fetch error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Ensure a static marketplace product exists in DB
+// @route   POST /api/products/ensure-static
+const ensureStaticProduct = async (req, res) => {
+  try {
+    const { name, category, price, stock, description, image } = req.body || {};
+
+    if (!name || !category || !Number.isFinite(Number(price))) {
+      return res.status(400).json({ message: 'name, category and price are required' });
+    }
+
+    const resolveManufacturerId = async () => {
+      const candidateIds = [req.user?._id, req.user?.id]
+        .map((v) => (v ? String(v) : ''))
+        .filter(Boolean);
+
+      for (const candidate of candidateIds) {
+        const owner = await User.findById(candidate).select('_id');
+        if (owner?._id) return owner._id;
+      }
+
+      const existingManufacturer = await User.findOne({ role: 'manufacturer' }).select('_id');
+      if (existingManufacturer?._id) return existingManufacturer._id;
+
+      const anyUser = await User.findOne({}).select('_id');
+      if (anyUser?._id) return anyUser._id;
+
+      return null;
+    };
+
+    const manufacturerId = await resolveManufacturerId();
+    if (!manufacturerId) {
+      return res.status(500).json({ message: 'No user available to attach static product' });
+    }
+
+    const normalizedStock = Number.isFinite(Number(stock)) ? Number(stock) : 0;
+
+    const ensured = await Product.findOneAndUpdate(
+      { name, category },
+      {
+        $set: {
+          price: Number(price),
+          stock: normalizedStock,
+          description: description || '',
+          image: image || '',
+          status: calculateStatus(normalizedStock),
+          isStaticProduct: true,
+        },
+        $setOnInsert: {
+          manufacturer: manufacturerId,
+        },
+      },
+      {
+        upsert: true,
+        returnDocument: 'after',
+        runValidators: true,
+      }
+    );
+
+    const populated = await Product.findById(ensured._id)
+      .populate('manufacturer', 'companyName firstName lastName');
+
+    return res.status(200).json(populated);
+  } catch (error) {
+    console.error('ensureStaticProduct error:', error);
+    return res.status(500).json({ message: 'Failed to ensure static product', error: error.message });
   }
 };
 
@@ -264,6 +334,7 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getMarketplaceProducts,
+  ensureStaticProduct,
   createProductReview,
   checkoutProducts,
 };

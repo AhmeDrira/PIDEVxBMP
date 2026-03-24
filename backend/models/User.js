@@ -141,6 +141,22 @@ const Artisan = User.discriminator('artisan', new mongoose.Schema({
   domain: { type: String, default: '' },
   yearsExperience: { type: Number },
   bio: { type: String, default: '' },
+  portfolio: [
+    {
+      title: { type: String, required: true, trim: true },
+      description: { type: String, required: true, trim: true },
+      location: { type: String, default: '' },
+      completedDate: { type: Date },
+      source: { type: String, enum: ['project', 'manual'], default: 'manual' },
+      sourceProject: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
+      media: [
+        {
+          type: { type: String, enum: ['image', 'video'], default: 'image' },
+          url: { type: String, required: true, trim: true },
+        },
+      ],
+    },
+  ],
 }));
 
 const Expert = User.discriminator('expert', new mongoose.Schema({

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
+import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, Image } from 'lucide-react';
 import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, Bell } from 'lucide-react';
 import ArtisanHome from '../artisan/ArtisanHome';
 import ArtisanProjects from '../artisan/ArtisanProjects';
@@ -9,6 +10,7 @@ import ArtisanInvoices from '../artisan/ArtisanInvoices';
 import ArtisanMessages from '../artisan/ArtisanMessages';
 import ArtisanSubscription from '../artisan/ArtisanSubscription';
 import ArtisanProfile from '../artisan/ArtisanProfile';
+import ArtisanPortfolio from '../artisan/ArtisanPortfolio';
 import { Button } from '../ui/button';
 
 interface ArtisanDashboardProps {
@@ -16,6 +18,11 @@ interface ArtisanDashboardProps {
 }
 
 export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
+  const[activeView, setActiveView] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get('artisanView');
+    return fromQuery || 'home';
+  });
   const[activeView, setActiveView] = useState('home');
   const [cartCount, setCartCount] = useState(0);
   useEffect(() => {
@@ -43,6 +50,17 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     return () => window.removeEventListener('storage', handler);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get('artisanView');
+    if (fromQuery) {
+      setActiveView(fromQuery);
+      params.delete('artisanView');
+      const cleaned = params.toString();
+      window.history.replaceState({}, '', cleaned ? `/?${cleaned}` : '/');
+    }
+  }, []);
+
   const fullName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Artisan';
   const role = currentUser?.role || 'artisan';
   const profilePhoto = currentUser?.profilePhoto || '';
@@ -55,6 +73,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     { id: 'invoices', label: 'Invoices', icon: <Receipt size={20} /> },
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
     { id: 'subscription', label: 'Subscription', icon: <CreditCard size={20} /> },
+    { id: 'portfolio', label: 'Portfolio', icon: <Image size={20} /> },
   ];
 
   const renderContent = () => {
@@ -75,6 +94,8 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
         return <ArtisanSubscription />;
       case 'profile':
         return <ArtisanProfile />;
+      case 'portfolio':
+        return <ArtisanPortfolio />;
       default:
         return <ArtisanHome onNavigate={setActiveView} />;
     }
@@ -85,7 +106,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
   };
 
   const handleEditProfile = () => {
-    setActiveView('profile');
+    setActiveView('portfolio');
   };
 
   const handleUpdatePassword = () => {
@@ -101,6 +122,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       onLogout={onLogout}
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}
+      editProfileLabel="Portfolio"
       userRole={role}
       userName={fullName}
       profilePhoto={profilePhoto}
