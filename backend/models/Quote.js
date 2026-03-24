@@ -16,9 +16,28 @@ const quoteSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  clientName: {
+    type: String,
+    required: [true, 'Please add a client name'],
+    trim: true
+  },
+  laborHand: {
+    type: Number,
+    required: [true, 'Please add labor hand amount'],
+    min: 0,
+    default: 0
+  },
+  materialsAmount: {
+    type: Number,
+    required: [true, 'Please add materials amount'],
+    min: 0,
+    default: 0
+  },
   amount: {
     type: Number,
-    required:[true, 'Please add an estimated amount']
+    required:[true, 'Please add an estimated amount'],
+    min: 0,
+    default: 0
   },
   description: {
     type: String,

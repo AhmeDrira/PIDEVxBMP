@@ -7,6 +7,7 @@ import { Textarea } from '../ui/textarea';
 import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 // Composant d'autocomplétion pour la localisation
 const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates = []  }: {
@@ -328,10 +329,11 @@ export default function ArtisanProjects() {
       );
       setFormData({ title: '', description: '', location: '', budget: '', startDate: '', endDate: '', progress: 0 });
       setLocationSelected(false);
+      toast.success('Project created successfully');
       setView('list');
     } catch (error) {
       console.error('Erreur lors de la création:', error);
-      alert('Erreur lors de la création du projet.');
+      toast.error('Erreur lors de la création du projet.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1297,7 +1299,12 @@ export default function ArtisanProjects() {
                       <FolderKanban size={16} className="mr-2" /> View Materials
                     </Button>
                   )}
-                  <Button className="w-full h-10 justify-start text-white bg-accent hover:bg-accent/90 rounded-xl shadow-md">
+                  <Button
+                    className="w-full h-10 justify-start text-white bg-accent hover:bg-accent/90 rounded-xl shadow-md"
+                    onClick={() => {
+                      window.location.href = '/?artisanView=quotes&projectId=' + project._id;
+                    }}
+                  >
                     <FileText size={16} className="mr-2" /> Create Quote
                   </Button>
                   <Button className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, Image } from 'lucide-react';
+import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, Image, Bell } from 'lucide-react';
 import ArtisanHome from '../artisan/ArtisanHome';
 import ArtisanProjects from '../artisan/ArtisanProjects';
 import ArtisanMarketplace from '../artisan/ArtisanMarketplace';
@@ -26,6 +26,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     const s = localStorage.getItem('user');
     return s ? JSON.parse(s) : null;
   });
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     const handler = () => {
@@ -45,6 +46,37 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       const cleaned = params.toString();
       window.history.replaceState({}, '', cleaned ? `/?${cleaned}` : '/');
     }
+  }, []);
+
+  useEffect(() => {
+    const syncCartCount = () => {
+      try {
+        const raw = sessionStorage.getItem('artisan-marketplace-cart');
+        if (!raw) {
+          setCartCount(0);
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+          setCartCount(0);
+          return;
+        }
+        const totalQty = parsed.reduce((sum: number, item: any) => sum + Number(item?.quantity || 0), 0);
+        setCartCount(totalQty);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    syncCartCount();
+    window.addEventListener('storage', syncCartCount);
+    window.addEventListener('artisan-cart-updated', syncCartCount as EventListener);
+    window.addEventListener('focus', syncCartCount);
+    return () => {
+      window.removeEventListener('storage', syncCartCount);
+      window.removeEventListener('artisan-cart-updated', syncCartCount as EventListener);
+      window.removeEventListener('focus', syncCartCount);
+    };
   }, []);
 
   const fullName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Artisan';
@@ -99,6 +131,32 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     setActiveView('update-password');
   };
 
+  const openHeaderCart = () => {
+    setActiveView('marketplace');
+    window.history.pushState({}, '', '/?openCart=1');
+  };
+
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <button className="p-3 rounded-xl hover:bg-gray-100 relative transition-colors" type="button" aria-label="Notifications">
+        <Bell size={20} className="text-muted-foreground" />
+      </button>
+      <button
+        className="p-2.5 w-11 h-11 rounded-xl relative overflow-visible transition-all duration-300 flex items-center justify-center hover:bg-gray-100"
+        type="button"
+        aria-label="Open cart"
+        onClick={openHeaderCart}
+      >
+        <ShoppingCart size={20} className="text-gray-700" />
+        {cartCount > 0 && (
+          <span className="absolute -top-2 right-0 translate-x-1/2 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-destructive text-[11px] font-extrabold text-white shadow-md">
+            {cartCount > 99 ? '99+' : cartCount}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+
   return (
     <DashboardLayout
       menuItems={menuItems}
@@ -112,6 +170,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       userRole={role}
       userName={fullName}
       profilePhoto={profilePhoto}
+      bellComponent={headerActions}
     >
       {renderContent()}
     </DashboardLayout>

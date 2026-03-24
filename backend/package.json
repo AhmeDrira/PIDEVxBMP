@@ -23,7 +23,8 @@
     "mongoose": "^9.2.2",
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^8.0.1"
+    "nodemailer": "^8.0.1",
+    "puppeteer-core": "^24.6.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

@@ -4,10 +4,11 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, Printer } from 'lucide-react';
+import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, CreditCard, Trash2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 export default function ArtisanInvoices() {
   const [view, setView] = useState<'list' | 'create' | 'details'>('list');
@@ -15,6 +16,10 @@ export default function ArtisanInvoices() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [completionFlags, setCompletionFlags] = useState<Record<string, boolean>>({});
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
+  const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
 
   // Stats calculées dynamiquement
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -107,6 +112,38 @@ export default function ArtisanInvoices() {
     };
   }, [selectedInvoice]);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('artisan-invoice-completions');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        setCompletionFlags(parsed);
+      }
+    } catch {
+      // Ignore malformed cached completion state.
+    }
+  }, []);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem('artisan:redirect-toast');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const message = parsed?.message || 'Success';
+      const type = parsed?.type || 'success';
+
+      if (type === 'error') toast.error(message);
+      else if (type === 'warning') toast.warning(message);
+      else toast.success(message);
+    } catch {
+      toast.success('Operation completed successfully');
+    } finally {
+      sessionStorage.removeItem('artisan:redirect-toast');
+    }
+  }, []);
+
   // --- VALIDATION DES CHAMPS ---
   const validateField = (name: string, value: any): string => {
     switch (name) {
@@ -171,17 +208,200 @@ export default function ArtisanInvoices() {
     }
   };
 
-  // --- MARQUER COMME PAYÉ ---
-  const handleMarkAsPaid = async (id: string) => {
+  const handlePayUpfrontRedirect = async () => {
     try {
       const token = getToken();
-      await axios.put(`${API_URL}/invoices/${id}/status`, { status: 'paid' }, {
-        headers: { Authorization: `Bearer ${token}` }
+      const projectIdRaw = selectedInvoice?.project?._id || selectedInvoice?.project;
+      const projectId = projectIdRaw ? String(projectIdRaw) : '';
+      const invoiceId = selectedInvoice?._id ? String(selectedInvoice._id) : '';
+      const invoiceNumber = selectedInvoice?.invoiceNumber || 'Invoice';
+      const invoiceAmount = Number(selectedInvoice?.amount || 0);
+
+      if (!token || !projectId || !invoiceId || !Number.isFinite(invoiceAmount) || invoiceAmount <= 0) {
+        toast.warning('Invoice amount is invalid, opening cart anyway');
+        window.location.href = '/?artisanView=marketplace&openCart=1';
+        return;
+      }
+
+      const response = await axios.get(`${API_URL}/projects`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Invoice marked as Paid!');
-      setView('list');
+
+      const projects = Array.isArray(response.data) ? response.data : [];
+      const targetProject = projects.find((p: any) => String(p?._id || '') === projectId);
+      const materials = Array.isArray(targetProject?.materials) ? targetProject.materials : [];
+
+      const groupedById = new Map<string, any>();
+      materials.forEach((m: any) => {
+        const id = String(m?._id || '').trim();
+        if (!id) return;
+
+        const existing = groupedById.get(id);
+        if (existing) {
+          existing.quantity += 1;
+          return;
+        }
+
+        groupedById.set(id, {
+          _id: id,
+          name: m?.name || 'Material',
+          category: m?.category || 'Material',
+          price: Number(m?.price || 0),
+          stock: Number(m?.stock || 0),
+          description: m?.description || '',
+          image: m?.image || '',
+          manufacturer: m?.manufacturer || null,
+          quantity: 1,
+        });
+      });
+
+      let cartFromInvoice = Array.from(groupedById.values());
+
+      if (cartFromInvoice.length === 0) {
+        cartFromInvoice = [
+          {
+            _id: `invoice-item-${invoiceId}`,
+            name: `Invoice ${invoiceNumber}`,
+            category: 'Invoice Payment',
+            price: invoiceAmount,
+            stock: 1,
+            description: selectedInvoice?.description || 'Payment generated from invoice',
+            image: '',
+            manufacturer: { companyName: 'BMP Invoice' },
+            quantity: 1,
+          },
+        ];
+      }
+
+      // Requested summary mode: Subtotal and Shipping use the same amount; tax stays 0.
+      // To keep item rows consistent, we scale material prices so cart subtotal equals half invoice amount.
+      const targetSubtotal = Number((invoiceAmount / 2).toFixed(2));
+      const baseSubtotal = cartFromInvoice.reduce(
+        (sum: number, item: any) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+        0
+      );
+
+      if (baseSubtotal > 0 && cartFromInvoice.length > 0) {
+        const ratio = targetSubtotal / baseSubtotal;
+        let runningSubtotal = 0;
+
+        cartFromInvoice = cartFromInvoice.map((item: any, index: number) => {
+          const isLast = index === cartFromInvoice.length - 1;
+          const qty = Number(item.quantity || 0) || 1;
+
+          if (isLast) {
+            const remaining = Number((targetSubtotal - runningSubtotal).toFixed(2));
+            const adjustedUnit = Number((remaining / qty).toFixed(2));
+            return { ...item, price: adjustedUnit };
+          }
+
+          const adjustedUnit = Number((Number(item.price || 0) * ratio).toFixed(2));
+          const lineTotal = Number((adjustedUnit * qty).toFixed(2));
+          runningSubtotal = Number((runningSubtotal + lineTotal).toFixed(2));
+          return { ...item, price: adjustedUnit };
+        });
+      }
+
+      // Always replace previous cart when invoice changes.
+      sessionStorage.removeItem('artisan-marketplace-cart');
+      sessionStorage.setItem('artisan-marketplace-cart', JSON.stringify(cartFromInvoice));
+      sessionStorage.setItem(
+        'artisan-marketplace-cart-context',
+        JSON.stringify({
+          source: 'invoice',
+          invoiceId,
+          invoiceNumber,
+          invoiceAmount,
+          projectId,
+          summaryMode: 'split-even',
+          updatedAt: Date.now(),
+        })
+      );
+      window.dispatchEvent(new Event('artisan-cart-updated'));
+
+      sessionStorage.setItem(
+        'artisan:redirect-toast',
+        JSON.stringify({
+          message: `Invoice ${invoiceNumber} loaded in cart (${invoiceAmount.toFixed(2)} TND)`,
+          type: 'success',
+        })
+      );
+
+      window.location.href = '/?artisanView=marketplace&openCart=1';
     } catch (error) {
-      console.error("Error updating status:", error);
+      console.error('Error preparing cart from invoice project:', error);
+      sessionStorage.setItem(
+        'artisan:redirect-toast',
+        JSON.stringify({ message: 'Unable to load project materials, opening cart', type: 'warning' })
+      );
+      window.location.href = '/?artisanView=marketplace&openCart=1';
+    }
+  };
+
+  const handlePaidUponCompletion = (invoiceId: string) => {
+    const nextFlags = { ...completionFlags, [invoiceId]: true };
+    setCompletionFlags(nextFlags);
+    sessionStorage.setItem('artisan-invoice-completions', JSON.stringify(nextFlags));
+    toast.success('Invoice completion confirmed');
+  };
+
+  const handleDownloadInvoicePdf = async (invoice: any) => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await axios.get(`${API_URL}/invoices/${invoice._id}/pdf`, {
+        responseType: 'blob',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const fileURL = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = fileURL;
+      link.download = `${invoice.invoiceNumber || 'invoice'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(fileURL);
+    } catch (error: any) {
+      console.error('Error downloading invoice PDF:', error);
+      const message = error?.response?.data?.message;
+      toast.error(message || 'Failed to generate invoice PDF');
+    }
+  };
+
+  const openDeleteInvoiceModal = (invoice: any) => {
+    setInvoiceToDelete(invoice);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteInvoice = async () => {
+    if (!invoiceToDelete?._id) return;
+
+    setIsDeletingInvoice(true);
+    try {
+      const token = getToken();
+      await axios.delete(`${API_URL}/invoices/${invoiceToDelete._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setInvoices((prev) => prev.filter((item) => item._id !== invoiceToDelete._id));
+      if (selectedInvoice?._id === invoiceToDelete._id) {
+        setSelectedInvoice(null);
+        setView('list');
+      }
+
+      const deletedNumber = invoiceToDelete.invoiceNumber;
+      setShowDeleteModal(false);
+      setInvoiceToDelete(null);
+      toast.success(`Invoice ${deletedNumber} deleted successfully.`);
+    } catch (error: any) {
+      console.error('Error deleting invoice:', error);
+      const message = error?.response?.data?.message;
+      toast.error(message || 'Failed to delete invoice');
+    } finally {
+      setIsDeletingInvoice(false);
     }
   };
 
@@ -372,6 +592,7 @@ export default function ArtisanInvoices() {
   // VUE 2 : DÉTAILS DE LA FACTURE
   // ==========================================
   if (view === 'details' && selectedInvoice) {
+    const completionConfirmed = Boolean(completionFlags[selectedInvoice._id]);
 
     return (
       <div className="max-w-4xl mx-auto space-y-6">
@@ -380,17 +601,31 @@ export default function ArtisanInvoices() {
             <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
           </Button>
           <div className="flex gap-3">
-            {selectedInvoice.status !== 'paid' && (
+            {selectedInvoice.status !== 'paid' ? (
+              <>
+                <Button
+                  onClick={handlePayUpfrontRedirect}
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-3 text-lg font-semibold"
+                >
+                  <CreditCard size={20} className="mr-2" /> Payer UpFront
+                </Button>
+              </>
+            ) : !completionConfirmed ? (
               <Button
-                onClick={() => handleMarkAsPaid(selectedInvoice._id)}
-                className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-6 py-3 text-lg font-semibold"
+                onClick={() => handlePaidUponCompletion(selectedInvoice._id)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-6 py-3 text-lg font-semibold"
               >
-                <Check size={20} className="mr-2" /> Mark as Paid
+                <Check size={20} className="mr-2" /> Paid Upon Completion
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                disabled
+                className="bg-emerald-600/90 text-white rounded-xl px-6 py-3 text-lg font-semibold cursor-default"
+              >
+                <Check size={20} className="mr-2" /> Completed
               </Button>
             )}
-            <Button onClick={() => window.print()} variant="outline" className="rounded-xl border-2">
-              <Printer size={18} className="mr-2" /> Print / PDF
-            </Button>
           </div>
         </div>
 
@@ -462,9 +697,6 @@ export default function ArtisanInvoices() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Invoices</h1>
           <p className="text-lg text-muted-foreground">Manage project invoices and payments</p>
         </div>
-        <Button onClick={() => setView('create')} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
-          <Plus size={20} className="mr-2" /> Generate Invoice
-        </Button>
       </div>
 
       {/* Stats */}
@@ -526,13 +758,17 @@ export default function ArtisanInvoices() {
                       variant="outline"
                       size="sm"
                       className="rounded-xl border-2 h-10 hover:bg-accent hover:text-white"
-                      onClick={() => {
-                        setSelectedInvoice(invoice);
-                        setView('details');
-                        setTimeout(() => window.print(), 500);
-                      }}
+                      onClick={() => handleDownloadInvoicePdf(invoice)}
                     >
-                      <Download size={16} className="mr-2" /> Print
+                      <Download size={16} className="mr-2" /> PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl border-2 h-10 hover:bg-red-600 hover:text-white"
+                      onClick={() => openDeleteInvoiceModal(invoice)}
+                    >
+                      <Trash2 size={16} className="mr-2" /> Delete
                     </Button>
                   </div>
                 </div>
@@ -541,6 +777,47 @@ export default function ArtisanInvoices() {
           ))
         )}
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] pointer-events-auto">
+          <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 size={32} className="text-red-600" />
+                </div>
+                <h3 className="text-3xl font-bold text-gray-900 mb-2">Delete Invoice?</h3>
+                <p className="text-gray-600 font-medium">{invoiceToDelete?.invoiceNumber || ''}</p>
+                <p className="text-sm text-gray-500 mt-2">Are you sure you want to delete this invoice?</p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setInvoiceToDelete(null);
+                  }}
+                  disabled={isDeletingInvoice}
+                >
+                  Non
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                  onClick={handleDeleteInvoice}
+                  disabled={isDeletingInvoice}
+                >
+                  {isDeletingInvoice ? 'Oui...' : 'Oui'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

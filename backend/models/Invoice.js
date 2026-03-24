@@ -11,6 +11,11 @@ const invoiceSchema = new mongoose.Schema({
     ref: 'Project',
     required: [true, 'Please select a project']
   },
+  quote: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Quote',
+    default: null
+  },
   artisan: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

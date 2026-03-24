@@ -13,11 +13,51 @@ export default function ArtisanMarketplace() {
   const [view, setView] = useState<'products' | 'cart' | 'confirmation' | 'detail'>('products');
   const [cart, setCart] = useState<any[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const CART_STORAGE_KEY = 'artisan-marketplace-cart';
+  const CART_CONTEXT_KEY = 'artisan-marketplace-cart-context';
+  const [cartSource, setCartSource] = useState<'invoice' | 'marketplace' | null>(null);
+  const [cartContext, setCartContext] = useState<any>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setProjectId(params.get('projectId'));
+
+    const shouldOpenCart = params.get('openCart') === '1';
+    if (shouldOpenCart) {
+      setView('cart');
+      params.delete('openCart');
+      const cleaned = params.toString();
+      window.history.replaceState({}, '', cleaned ? `/?${cleaned}` : '/');
+    }
+
+    try {
+      const stored = sessionStorage.getItem(CART_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setCart(parsed);
+        }
+      }
+
+      const storedContext = sessionStorage.getItem(CART_CONTEXT_KEY);
+      if (storedContext) {
+        const parsedContext = JSON.parse(storedContext);
+        setCartContext(parsedContext || null);
+        setCartSource(parsedContext?.source === 'invoice' ? 'invoice' : 'marketplace');
+      }
+    } catch (error) {
+      console.warn('Unable to restore marketplace cart:', error);
+    }
   }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      window.dispatchEvent(new Event('artisan-cart-updated'));
+    } catch (error) {
+      console.warn('Unable to persist marketplace cart:', error);
+    }
+  }, [cart]);
   const[products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -143,6 +183,13 @@ export default function ArtisanMarketplace() {
       setShowProjectConfirm(true);
       return;
     }
+
+    // Standard marketplace cart source.
+    const nextContext = { source: 'marketplace', updatedAt: Date.now() };
+    sessionStorage.setItem(CART_CONTEXT_KEY, JSON.stringify(nextContext));
+    setCartContext(nextContext);
+    setCartSource('marketplace');
+
     const existing = cart.find(item => item._id === product._id);
     if (existing) {
       setCart(cart.map(item => item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item));
@@ -327,11 +374,6 @@ export default function ArtisanMarketplace() {
     );
   };
 
-  const removeFromCart = (productId: string) => setCart(cart.filter(item => item._id !== productId));
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) removeFromCart(productId);
-    else setCart(cart.map(item => item._id === productId ? { ...item, quantity } : item));
-  };
   const getTotalPrice = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   const handleCheckout = async () => {
@@ -483,6 +525,21 @@ export default function ArtisanMarketplace() {
   }
 
   if (view === 'cart') {
+    const rawSubtotal = getTotalPrice();
+    const invoiceAmount = Number(cartContext?.invoiceAmount || 0);
+    const isSplitEvenInvoice = cartSource === 'invoice' && cartContext?.summaryMode === 'split-even' && invoiceAmount > 0;
+
+    const subtotal = isSplitEvenInvoice
+      ? Number((invoiceAmount / 2).toFixed(2))
+      : rawSubtotal;
+    const shipping = isSplitEvenInvoice
+      ? Number((invoiceAmount / 2).toFixed(2))
+      : (cartSource === 'invoice' ? 0 : 15);
+    const taxAmount = 0;
+    const grandTotal = isSplitEvenInvoice
+      ? invoiceAmount
+      : (subtotal + shipping + taxAmount);
+
     return (
       <div className="space-y-6">
         <Button variant="outline" onClick={() => setView('products')} className="rounded-xl border-2">
@@ -509,14 +566,12 @@ export default function ArtisanMarketplace() {
                         <p className="text-sm text-muted-foreground">{getManufacturerName(item)}</p>
                         <p className="text-sm font-semibold text-primary">{item.price} TND / unit</p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item._id, item.quantity - 1)} className="w-10 h-10 rounded-xl border-2">-</Button>
-                        <span className="w-12 text-center font-bold text-lg">{item.quantity}</span>
-                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item._id, item.quantity + 1)} className="w-10 h-10 rounded-xl border-2">+</Button>
+                      <div className="px-4 py-2 rounded-xl bg-gray-50 border border-gray-200 min-w-[84px] text-center">
+                        <p className="text-xs text-muted-foreground font-medium">Quantity</p>
+                        <p className="font-bold text-lg text-foreground">{item.quantity}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-xl font-bold text-foreground">{(item.price * item.quantity).toFixed(2)} TND</p>
-                        <Button size="sm" variant="ghost" onClick={() => removeFromCart(item._id)} className="text-destructive hover:text-destructive hover:bg-destructive/10 mt-2">Remove</Button>
                       </div>
                     </div>
                   ))}
@@ -528,13 +583,13 @@ export default function ArtisanMarketplace() {
             <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8">
               <h3 className="text-xl font-bold text-foreground mb-6">Order Summary</h3>
               <div className="space-y-4 mb-6">
-                <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-semibold text-foreground">{getTotalPrice().toFixed(2)} TND</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Shipping</span><span className="font-semibold text-foreground">15.00 TND</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Tax (19%)</span><span className="font-semibold text-foreground">{(getTotalPrice() * 0.19).toFixed(2)} TND</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-semibold text-foreground">{subtotal.toFixed(2)} TND</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Shipping</span><span className="font-semibold text-foreground">{shipping.toFixed(2)} TND</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Tax (19%)</span><span className="font-semibold text-foreground">{taxAmount.toFixed(2)} TND</span></div>
                 <div className="pt-4 border-t-2 border-gray-100">
                   <div className="flex justify-between">
                     <span className="text-lg font-semibold text-foreground">Total</span>
-                    <span className="text-2xl font-bold text-primary">{(getTotalPrice() + 15 + (getTotalPrice() * 0.19)).toFixed(2)} TND</span>
+                    <span className="text-2xl font-bold text-primary">{grandTotal.toFixed(2)} TND</span>
                   </div>
                 </div>
               </div>
@@ -560,18 +615,9 @@ export default function ArtisanMarketplace() {
           <h1 className="text-3xl font-bold text-foreground mb-2">{projectId ? 'Select Materials for Project' : 'Marketplace'}</h1>
           <p className="text-lg text-muted-foreground">{projectId ? 'Add construction materials directly to your project.' : 'Browse and order construction materials'}</p>
         </div>
-        {projectId ? (
+        {projectId && (
           <Button onClick={() => window.location.href = '/?artisanView=projects'} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm">
             <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Projects
-          </Button>
-        ) : (
-          <Button onClick={() => setView('cart')} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm">
-            <ShoppingCart size={20} className="mr-2" /> Cart {cart.length > 0 && `(${cart.length})`}
-            {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-xs text-white font-bold shadow-lg animate-bounce">
-                {cart.length}
-              </span>
-            )}
           </Button>
         )}
       </div>
