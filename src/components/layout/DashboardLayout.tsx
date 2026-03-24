@@ -24,6 +24,7 @@ interface DashboardLayoutProps {
   profilePhoto?: string;
   onViewProfile: () => void;
   onEditProfile: () => void;
+  editProfileLabel?: string;
   onUpdatePassword?: () => void;
   /** Optional custom notification bell component (e.g. for admin) */
   bellComponent?: React.ReactNode;
@@ -41,6 +42,7 @@ export default function DashboardLayout({
   profilePhoto,
   onViewProfile,
   onEditProfile,
+  editProfileLabel,
   onUpdatePassword,
   bellComponent,
 }: DashboardLayoutProps) {
@@ -247,6 +249,7 @@ export default function DashboardLayout({
               profilePhoto={profilePhoto}
               onViewProfile={onViewProfile}
               onEditProfile={onEditProfile}
+              editProfileLabel={editProfileLabel}
               onUpdatePassword={onUpdatePassword}
               onLogout={onLogout}
             />

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { createProduct, getProducts, updateProduct, deleteProduct, getMarketplaceProducts, createProductReview, checkoutProducts } = require('../controllers/productController');
+const { createProduct, getProducts, updateProduct, deleteProduct, getMarketplaceProducts, ensureStaticProduct, createProductReview, checkoutProducts } = require('../controllers/productController');
 const { protect } = require('../middleware/authMiddleware');
 
 // ---> NOUVELLES ROUTES POUR LA MARKETPLACE
 router.get('/marketplace', protect, getMarketplaceProducts);
+router.post('/ensure-static', protect, ensureStaticProduct);
 router.post('/:id/reviews', protect, createProductReview);
 router.post('/checkout', protect, checkoutProducts);
 
