@@ -50,7 +50,7 @@ export default function FilterSidebar({
   };
 
   return (
-    <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8 border-t-4 border-t-primary">
+    <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8 border-t-4 border-t-primary max-h-[calc(100vh-6rem)] overflow-y-auto w-full max-w-full min-w-0">
       <div className="space-y-6">
         <div className="flex items-center justify-between border-b pb-4">
           <div className="flex items-center gap-2">

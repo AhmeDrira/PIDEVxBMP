@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Plus, BookOpen, Eye, Trash2 } from 'lucide-react';
+import { Plus, BookOpen, Eye, Trash2, Edit } from 'lucide-react';
 import AddKnowledgePage from './AddKnowledgePage';
 import KnowledgeDetailPage from '../knowledge/KnowledgeDetailPage';
 import knowledgeService, { KnowledgeArticle } from '../../services/knowledgeService';
@@ -16,6 +16,8 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  /** Full article for edit form — mutually exclusive with `selectedArticleId` (detail view). */
+  const [articleToEdit, setArticleToEdit] = useState<KnowledgeArticle | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const loadArticles = async () => {
@@ -41,7 +43,7 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
     return { totalViews, categoryCount: categories.size || 0 };
   }, [articles]);
 
-  const handleCreateArticle = async (payload: {
+  const handleSaveArticle = async (payload: {
     title: string;
     category: string;
     summary: string;
@@ -49,23 +51,40 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
     authorName: string;
     tags?: string[];
     attachments?: File[];
+    removeAttachmentUrls?: string[];
   }) => {
     if (!canManageKnowledge) {
-      toast.error('You do not have permission to add articles.');
+      toast.error('You do not have permission to manage articles.');
       return;
     }
     setIsSaving(true);
     try {
-      await knowledgeService.create(payload);
-      toast.success('Article published successfully');
+      if (articleToEdit) {
+        await knowledgeService.update(articleToEdit._id, payload);
+        toast.success('Article updated successfully');
+      } else {
+        await knowledgeService.create(payload);
+        toast.success('Article published successfully');
+      }
       setShowAddForm(false);
+      setArticleToEdit(null);
       await loadArticles();
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Could not create article.';
+      const message = error.response?.data?.message || 'Could not save article.';
       toast.error(message);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleEditArticle = (article: KnowledgeArticle) => {
+    if (!canManageKnowledge) {
+      toast.error('You do not have permission to edit articles.');
+      return;
+    }
+    setSelectedArticleId(null);
+    setArticleToEdit(article);
+    setShowAddForm(true);
   };
 
   const handleDeleteArticle = async (id: string) => {
@@ -88,9 +107,28 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
   if (showAddForm) {
     return (
       <AddKnowledgePage
-        onBack={() => setShowAddForm(false)}
-        onSave={handleCreateArticle}
+        key={articleToEdit?._id ?? 'new-knowledge-article'}
+        onBack={() => {
+          setShowAddForm(false);
+          setArticleToEdit(null);
+        }}
+        onSave={handleSaveArticle}
         isSaving={isSaving}
+        isEditing={Boolean(articleToEdit)}
+        articleToEdit={articleToEdit}
+        initialData={
+          articleToEdit
+            ? {
+                title: articleToEdit.title,
+                category: articleToEdit.category,
+                summary: articleToEdit.summary,
+                content: articleToEdit.content,
+                authorName: articleToEdit.authorName,
+                tags: articleToEdit.tags || [],
+                attachments: articleToEdit.attachments || [],
+              }
+            : undefined
+        }
       />
     );
   }
@@ -100,7 +138,10 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
       <KnowledgeDetailPage
         articleId={selectedArticleId}
         userRole="admin"
-        onBack={() => setSelectedArticleId(null)}
+        onBack={() => {
+          setSelectedArticleId(null);
+          setArticleToEdit(null);
+        }}
         onDeleted={loadArticles}
         onUpdated={loadArticles}
       />
@@ -117,7 +158,11 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
         <Button
           className="text-white"
           style={{ backgroundColor: '#1F3A8A' }}
-          onClick={() => setShowAddForm(true)}
+          onClick={() => {
+            setSelectedArticleId(null);
+            setArticleToEdit(null);
+            setShowAddForm(true);
+          }}
           disabled={!canManageKnowledge}
         >
           <Plus size={20} className="mr-2" />
@@ -185,8 +230,25 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
                   <td className="py-4" style={{ color: '#6B7280' }}>{new Date(article.createdAt).toLocaleDateString()}</td>
                   <td className="py-4">
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setSelectedArticleId(article._id)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setArticleToEdit(null);
+                          setShowAddForm(false);
+                          setSelectedArticleId(article._id);
+                        }}
+                      >
                         <Eye size={16} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditArticle(article)}
+                        disabled={!canManageKnowledge}
+                        title={canManageKnowledge ? 'Edit article' : 'Permission required'}
+                      >
+                        <Edit size={16} />
                       </Button>
                       <Button
                         size="sm"
