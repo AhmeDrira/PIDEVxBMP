@@ -1,20 +1,40 @@
 const express = require('express');
 const router = express.Router();
-const { createProduct, getProducts, updateProduct, deleteProduct, getMarketplaceProducts, createProductReview, checkoutProducts } = require('../controllers/productController');
+const {
+  createProduct,
+  getProducts,
+  updateProduct,
+  deleteProduct,
+  getMarketplaceProducts,
+  createProductReview,
+  checkoutProducts,
+  ensureStaticProduct, // <--- C'EST ICI QU'ELLE MANQUAIT ! 🚨
+} = require('../controllers/productController');
+
 const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
+
+// Configuration de l'upload pour accepter deux champs différents
+const productUploads = upload.fields([
+  { name: 'document', maxCount: 1 }, // Pour l'image du produit
+  { name: 'techSheet', maxCount: 1 } // Pour la fiche technique PDF
+]);
 
 // ---> NOUVELLES ROUTES POUR LA MARKETPLACE
 router.get('/marketplace', protect, getMarketplaceProducts);
-router.post('/:id/reviews', protect, createProductReview);
-router.post('/checkout', protect, checkoutProducts);
+router.post('/ensure-static', protect, ensureStaticProduct);
 
-// Anciennes routes
+// Routes pour les achats et les avis
+router.post('/checkout', protect, checkoutProducts);
+router.post('/:id/reviews', protect, createProductReview);
+
+// Routes CRUD (Fabricant)
 router.route('/')
-  .post(protect, createProduct)
-  .get(protect, getProducts);
+  .get(protect, getProducts)
+  .post(protect, productUploads, createProduct); // productUploads intercepte les fichiers
 
 router.route('/:id')
-  .put(protect, updateProduct)
+  .put(protect, productUploads, updateProduct) // productUploads pour la modification
   .delete(protect, deleteProduct);
 
 module.exports = router;

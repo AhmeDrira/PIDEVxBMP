@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 export default function ArtisanMarketplace() {
   const [view, setView] = useState<'products' | 'cart' | 'confirmation' | 'detail'>('products');
   const [cart, setCart] = useState<any[]>([]);
-  const[products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,8 +21,8 @@ export default function ArtisanMarketplace() {
   
   // States des Filtres
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const[priceRange, setPriceRange] = useState([0, 1000]);
-  const[maxPrice, setMaxPrice] = useState(1000);
+  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [maxPrice, setMaxPrice] = useState(1000);
   const [selectedManufacturer, setSelectedManufacturer] = useState('all');
   const [availableOnly, setAvailableOnly] = useState(false);
 
@@ -32,6 +32,14 @@ export default function ArtisanMarketplace() {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const SERVER_URL = 'http://localhost:5000'; // Ajouté pour les images
+
+  // Fonction pour générer l'URL correcte de l'image
+  const getImageUrl = (path: string) => {
+    if (!path) return ''; 
+    const cleanPath = path.replace(/\\/g, '/');
+    return cleanPath.startsWith('http') ? cleanPath : `${SERVER_URL}/${cleanPath}`;
+  };
 
   const getToken = () => {
     let token = localStorage.getItem('token');
@@ -199,7 +207,11 @@ export default function ArtisanMarketplace() {
         <div className="grid lg:grid-cols-2 gap-8">
           <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
             <div className="aspect-video rounded-xl overflow-hidden mb-4 bg-gray-100">
-              <ImageWithFallback src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+              <ImageWithFallback 
+                src={getImageUrl(selectedProduct.documentUrl || selectedProduct.image)} 
+                alt={selectedProduct.name} 
+                className="w-full h-full object-cover" 
+              />
             </div>
           </Card>
 
@@ -267,7 +279,7 @@ export default function ArtisanMarketplace() {
   }
 
   // ==========================================
-  // VUE : PANIER & CONFIRMATION (Maintenues identiques avec IDs corrigés)
+  // VUE : PANIER & CONFIRMATION
   // ==========================================
   if (view === 'confirmation') {
     return (
@@ -307,7 +319,11 @@ export default function ArtisanMarketplace() {
                   {cart.map((item) => (
                     <div key={item._id} className="flex items-center gap-4 p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 transition-all">
                       <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                        <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        <ImageWithFallback 
+                          src={getImageUrl(item.documentUrl || item.image)} 
+                          alt={item.name} 
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-bold text-foreground text-lg">{item.name}</h4>
@@ -443,7 +459,11 @@ export default function ArtisanMarketplace() {
               {filteredProducts.map((product) => (
                 <Card key={product._id} className="group bg-white rounded-2xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
                   <div className="aspect-video relative overflow-hidden bg-gray-100">
-                    <ImageWithFallback src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <ImageWithFallback 
+                      src={getImageUrl(product.documentUrl || product.image)} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
                     <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0 px-3 py-1 backdrop-blur-sm font-bold shadow-sm">
                       {product.category}
                     </Badge>
