@@ -8,6 +8,7 @@ import { Label } from '../ui/label';
 import { Search, ShoppingCart, Package, Check, ArrowRight, X, SlidersHorizontal, Eye, Star } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 export default function ArtisanMarketplace() {
   const [view, setView] = useState<'products' | 'cart' | 'confirmation' | 'detail'>('products');
@@ -105,29 +106,54 @@ export default function ArtisanMarketplace() {
     setToastType(type);
     setTimeout(() => setToastMessage(''), 3000);
   };
+  useEffect(() => {
+    const handler = () => setView('cart');
+    window.addEventListener('open-cart', handler as EventListener);
+    return () => {
+      window.removeEventListener('open-cart', handler as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const count = getTotalCount();
+    window.dispatchEvent(new CustomEvent('cart-count', { detail: { count } }));
+  }, [cart]);
 
   // --- SOUMETTRE UN AVIS (ÉTOILES) ---
   const submitRating = async (ratingValue: number) => {
     try {
       const token = getToken();
-      await axios.post(`${API_URL}/products/${selectedProduct._id}/reviews`, 
-        { rating: ratingValue }, 
+      if (!token) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+      const value = Math.max(1, Math.min(5, Number(ratingValue)));
+      const resp = await axios.post(
+        `${API_URL}/products/${selectedProduct._id}/reviews`,
+        { rating: value, comment: '' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      showToast('Merci pour votre vote ! ⭐');
-      setUserRating(ratingValue);
-      // Mettre à jour localement pour l'affichage
-      setSelectedProduct({
-        ...selectedProduct, 
-        rating: ((selectedProduct.rating * selectedProduct.numReviews) + ratingValue) / (selectedProduct.numReviews + 1),
-        numReviews: selectedProduct.numReviews + 1
-      });
+      const updated = !!resp?.data?.updated;
+      toast.success(updated ? 'Votre note a été mise à jour' : 'Merci pour votre vote ! ⭐');
+      setUserRating(value);
+      const newRating = resp?.data?.rating ?? ((selectedProduct.rating * selectedProduct.numReviews) + value) / (selectedProduct.numReviews + 1);
+      const newNum = resp?.data?.numReviews ?? (selectedProduct.numReviews + 1);
+      setSelectedProduct({ ...selectedProduct, rating: newRating, numReviews: newNum });
     } catch (error: any) {
       if (error.response?.status === 400) {
         showToast('Vous avez déjà noté ce produit !', 'warning');
       } else {
         showToast('Erreur lors du vote.', 'error');
+      const msg = error?.response?.data?.message;
+      if (error?.response?.status === 400) {
+        toast.info(msg || 'Vous avez déjà noté ce produit !');
+        return;
       }
+      if (error?.response?.status === 401) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+      toast.error(msg || 'Erreur lors du vote.');
     }
   };
 
@@ -149,7 +175,7 @@ export default function ArtisanMarketplace() {
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
-    showToast(`${product.name} ajouté au panier ! 🛒`);
+    toast.success(`${product.name} ajouté au panier`);
   };
 
   const confirmAddToProject = async () => {
@@ -333,6 +359,7 @@ export default function ArtisanMarketplace() {
     else setCart(cart.map(item => item._id === productId ? { ...item, quantity } : item));
   };
   const getTotalPrice = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const getTotalCount = () => cart.reduce((total, item) => total + (item.quantity || 0), 0);
 
   const handleCheckout = async () => {
     if (!cart.length || isCheckoutLoading) return;
@@ -340,12 +367,12 @@ export default function ArtisanMarketplace() {
       setIsCheckoutLoading(true);
       const token = getToken();
       if (!token) {
-        showToast('Session expirée. Veuillez vous reconnecter.');
+        toast.error('Session expirée. Veuillez vous reconnecter.');
         return;
       }
 
-      await axios.post(
-        `${API_URL}/products/checkout`,
+      const resp = await axios.post(
+        `${API_URL}/payments/checkout`,
         {
           items: cart.map((item) => ({
             productId: item._id,
@@ -354,11 +381,15 @@ export default function ArtisanMarketplace() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      setView('confirmation');
+      const url = resp?.data?.url;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      toast.error('Échec de la redirection vers le paiement');
     } catch (error: any) {
       const message = error?.response?.data?.message || 'Erreur lors du checkout.';
-      showToast(message);
+        toast.error(message);
     } finally {
       setIsCheckoutLoading(false);
     }

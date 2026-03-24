@@ -35,6 +35,7 @@ app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/knowledge', require('./routes/knowledgeRoutes'));
 app.use('/api/logs', require('./routes/actionLogRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 
 app.use((err, req, res, next) => {
   if (err && err.name === 'MulterError') {
