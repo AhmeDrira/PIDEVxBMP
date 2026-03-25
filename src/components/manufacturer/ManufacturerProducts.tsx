@@ -379,7 +379,7 @@ export default function ManufacturerProducts() {
               <div className="flex gap-2 pt-4 border-t border-slate-100">
                 <Button 
                   onClick={() => { setSelectedProductId(product._id); setView('detail'); }} 
-                  className="flex-1 rounded-lg h-10 bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm transition-colors"
+                  className="flex-1 rounded-lg h-10 !bg-emerald-600 hover:!bg-emerald-700 text-white font-medium text-sm transition-colors"
                 >
                   View Details
                 </Button>

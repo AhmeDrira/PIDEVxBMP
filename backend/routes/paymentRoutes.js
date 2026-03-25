@@ -1,9 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
-const { createCheckoutSession, createSubscriptionSession, verifySubscription, getSubscriptionHistory, cancelSubscription } = require('../controllers/paymentController');
+const { 
+  createCheckoutSession, 
+  createSubscriptionSession, 
+  verifySubscription, 
+  getSubscriptionHistory, 
+  cancelSubscription,
+  verifyCheckout
+} = require('../controllers/paymentController');
 
 router.post('/checkout', protect, createCheckoutSession);
+router.get('/checkout/verify', protect, verifyCheckout);
 router.post('/subscription', protect, createSubscriptionSession);
 router.get('/subscription/verify', protect, verifySubscription);
 router.get('/subscription/history', protect, getSubscriptionHistory);

@@ -2,38 +2,22 @@ import React from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowLeft, Package, User, MapPin, Phone, Mail, Calendar, CreditCard, Truck } from 'lucide-react';
+import { ArrowLeft, Package, User, Mail, Calendar, CreditCard, Truck, FileText, CheckCircle } from 'lucide-react';
 
 interface OrderDetailProps {
-  orderId: string;
+  order: any;
   onBack: () => void;
 }
 
-export default function OrderDetail({ orderId, onBack }: OrderDetailProps) {
-  // Mock order data
-  const order = {
-    id: orderId,
-    customer: {
-      name: 'Ahmed Ben Salah',
-      email: 'ahmed@example.com',
-      phone: '+216 XX XXX XXX',
-      location: 'La Marsa, Tunis'
-    },
-    items: [
-      { id: 1, product: 'Premium Cement - 50kg', quantity: 10, price: 45, total: 450 },
-      { id: 2, product: 'Steel Rebar 12mm', quantity: 5, price: 120, total: 600 },
-    ],
-    subtotal: 1050,
-    tax: 199.5,
-    shipping: 25,
-    total: 1274.5,
-    status: 'processing',
-    orderDate: '2026-02-09',
-    estimatedDelivery: '2026-02-15',
-    paymentMethod: 'Credit Card',
-    paymentStatus: 'paid',
-    shippingAddress: 'La Marsa, Tunis, Tunisia',
-    notes: 'Please deliver between 9 AM - 5 PM'
+export default function OrderDetail({ order, onBack }: OrderDetailProps) {
+  if (!order) return null;
+
+  const SERVER_URL = 'http://localhost:5000';
+
+  const getImageUrl = (path: string) => {
+    if (!path) return null;
+    const cleanPath = path.replace(/\\/g, '/');
+    return cleanPath.startsWith('http') ? cleanPath : `${SERVER_URL}/${cleanPath}`;
   };
 
   const getStatusColor = (status: string) => {
@@ -41,199 +25,173 @@ export default function OrderDetail({ orderId, onBack }: OrderDetailProps) {
       case 'processing': return 'bg-secondary/10 text-secondary border-secondary/20';
       case 'shipped': return 'bg-primary/10 text-primary border-primary/20';
       case 'delivered': return 'bg-accent/10 text-accent border-accent/20';
+      case 'paid': return 'bg-green-100 text-green-700 border-green-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
-    return status === 'paid' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-destructive/10 text-destructive border-destructive/20';
-  };
-
   return (
-    <div className="space-y-8">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
-        <ArrowLeft size={20} className="mr-2" />
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl group transition-all">
+        <ArrowLeft size={20} className="mr-2 group-hover:-translate-x-1 transition-transform" />
         Back to Orders
       </Button>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Order #{order.id}</h1>
-          <p className="text-lg text-muted-foreground">Order details and status</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Order #{order.id.slice(-6)}</h1>
+          <p className="text-lg text-muted-foreground flex items-center gap-2">
+            <FileText size={18} className="text-primary" />
+            Transaction ID: <span className="font-mono text-sm bg-slate-100 px-2 py-0.5 rounded text-slate-700">{order.stripeSessionId}</span>
+          </p>
         </div>
         <div className="flex gap-3">
-          <Badge className={`${getStatusColor(order.status)} px-4 py-2 text-sm font-semibold border-2`}>
-            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-          </Badge>
-          <Badge className={`${getPaymentStatusColor(order.paymentStatus)} px-4 py-2 text-sm font-semibold border-2`}>
-            {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+          <Badge className={`${getStatusColor(order.status)} px-5 py-2.5 text-sm font-bold border-2 shadow-sm uppercase tracking-wider`}>
+            {order.status}
           </Badge>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-8">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Order Items */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Order Items</h2>
+        <div className="lg:col-span-2 space-y-8">
+          {/* Order Summary Table */}
+          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-2 h-full bg-primary/20"></div>
+            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
+              <Package size={24} className="text-primary" />
+              Order Summary
+            </h2>
             <div className="space-y-4">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center shadow-md">
-                      <Package size={32} className="text-primary" />
+              {order.items && order.items.map((item: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 shadow-sm mb-4">
+                  <div className="flex items-center gap-5">
+                    <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center shadow-inner border border-primary/5 overflow-hidden">
+                      {item.image ? (
+                        <img src={getImageUrl(item.image) || ''} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package size={32} className="text-primary" />
+                      )}
                     </div>
                     <div>
-                      <h4 className="font-bold text-foreground text-lg mb-1">{item.product}</h4>
-                      <p className="text-sm text-muted-foreground">Quantity: {item.quantity} units</p>
-                      <p className="text-sm text-muted-foreground">Unit Price: {item.price} TND</p>
+                      <h4 className="font-bold text-foreground text-xl mb-1">{item.name}</h4>
+                      <p className="text-sm text-muted-foreground font-medium bg-slate-100 inline-block px-3 py-1 rounded-full">Quantity: {item.quantity}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground font-medium mb-1">Total</p>
-                    <p className="text-2xl font-bold text-primary">{item.total} TND</p>
+                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest mb-1">Price</p>
+                    <p className="text-2xl font-black text-primary">{(item.price * item.quantity).toFixed(2)} <span className="text-xs font-bold">TND</span></p>
                   </div>
                 </div>
               ))}
+              
+              {!order.items && (
+                <div className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shadow-inner border border-primary/5">
+                      <Package size={32} className="text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground text-xl mb-1">{order.products}</h4>
+                      <p className="text-sm text-muted-foreground font-medium bg-slate-100 inline-block px-3 py-1 rounded-full">Items included in this payment</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest mb-1">Total Amount</p>
+                    <p className="text-3xl font-black text-primary">{order.amount.toFixed(2)} <span className="text-sm font-bold">TND</span></p>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
           {/* Customer Information */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Customer Information</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <User size={24} className="text-primary" />
+          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-full bg-secondary/20"></div>
+            <h2 className="text-2xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <User size={24} className="text-secondary" />
+              Customer Details
+            </h2>
+            <div className="grid md:grid-cols-2 gap-10">
+              <div className="flex items-center gap-6 p-5 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-slate-50 transition-all duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm border border-primary/5">
+                  <User size={32} className="text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Name</p>
-                  <p className="font-bold text-foreground">{order.customer.name}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
-                  <Mail size={24} className="text-secondary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Email</p>
-                  <p className="font-bold text-foreground">{order.customer.email}</p>
+                <div className="space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">Customer Name</p>
+                  <p className="font-black text-foreground text-xl leading-none">{order.customer}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
-                  <Phone size={24} className="text-accent" />
+              <div className="flex items-center gap-6 p-5 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-slate-50 transition-all duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center shadow-sm border border-secondary/5">
+                  <Mail size={32} className="text-secondary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Phone</p>
-                  <p className="font-bold text-foreground">{order.customer.phone}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                  <MapPin size={24} className="text-purple-700" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Location</p>
-                  <p className="font-bold text-foreground">{order.customer.location}</p>
+                <div className="space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">Email Address</p>
+                  <p className="font-black text-foreground text-xl leading-none truncate max-w-[200px]" title={order.customerEmail}>{order.customerEmail || 'No email provided'}</p>
                 </div>
               </div>
-            </div>
-          </Card>
-
-          {/* Shipping Information */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Shipping Information</h2>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-gray-50">
-                <Truck size={24} className="text-primary mt-1" />
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Delivery Address</p>
-                  <p className="font-bold text-foreground">{order.shippingAddress}</p>
-                </div>
-              </div>
-              {order.notes && (
-                <div className="p-4 rounded-xl bg-secondary/5 border-2 border-secondary/20">
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Delivery Notes</p>
-                  <p className="text-foreground">{order.notes}</p>
-                </div>
-              )}
             </div>
           </Card>
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Order Summary */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
-            <h3 className="text-xl font-bold text-foreground mb-6">Order Summary</h3>
+        <div className="space-y-8">
+          {/* Action Card - FIXED STYLE AND POSITION */}
+          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl border-t-4 border-blue-600 relative overflow-hidden">
+            <h3 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                  <Truck size={20} />
+                </div>
+                Manage Order
+            </h3>
             <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Calendar size={20} className="text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Order Date</p>
-                  <p className="font-bold text-foreground">{order.orderDate}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Truck size={20} className="text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Est. Delivery</p>
-                  <p className="font-bold text-foreground">{order.estimatedDelivery}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <CreditCard size={20} className="text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Payment Method</p>
-                  <p className="font-bold text-foreground">{order.paymentMethod}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Payment Summary */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
-            <h3 className="text-xl font-bold text-foreground mb-6">Payment Summary</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-semibold text-foreground">{order.subtotal} TND</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax (19%)</span>
-                <span className="font-semibold text-foreground">{order.tax} TND</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Shipping</span>
-                <span className="font-semibold text-foreground">{order.shipping} TND</span>
-              </div>
-              <div className="pt-4 border-t-2 border-gray-100">
-                <div className="flex justify-between">
-                  <span className="text-lg font-semibold text-foreground">Total</span>
-                  <span className="text-2xl font-bold text-primary">{order.total} TND</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Actions */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
-            <h3 className="text-xl font-bold text-foreground mb-4">Actions</h3>
-            <div className="space-y-3">
-              <Button className="w-full h-11 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">
+              <Button className="w-full h-14 text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-200 font-black text-sm uppercase tracking-widest border-0 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
+                <CheckCircle size={18} />
                 Mark as Shipped
               </Button>
-              <Button variant="outline" className="w-full h-11 rounded-xl border-2">
+              <Button variant="outline" className="w-full h-14 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:bg-slate-50 transition-all font-bold text-sm flex items-center justify-center gap-2">
+                <Mail size={18} />
                 Contact Customer
               </Button>
-              <Button variant="outline" className="w-full h-11 rounded-xl border-2">
-                Print Invoice
-              </Button>
+            </div>
+          </Card>
+
+          {/* Order Details Card */}
+          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl border-t-4 border-primary">
+            <h3 className="text-xl font-bold text-foreground mb-8 pb-4 border-b border-slate-100 flex items-center gap-2">
+              <FileText size={20} className="text-primary" />
+              Timeline & Payment
+            </h3>
+            <div className="space-y-8">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <Calendar size={22} className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Order Date</p>
+                  <p className="font-black text-foreground text-lg">{order.date}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <CreditCard size={22} className="text-secondary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Payment Method</p>
+                  <p className="font-black text-foreground text-lg">Stripe Online</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <Truck size={22} className="text-accent" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Status</p>
+                  <p className="font-black text-foreground text-lg capitalize">{order.status}</p>
+                </div>
+              </div>
             </div>
           </Card>
         </div>

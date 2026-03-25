@@ -10,6 +10,7 @@ interface MenuItem {
   id: string;
   label: string;
   icon: React.ReactNode;
+  badge?: number;
 }
 
 interface DashboardLayoutProps {
@@ -88,6 +89,9 @@ export default function DashboardLayout({
               >
                 <span className={activeItem === item.id ? 'text-white' : ''}>{item.icon}</span>
                 <span className="font-medium">{item.label}</span>
+                {item.badge && item.badge > 0 && (
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse ml-1" />
+                )}
                 {activeItem === item.id && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white" />
                 )}

@@ -1,6 +1,8 @@
 const Product = require('../models/Product');
 const { User } = require('../models/User');
 const SubscriptionPayment = require('../models/SubscriptionPayment');
+const ProductPayment = require('../models/ProductPayment');
+const Notification = require('../models/Notification');
 
 const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
 const stripe = (() => {
@@ -72,7 +74,7 @@ const createCheckoutSession = async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items,
-      success_url: `${appUrl}/?checkout=success`,
+      success_url: `${appUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/?checkout=cancel`,
       metadata: {
         buyerId: String(req.user._id || ''),
@@ -238,4 +240,90 @@ const cancelSubscription = async (req, res) => {
   }
 };
 
-module.exports = { createCheckoutSession, createSubscriptionSession, verifySubscription, getSubscriptionHistory, cancelSubscription };
+const verifyCheckout = async (req, res) => {
+  try {
+    const { sessionId } = req.query;
+    if (!sessionId) {
+      return res.status(400).json({ message: 'Session ID is required' });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['line_items.data.price.product'],
+    });
+
+    if (session.payment_status === 'paid') {
+      // Check if already processed (idempotency)
+      const existingPayment = await ProductPayment.findOne({ stripeSessionId: sessionId });
+      if (existingPayment) {
+        return res.status(200).json({ message: 'product purchased successfully' });
+      }
+      
+      const lineItems = session.line_items.data;
+      const paymentItems = [];
+      
+      for (const item of lineItems) {
+        // Stripe stores metadata in the product object when using expand
+        const productId = item.price.product.metadata.productId;
+        const productName = item.price.product.name;
+        const quantity = item.quantity;
+        const price = item.price.unit_amount / 100;
+
+        if (productId) {
+          const product = await Product.findById(productId);
+          if (product) {
+            product.stock = Math.max(0, product.stock - quantity);
+            product.status = product.stock <= 0 ? 'out-of-stock' : (product.stock <= 10 ? 'low-stock' : 'active');
+            await product.save();
+            
+            paymentItems.push({
+              productId,
+              manufacturerId: product.manufacturer,
+              name: productName,
+              quantity,
+              price,
+            });
+          }
+        }
+      }
+
+      // Create ProductPayment record
+      const newPayment = await ProductPayment.create({
+        user: session.metadata.buyerId || req.user._id,
+        items: paymentItems,
+        totalAmount: session.amount_total / 100,
+        currency: session.currency.toUpperCase(),
+        stripeSessionId: sessionId,
+        status: 'paid',
+        paymentDate: new Date(),
+      });
+
+      // Notify manufacturers
+      const manufacturerIds = [...new Set(paymentItems.map(item => item.manufacturerId?.toString()))].filter(Boolean);
+      for (const mId of manufacturerIds) {
+        try {
+          await Notification.create({
+            type: 'new_order',
+            title: 'New Order Received',
+            message: `You have received a new order #${newPayment._id.toString().slice(-6)}. Check your Orders tab for details.`,
+            relatedId: newPayment._id,
+            relatedModel: 'ProductPayment',
+            recipient: mId,
+          });
+        } catch (err) {
+          console.error('Failed to create notification for manufacturer:', mId, err);
+        }
+      }
+
+      return res.status(200).json({ 
+        message: 'product purchased successfully'
+      });
+    } else {
+      return res.status(400).json({ message: 'Payment not successful' });
+    }
+  } catch (error) {
+    console.error('verifyCheckout error:', error);
+    return res.status(500).json({ message: 'Failed to verify checkout' });
+  }
+};
+
+module.exports = { createCheckoutSession, createSubscriptionSession, verifySubscription, getSubscriptionHistory, cancelSubscription, verifyCheckout };

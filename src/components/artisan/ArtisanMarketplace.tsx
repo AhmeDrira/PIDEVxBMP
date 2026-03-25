@@ -161,6 +161,7 @@ export default function ArtisanMarketplace() {
           items: cart.map((item) => ({
             productId: item._id,
             quantity: item.quantity,
+            manufacturerId: item.manufacturer?._id || item.manufacturer 
           })),
         },
         { headers: { Authorization: `Bearer ${token}` } }

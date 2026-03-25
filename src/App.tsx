@@ -15,8 +15,9 @@ import ExpertDashboard from './components/dashboards/ExpertDashboard';
 import ManufacturerDashboard from './components/dashboards/ManufacturerDashboard';
 import AdminDashboard from './components/dashboards/AdminDashboard';
 import authService from './services/authService';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import RoleGuard from './components/common/RoleGuard';
+import axios from 'axios';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin' | null;
 type AuthView =
@@ -64,6 +65,36 @@ export default function App() {
       setAuthView('admin-login');
     } else if (params.get('view') === 'register') {
       setAuthView('register');
+    }
+
+    // Handle Checkout Success
+    const checkoutStatus = params.get('checkout');
+    const sessionId = params.get('session_id');
+    
+    if (checkoutStatus === 'success' && sessionId) {
+      const verifyCheckout = async () => {
+        try {
+          const user = authService.getCurrentUser();
+          const token = user?.token || localStorage.getItem('token');
+          if (!token) return;
+
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+          await axios.get(`${API_URL}/payments/checkout/verify?sessionId=${sessionId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          toast.success("Payment successful! Your order has been placed.");
+          // Clean up URL
+          window.history.replaceState({}, '', '/');
+        } catch (err) {
+          console.error("Verification error:", err);
+          toast.error("There was an error verifying your payment.");
+        }
+      };
+      verifyCheckout();
+    } else if (checkoutStatus === 'cancel') {
+      toast.error("Payment cancelled.");
+      window.history.replaceState({}, '', '/');
     }
   }, []);
 

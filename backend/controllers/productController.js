@@ -1,5 +1,6 @@
 const Product = require('../models/Product');
 const { User } = require('../models/User');
+const ProductPayment = require('../models/ProductPayment');
 const { logAction } = require('../utils/actionLogger');
 
 const calculateStatus = (stock) => {
@@ -278,6 +279,71 @@ const createProductReview = async (req, res) => {
 
 
 
+// @desc    Get all orders for a manufacturer
+// @route   GET /api/products/orders
+const getManufacturerOrders = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    
+    // 1. Trouver d'abord tous les IDs des produits appartenant à ce fabricant
+    const products = await Product.find({ manufacturer: userId }).select('_id');
+    const productIds = products.map(p => p._id.toString());
+
+    // 2. Trouver les paiements qui contiennent ces produits OU qui ont déjà le manufacturerId
+    const orders = await ProductPayment.find({
+      $or: [
+        { 'items.manufacturerId': userId },
+        { 'items.productId': { $in: productIds } }
+      ]
+    })
+    .populate('user', 'firstName lastName companyName email')
+    .populate('items.productId', 'documentUrl image') // On peuple pour avoir les images
+    .sort({ paymentDate: -1 });
+
+    // Format orders for the frontend
+    const formattedOrders = orders.map(order => {
+      // Filtrer les items pour ne garder que ceux du fabricant
+      const manufacturerItems = order.items.filter(item => {
+        const pId = (item.productId && item.productId._id) ? item.productId._id.toString() : (item.productId ? item.productId.toString() : null);
+        const mId = item.manufacturerId ? item.manufacturerId.toString() : null;
+        
+        return (mId === userId.toString()) || (pId && productIds.includes(pId));
+      });
+
+      // Créer une liste d'objets items détaillés pour le frontend
+      const itemsWithImages = manufacturerItems.map(item => {
+        const productData = item.productId; // C'est l'objet peuplé
+        return {
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: productData?.documentUrl || productData?.image || ''
+        };
+      });
+
+      const productsList = manufacturerItems.map(item => `${item.name} (x${item.quantity})`).join(', ');
+      const manufacturerAmount = manufacturerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      return {
+        id: order._id,
+        stripeSessionId: order.stripeSessionId,
+        customer: order.user ? (order.user.companyName || `${order.user.firstName} ${order.user.lastName}`) : 'Unknown Customer',
+        customerEmail: order.user ? order.user.email : '',
+        products: productsList,
+        items: itemsWithImages, // On envoie les items avec images
+        amount: manufacturerAmount,
+        status: order.status === 'paid' ? 'processing' : order.status, 
+        date: new Date(order.paymentDate).toISOString().split('T')[0]
+      };
+    });
+
+    res.status(200).json(formattedOrders);
+  } catch (error) {
+    console.error('getManufacturerOrders error:', error);
+    res.status(500).json({ message: 'Failed to fetch orders', error: error.message });
+  }
+};
+
 module.exports = {
   createProduct,
   getProducts,
@@ -287,4 +353,5 @@ module.exports = {
   ensureStaticProduct,
   createProductReview,
   checkoutProducts,
+  getManufacturerOrders,
 };

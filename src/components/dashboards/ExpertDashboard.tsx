@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, BookOpen, Users, MessageSquare, ShoppingCart, Bell } from 'lucide-react';
+import { Home, BookOpen, Users, MessageSquare, ShoppingCart } from 'lucide-react';
 import ExpertHome from '../expert/ExpertHome';
 import ExpertKnowledgeLibrary from '../expert/ExpertKnowledgeLibrary';
 import ExpertArtisanDirectory from '../expert/ExpertArtisanDirectory';
@@ -8,8 +8,10 @@ import ExpertMessages from '../expert/ExpertMessages';
 import ExpertMarketplace from '../expert/ExpertMarketplace';
 import ExpertProfile from '../expert/ExpertProfile';
 import ArtisanSubscription from '../artisan/ArtisanSubscription';
+import ExpertPayments from '../expert/ExpertPayments';
 import { Button } from '../ui/button';
-import { CreditCard } from 'lucide-react';
+import NotificationBell from '../common/NotificationBell';
+import { CreditCard, Wallet } from 'lucide-react';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -102,11 +104,9 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
       userName={fullName}
       profilePhoto={profilePhoto}
       bellComponent={
-        activeView === 'marketplace' ? (
-          <div className="flex items-center gap-3">
-            <button className="p-3 rounded-xl hover:bg-gray-100 relative transition-colors">
-              <Bell size={20} className="text-muted-foreground" />
-            </button>
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          {activeView === 'marketplace' && (
             <Button
               onClick={() => window.dispatchEvent(new CustomEvent('open-cart'))}
               variant="outline"
@@ -119,8 +119,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
                 </span>
               )}
             </Button>
-          </div>
-        ) : undefined
+          )}
+        </div>
       }
     >
       {renderContent()}
