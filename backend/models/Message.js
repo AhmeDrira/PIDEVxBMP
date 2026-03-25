@@ -16,6 +16,12 @@ const messageSchema = new mongoose.Schema({
     emoji: { type: String, required: true },
   }],
   replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
+  voiceMessage: {
+    url: { type: String, required: false },
+    duration: { type: Number, required: false },
+    size: { type: Number, required: false },
+    mimeType: { type: String, required: false }
+  },
   deleted: { type: Boolean, default: false },
   deletedAt: { type: Date, default: null },
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

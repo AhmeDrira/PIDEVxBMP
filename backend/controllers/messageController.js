@@ -9,6 +9,11 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+const voiceUploadsDir = path.join(__dirname, '..', 'uploads', 'voice');
+if (!fs.existsSync(voiceUploadsDir)) {
+  fs.mkdirSync(voiceUploadsDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
   filename: (_req, file, cb) => {
@@ -39,6 +44,27 @@ exports.uploadAttachments = multer({
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024, files: 5 },
 }).array('attachments', 5);
+
+const voiceStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, voiceUploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeBase = `voice_${Date.now()}_${req.user ? req.user._id : 'unknown'}`;
+    cb(null, `${safeBase}${ext}`);
+  },
+});
+
+const voiceFileFilter = (_req, file, cb) => {
+  const allowedVoiceMimeTypes = new Set(['audio/webm', 'audio/mpeg', 'audio/wav', 'audio/mp4']);
+  if (allowedVoiceMimeTypes.has(file.mimetype)) return cb(null, true);
+  return cb(new Error('Unsupported audio file type'));
+};
+
+exports.uploadVoice = multer({
+  storage: voiceStorage,
+  fileFilter: voiceFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+}).single('voice');
 
 exports.getMessages = async (req, res) => {
   try {
@@ -198,5 +224,64 @@ exports.toggleReaction = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur lors de la réaction au message' });
+  }
+};
+
+exports.sendVoiceMessage = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { conversationId, duration } = req.body;
+    
+    if (!conversationId) return res.status(400).json({ message: 'conversationId required' });
+    if (!req.file) return res.status(400).json({ message: 'Voice file required' });
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) return res.status(404).json({ message: 'Conversation introuvable' });
+    if (!conversation.participants.some((p) => String(p) === String(userId))) {
+      return res.status(403).json({ message: 'Accès refusé' });
+    }
+    
+    const blockedByMe = (conversation.blockedBy || []).some((id) => String(id) === String(userId));
+    const otherParticipant = (conversation.participants || []).find((id) => String(id) !== String(userId));
+    const blockedByOther = otherParticipant
+      ? (conversation.blockedBy || []).some((id) => String(id) === String(otherParticipant))
+      : false;
+      
+    if (blockedByMe) {
+      return res.status(403).json({ message: 'You have blocked this user.' });
+    }
+    if (blockedByOther) {
+      return res.status(403).json({ message: 'You cannot send messages because you are blocked by this user.' });
+    }
+
+    const voiceMessageData = {
+      url: `/uploads/voice/${req.file.filename}`,
+      duration: duration ? parseFloat(duration) : 0,
+      size: req.file.size,
+      mimeType: req.file.mimetype
+    };
+
+    const message = await Message.create({
+      conversation: conversationId,
+      sender: userId,
+      content: '', // Explicit empty content for voice messages
+      voiceMessage: voiceMessageData,
+      readBy: [userId],
+    });
+
+    conversation.lastMessage = '🎤 Message vocal';
+    conversation.deletedBy = [];
+    await conversation.save();
+
+    const populated = await Message.findById(message._id)
+      .populate('sender', 'firstName lastName')
+      .populate('replyTo', 'content sender')
+      .populate('replyTo.sender', 'firstName lastName')
+      .populate('reactions.user', 'firstName lastName');
+      
+    res.json(populated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur lors de l'envoi du message vocal" });
   }
 };

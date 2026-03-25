@@ -23,6 +23,16 @@ import {
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import ViewArtisanProfile from '../expert/ViewArtisanProfile';
+import VoiceMessage from './VoiceMessage';
+import VoiceRecorder from './VoiceRecorder';
+import CallButton from './CallButton';
+import IncomingCallModal from './IncomingCallModal';
+import CallingModal from './CallingModal';
+import VideoCall from './VideoCall';
+import AudioCall from './AudioCall';
+import { useSocket } from '../../context/SocketContext';
+import { useCall } from '../../hooks/useCall';
+import { useWebRTC } from '../../hooks/useWebRTC';
 
 interface Conversation {
   id: string;
@@ -60,6 +70,12 @@ interface Message {
     content: string;
     senderName: string;
   } | null;
+  voiceMessage?: {
+    url: string;
+    duration: number;
+    mimeType?: string;
+    size?: number;
+  };
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -78,6 +94,7 @@ export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [reactionPickerForMessageId, setReactionPickerForMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -88,6 +105,77 @@ export default function Messages() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const conversationMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const { socket } = useSocket();
+  const { callState, initiateCall, acceptCall: acceptCallState, rejectCall, endCall: endCallState, patchRemoteUser } = useCall(socket, currentUserId);
+  const {
+    localStream,
+    remoteStream,
+    startCall,
+    acceptCall: acceptWebRTCCall,
+    handleAnswer,
+    handleIceCandidate,
+    endCall: endWebRTCCall,
+    toggleMicrophone,
+    toggleCamera,
+    isMicrophoneEnabled,
+    isCameraEnabled
+  } = useWebRTC(socket, selectedConversationId);
+
+  useEffect(() => {
+    if (callState.status === 'in-call' && callState.isCaller && callState.type) {
+      startCall(callState.type).catch(console.error);
+    }
+  }, [callState.status, callState.isCaller, callState.type, startCall]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const onOffer = ({ offer }: any) => {
+      if (callState.type) {
+        acceptWebRTCCall(callState.type, offer).catch(console.error);
+      }
+    };
+    
+    const onAnswer = ({ answer }: any) => handleAnswer(answer);
+    const onIceCandidate = ({ candidate }: any) => handleIceCandidate(candidate);
+    
+    socket.on('call:offer', onOffer);
+    socket.on('call:answer', onAnswer);
+    socket.on('call:ice-candidate', onIceCandidate);
+    
+    return () => {
+      socket.off('call:offer', onOffer);
+      socket.off('call:answer', onAnswer);
+      socket.off('call:ice-candidate', onIceCandidate);
+    };
+  }, [socket, callState.type, acceptWebRTCCall, handleAnswer, handleIceCandidate]);
+
+  useEffect(() => {
+    if (callState.status === 'ringing' && callState.conversationId) {
+      const conv = conversations.find(c => c.id === callState.conversationId);
+      if (conv) patchRemoteUser(conv.name, conv.avatar);
+    }
+  }, [callState.status, callState.conversationId, conversations, patchRemoteUser]);
+
+  const endEntireCall = () => {
+    endCallState();
+    endWebRTCCall();
+  };
+
+  const handleAudioCall = () => {
+    console.log('[Messages] handleAudioCall clicked. selectedConv?', !!selectedConv);
+    if (selectedConv) {
+      initiateCall(selectedConv.id, 'audio', { id: selectedConv.participantId, name: selectedConv.name, avatar: selectedConv.avatar });
+    }
+  };
+
+  const handleVideoCall = () => {
+    console.log('[Messages] handleVideoCall clicked. selectedConv?', !!selectedConv);
+    if (selectedConv) {
+      initiateCall(selectedConv.id, 'video', { id: selectedConv.participantId, name: selectedConv.name, avatar: selectedConv.avatar });
+    }
+  };
 
   const getToken = () => {
     let token: string | null = localStorage.getItem('token');
@@ -199,6 +287,12 @@ export default function Messages() {
               'User',
           }
         : null,
+      voiceMessage: m.voiceMessage ? {
+        url: m.voiceMessage.url,
+        duration: m.voiceMessage.duration,
+        mimeType: m.voiceMessage.mimeType,
+        size: m.voiceMessage.size,
+      } : undefined,
     };
   };
 
@@ -299,7 +393,9 @@ export default function Messages() {
     if (!selectedConversationId) return;
     fetchMessages(selectedConversationId);
     fetchConversationStatus(selectedConversationId);
-    const interval = setInterval(() => fetchMessages(selectedConversationId), 5000);
+    const interval = setInterval(() => {
+      fetchMessages(selectedConversationId);
+    }, 15000);
     return () => clearInterval(interval);
   }, [selectedConversationId, fetchMessages, fetchConversationStatus]);
 
@@ -494,6 +590,15 @@ export default function Messages() {
     setBlockedByOther(Boolean(selectedConv.blockedByOtherUser));
   }, [selectedConv]);
 
+  // Debugging logs for Call State
+  useEffect(() => {
+    console.log('=== Messages Render ===');
+    console.log('callState.status:', callState.status);
+    console.log('callState.type:', callState.type);
+    console.log('localStream:', !!localStream);
+    console.log('remoteStream:', !!remoteStream);
+  }, [callState, localStream, remoteStream]);
+
   if (selectedProfileArtisanId) {
     return (
       <ViewArtisanProfile
@@ -563,9 +668,71 @@ export default function Messages() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {selectedConv && (
-            <div className="p-6 flex items-center justify-between border-b-2 border-gray-100">
+        <div className="flex-1 flex flex-col relative bg-gray-50 h-full">
+          {callState.status === 'ringing' ? (
+            <IncomingCallModal 
+              callState={callState} 
+              onAccept={() => {
+                acceptCallState();
+                const currentConv = conversations.find(c => c.id === callState.conversationId);
+                if (currentConv) setSelectedConversationId(currentConv.id);
+              }} 
+              onReject={rejectCall} 
+            />
+          ) : callState.status === 'calling' ? (
+            <CallingModal callState={callState} onCancel={endEntireCall} />
+          ) : callState.status === 'in-call' ? (
+            (() => {
+              console.log('Rendering call window - status:', callState.status);
+              console.log('Rendering call window - type:', callState.type);
+              console.log('localStream available:', !!localStream);
+              console.log('remoteStream available:', !!remoteStream);
+              
+              return (
+                <div 
+                  className="fixed inset-0 flex items-center justify-center pointer-events-auto"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 9999 }}
+                >
+                  <div 
+                    className="relative flex flex-col overflow-hidden"
+                    style={{ 
+                      width: '850px', 
+                      height: '650px', 
+                      maxWidth: '90vw', 
+                      maxHeight: '85vh', 
+                      backgroundColor: '#000', 
+                      borderRadius: '16px', 
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                    }}
+                  >
+                    {callState.type === 'video' ? (
+                      <VideoCall
+                        callState={callState}
+                        localStream={localStream}
+                        remoteStream={remoteStream}
+                        isMicrophoneEnabled={isMicrophoneEnabled}
+                        isCameraEnabled={isCameraEnabled}
+                        toggleMicrophone={toggleMicrophone}
+                        toggleCamera={toggleCamera}
+                        endCall={endEntireCall}
+                      />
+                    ) : (
+                      <AudioCall
+                        callState={callState}
+                        remoteStream={remoteStream}
+                        isMicrophoneEnabled={isMicrophoneEnabled}
+                        toggleMicrophone={toggleMicrophone}
+                        endCall={endEntireCall}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            <>
+              {selectedConv && (
+                <div className="p-6 flex items-center justify-between border-b-2 border-gray-100 bg-white">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Avatar className="w-12 h-12 ring-2 ring-white shadow-md">
@@ -615,7 +782,15 @@ export default function Messages() {
                   )}
                 </div>
               </div>
-              <div className="relative" ref={conversationMenuRef}>
+              
+              <div className="flex items-center gap-2">
+                <CallButton 
+                  onAudioCall={handleAudioCall} 
+                  onVideoCall={handleVideoCall} 
+                  disabled={sendingDisabled || callState.status !== 'idle'} 
+                />
+                {sendingDisabled && <span className="text-xs text-red-500 mx-2">(Envoi bloqué)</span>}
+                <div className="relative" ref={conversationMenuRef}>
                 <Button
                   type="button"
                   variant="ghost"
@@ -657,9 +832,9 @@ export default function Messages() {
                   </div>
                 )}
               </div>
+              </div>
             </div>
           )}
-
           <div className="flex-1 overflow-y-auto p-8 space-y-6" style={{ backgroundColor: '#F9FAFB' }}>
             {loadingMessages && <p className="text-sm text-muted-foreground">Loading messages...</p>}
             {!loadingMessages && messages.length === 0 && selectedConv && <p className="text-sm text-muted-foreground">No messages yet.</p>}
@@ -751,6 +926,16 @@ export default function Messages() {
                       style={message.isSelf ? { backgroundColor: '#1E40AF' } : {}}
                     >
                       <p className="leading-relaxed break-words">{message.content}</p>
+                    </div>
+                  )}
+                  {message.voiceMessage && (
+                    <div className={message.content ? 'mt-2' : ''}>
+                      <VoiceMessage
+                        url={`${API_BASE_URL}${message.voiceMessage.url}`}
+                        duration={message.voiceMessage.duration}
+                        isSelf={!!message.isSelf}
+                        messageId={message.id}
+                      />
                     </div>
                   )}
                   {message.attachments && message.attachments.length > 0 && (
@@ -850,7 +1035,7 @@ export default function Messages() {
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-primary">Replying to {replyingTo.senderName}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {replyingTo.content || (replyingTo.attachments?.length ? 'Attachment' : 'Message')}
+                    {replyingTo.content || (replyingTo.attachments?.length ? 'Attachment' : (replyingTo.voiceMessage ? 'Message vocal' : 'Message'))}
                   </p>
                 </div>
                 <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setReplyingTo(null)}>
@@ -858,45 +1043,86 @@ export default function Messages() {
                 </Button>
               </div>
             )}
-            <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                multiple
-                accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (files.length) setSelectedFiles((prev) => [...prev, ...files]);
-                  e.currentTarget.value = '';
+            <form onSubmit={handleSendMessage} className={`flex items-center gap-3 ${isVoiceActive ? 'w-full' : ''}`} key={selectedConversationId}>
+              <VoiceRecorder 
+                onSend={async (blob, duration) => {
+                  if (!selectedConversationId) return;
+                  try {
+                    const token = getToken();
+                    if (!token) return;
+                    const formData = new FormData();
+                    formData.append('conversationId', selectedConversationId);
+                    formData.append('duration', duration.toString());
+                    const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+                    formData.append('voice', blob, `voice.${ext}`);
+                    const response = await axios.post(
+                      `${API_URL}/messages/voice`,
+                      formData,
+                      {
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                          'Content-Type': 'multipart/form-data',
+                        },
+                      }
+                    );
+                    const newMsg = mapMessage(response.data);
+                    setMessages(prev => [...prev, newMsg]);
+                    fetchConversations();
+                    setIsVoiceActive(false);
+                  } catch (err: any) {
+                    setError(err?.response?.data?.message || 'Unable to send voice message.');
+                    console.error('Error sending voice message:', err);
+                    throw err; // Propagate to VoiceRecorder so it doesn't reset
+                  }
                 }}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="rounded-xl"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={sendingDisabled}
-              >
-                <Paperclip size={20} />
-              </Button>
-              <Input
-                placeholder="Type a message..."
-                value={messageInput}
-                onChange={e => setMessageInput(e.target.value)}
-                className="flex-1 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                onCancel={() => setIsVoiceActive(false)}
+                onStateChange={setIsVoiceActive}
                 disabled={sendingDisabled}
               />
-              <Button
-                type="submit"
-                className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md"
-                disabled={(!messageInput.trim() && selectedFiles.length === 0) || sendingDisabled}
-              >
-                <Send size={20} />
-              </Button>
+              {!isVoiceActive && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length) setSelectedFiles((prev) => [...prev, ...files]);
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sendingDisabled}
+                  >
+                    <Paperclip size={20} />
+                  </Button>
+                  <Input
+                    placeholder="Type a message..."
+                    value={messageInput}
+                    onChange={e => setMessageInput(e.target.value)}
+                    className="flex-1 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                    disabled={sendingDisabled}
+                  />
+                  <Button
+                    type="submit"
+                    className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md"
+                    disabled={(!messageInput.trim() && selectedFiles.length === 0) || sendingDisabled}
+                  >
+                    <Send size={20} />
+                  </Button>
+                </>
+              )}
             </form>
           </div>
+            </>
+          )}
         </div>
       </Card>
     </div>
