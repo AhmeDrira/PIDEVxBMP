@@ -166,7 +166,7 @@ export default function ManufacturerOrders() {
                         variant="outline" 
                         className="h-11 px-6 rounded-xl border-2 !border-emerald-500 !text-emerald-600 hover:!bg-emerald-50 transition-all font-semibold"
                       >
-                        View Details
+                        Manage Order
                       </Button>
                     </div>
                   </div>

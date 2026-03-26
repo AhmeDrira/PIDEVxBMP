@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowLeft, Package, User, Mail, Calendar, CreditCard, Truck, FileText, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Package, User, Mail, Calendar, CreditCard, Truck, FileText, CheckCircle, Loader2 } from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 interface OrderDetailProps {
   order: any;
@@ -10,9 +12,41 @@ interface OrderDetailProps {
 }
 
 export default function OrderDetail({ order, onBack }: OrderDetailProps) {
+  const [status, setStatus] = useState(order?.status || 'processing');
+  const [isUpdating, setIsLoading] = useState(false);
+
   if (!order) return null;
 
   const SERVER_URL = 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const getToken = () => {
+    const s = localStorage.getItem('user');
+    if (s) {
+      try { return JSON.parse(s).token; } catch { /* */ }
+    }
+    return localStorage.getItem('token') || null;
+  };
+
+  const updateStatus = async (newStatus: string) => {
+    try {
+      setIsLoading(true);
+      const token = getToken();
+      if (!token) return;
+
+      await axios.put(`${API_URL}/products/orders/${order.id}/status`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setStatus(newStatus);
+      toast.success(`Order status updated to ${newStatus}`);
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      toast.error(error.response?.data?.message || "Failed to update order status");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getImageUrl = (path: string) => {
     if (!path) return null;
@@ -21,14 +55,16 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'processing': return 'bg-secondary/10 text-secondary border-secondary/20';
-      case 'shipped': return 'bg-primary/10 text-primary border-primary/20';
-      case 'delivered': return 'bg-accent/10 text-accent border-accent/20';
+    switch (status?.toLowerCase()) {
+      case 'processing': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'shipped': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'delivered': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case 'paid': return 'bg-green-100 text-green-700 border-green-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
+
+  const currentStatus = status?.toLowerCase() || 'processing';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -46,8 +82,8 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
           </p>
         </div>
         <div className="flex gap-3">
-          <Badge className={`${getStatusColor(order.status)} px-5 py-2.5 text-sm font-bold border-2 shadow-sm uppercase tracking-wider`}>
-            {order.status}
+          <Badge className={`${getStatusColor(currentStatus)} px-5 py-2.5 text-sm font-bold border-2 shadow-sm uppercase tracking-wider`}>
+            {currentStatus}
           </Badge>
         </div>
       </div>
@@ -138,23 +174,49 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
 
         {/* Sidebar */}
         <div className="space-y-8">
-          {/* Action Card - FIXED STYLE AND POSITION */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl border-t-4 border-blue-600 relative overflow-hidden">
-            <h3 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
-                  <Truck size={20} />
+          {/* Action Card - ENHANCED CLARITY */}
+          <Card className="p-8 bg-white rounded-2xl border-0 shadow-2xl ring-1 ring-slate-200 border-t-4 border-blue-600 relative overflow-hidden transition-all duration-300">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Package size={80} className="text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3 relative z-10">
+                <div 
+                  className="p-3 rounded-2xl text-white shadow-lg shadow-blue-200"
+                  style={{ backgroundColor: '#2563eb' }}
+                >
+                  <Truck size={24} />
                 </div>
                 Manage Order
             </h3>
-            <div className="space-y-4">
-              <Button className="w-full h-14 text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-200 font-black text-sm uppercase tracking-widest border-0 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
-                <CheckCircle size={18} />
-                Mark as Shipped
-              </Button>
-              <Button variant="outline" className="w-full h-14 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:bg-slate-50 transition-all font-bold text-sm flex items-center justify-center gap-2">
-                <Mail size={18} />
-                Contact Customer
-              </Button>
+            <div className="space-y-5 relative z-10">
+              {(currentStatus === 'processing' || currentStatus === 'paid') && (
+                <Button 
+                  onClick={() => updateStatus('shipped')}
+                  disabled={isUpdating}
+                  className="w-full h-16 text-white rounded-2xl shadow-xl shadow-blue-200 font-black text-base uppercase tracking-widest border-0 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+                  style={{ backgroundColor: '#2563eb' }}
+                >
+                  {isUpdating ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
+                  Mark as Shipped
+                </Button>
+              )}
+              {currentStatus === 'shipped' && (
+                <Button 
+                  onClick={() => updateStatus('delivered')}
+                  disabled={isUpdating}
+                  className="w-full h-16 text-white rounded-2xl shadow-xl shadow-emerald-200 font-black text-base uppercase tracking-widest border-0 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+                  style={{ backgroundColor: '#10b981' }}
+                >
+                  {isUpdating ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} />}
+                  Mark as Delivered
+                </Button>
+              )}
+              <div className="pt-2">
+                <Button variant="outline" className="w-full h-14 rounded-xl border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm">
+                  <Mail size={18} className="text-blue-600" />
+                  Contact Customer
+                </Button>
+              </div>
             </div>
           </Card>
 
@@ -189,7 +251,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Status</p>
-                  <p className="font-black text-foreground text-lg capitalize">{order.status}</p>
+                  <p className="font-black text-foreground text-lg capitalize">{status}</p>
                 </div>
               </div>
             </div>

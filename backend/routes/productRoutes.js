@@ -10,6 +10,8 @@ const {
   checkoutProducts,
   ensureStaticProduct, // <--- C'EST ICI QU'ELLE MANQUAIT ! 🚨
   getManufacturerOrders,
+  updateOrderStatus,
+  getManufacturerAnalytics,
 } = require('../controllers/productController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -26,7 +28,9 @@ router.get('/marketplace', protect, getMarketplaceProducts);
 router.post('/ensure-static', protect, ensureStaticProduct);
 
 // Routes pour les achats et les avis
+router.get('/analytics', protect, getManufacturerAnalytics);
 router.get('/orders', protect, getManufacturerOrders);
+router.put('/orders/:id/status', protect, updateOrderStatus);
 router.post('/checkout', protect, checkoutProducts);
 router.post('/:id/reviews', protect, createProductReview);
 

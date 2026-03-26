@@ -107,7 +107,6 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       profilePhoto={profilePhoto}
       bellComponent={
         <div className="flex items-center gap-3">
-          <NotificationBell />
           {activeView === 'marketplace' && (
             <Button
               onClick={() => window.dispatchEvent(new CustomEvent('open-cart'))}

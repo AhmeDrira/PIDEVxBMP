@@ -105,7 +105,6 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
       profilePhoto={profilePhoto}
       bellComponent={
         <div className="flex items-center gap-3">
-          <NotificationBell />
           {activeView === 'marketplace' && (
             <Button
               onClick={() => window.dispatchEvent(new CustomEvent('open-cart'))}

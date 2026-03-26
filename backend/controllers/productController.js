@@ -344,6 +344,151 @@ const getManufacturerOrders = async (req, res) => {
   }
 };
 
+// @desc    Update order status
+// @route   PUT /api/products/orders/:id/status
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const orderId = req.params.id;
+    const userId = req.user._id || req.user.id;
+
+    if (!['processing', 'shipped', 'delivered'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const order = await ProductPayment.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Verify if this manufacturer has products in this order
+    const hasProductInOrder = order.items.some(item => 
+      item.manufacturerId && item.manufacturerId.toString() === userId.toString()
+    );
+
+    if (!hasProductInOrder && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to update this order' });
+    }
+
+    order.status = status;
+    await order.save();
+
+    // Create notification for the artisan
+    try {
+      await Notification.create({
+        type: 'order_status_update',
+        title: 'Order Status Updated',
+        message: `Your order #${order._id.toString().slice(-6)} is now ${status}.`,
+        relatedId: order._id,
+        relatedModel: 'ProductPayment',
+        recipient: order.user,
+      });
+    } catch (err) {
+      console.error('Failed to create notification for artisan:', err);
+    }
+
+    res.status(200).json({ message: `Order status updated to ${status}`, status });
+  } catch (error) {
+    console.error('updateOrderStatus error:', error);
+    res.status(500).json({ message: 'Failed to update order status', error: error.message });
+  }
+};
+
+// @desc    Get manufacturer sales analytics
+// @route   GET /api/products/analytics
+const getManufacturerAnalytics = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const manufacturerId = String(userId);
+
+    // 1. Get all payments involving this manufacturer
+    const payments = await ProductPayment.find({
+      'items.manufacturerId': manufacturerId,
+      status: { $in: ['paid', 'shipped', 'delivered'] }
+    });
+
+    // 2. Basic Stats
+    let totalRevenue = 0;
+    let totalOrders = payments.length;
+    let productSalesMap = {}; // To track top products
+
+    payments.forEach(payment => {
+      payment.items.forEach(item => {
+        if (String(item.manufacturerId) === manufacturerId) {
+          const itemTotal = item.price * item.quantity;
+          totalRevenue += itemTotal;
+
+          // Track product sales for top products
+          if (!productSalesMap[item.name]) {
+            productSalesMap[item.name] = { name: item.name, sales: 0, units: 0 };
+          }
+          productSalesMap[item.name].sales += itemTotal;
+          productSalesMap[item.name].units += item.quantity;
+        }
+      });
+    });
+
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // 3. Active Products count
+    const activeProductsCount = await Product.countDocuments({ manufacturer: userId });
+
+    // 4. Monthly Trends (Last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const monthlyData = [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    for (let i = 0; i < 6; i++) {
+      const targetMonth = new Date(sixMonthsAgo);
+      targetMonth.setMonth(sixMonthsAgo.getMonth() + i);
+      const monthLabel = monthNames[targetMonth.getMonth()];
+      
+      const startOfMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
+      const endOfMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
+
+      const monthPayments = payments.filter(p => p.paymentDate >= startOfMonth && p.paymentDate <= endOfMonth);
+      
+      let monthSales = 0;
+      monthPayments.forEach(p => {
+        p.items.forEach(item => {
+          if (String(item.manufacturerId) === manufacturerId) {
+            monthSales += (item.price * item.quantity);
+          }
+        });
+      });
+
+      monthlyData.push({
+        month: monthLabel,
+        sales: monthSales,
+        orders: monthPayments.length
+      });
+    }
+
+    // 5. Top Products (Sorted by sales)
+    const topProducts = Object.values(productSalesMap)
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 5);
+
+    res.status(200).json({
+      stats: {
+        totalRevenue,
+        totalOrders,
+        avgOrderValue,
+        activeProducts: activeProductsCount
+      },
+      monthlyData,
+      topProducts
+    });
+  } catch (error) {
+    console.error('getManufacturerAnalytics error:', error);
+    res.status(500).json({ message: 'Failed to fetch analytics', error: error.message });
+  }
+};
+
 module.exports = {
   createProduct,
   getProducts,
@@ -354,4 +499,6 @@ module.exports = {
   createProductReview,
   checkoutProducts,
   getManufacturerOrders,
+  updateOrderStatus,
+  getManufacturerAnalytics,
 };
