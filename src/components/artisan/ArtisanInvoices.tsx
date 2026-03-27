@@ -1,0 +1,919 @@
+import React, { useState, useEffect } from 'react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, CreditCard, Trash2, Search, Filter } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import StatsCard from '../common/StatsCard';
+import axios from 'axios';
+import { toast } from 'sonner';
+
+export default function ArtisanInvoices() {
+  const [view, setView] = useState<'list' | 'create' | 'details'>('list');
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
+  const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
+  const [dueFilter, setDueFilter] = useState<'all' | 'overdue' | 'upcoming'>('all');
+
+  // Stats calculées dynamiquement
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [pendingAmount, setPendingAmount] = useState(0);
+  const [overdueAmount, setOverdueAmount] = useState(0);
+
+  // États du formulaire
+  const [formData, setFormData] = useState({
+    project: '',
+    clientName: '',
+    amount: '',
+    description: '',
+    issueDate: '',
+    dueDate: ''
+  });
+
+  // États de validation
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const getToken = () => {
+    let token = localStorage.getItem('token');
+    const userStorage = localStorage.getItem('user');
+    if (!token && userStorage) token = JSON.parse(userStorage).token;
+    return token;
+  };
+
+  // --- CHARGEMENT DES DONNÉES ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const token = getToken();
+        if (!token) return;
+
+        if (view === 'list') {
+          const resInvoices = await axios.get(`${API_URL}/invoices`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = resInvoices.data;
+          setInvoices(data);
+
+          // Calcul des statistiques
+          let rev = 0, pend = 0, over = 0;
+          const today = new Date();
+
+          data.forEach((inv: any) => {
+            if (inv.status === 'paid') rev += inv.amount;
+            else if (inv.status === 'pending') {
+              if (new Date(inv.dueDate) < today) {
+                over += inv.amount;
+              } else {
+                pend += inv.amount;
+              }
+            } else if (inv.status === 'overdue') over += inv.amount;
+          });
+
+          setTotalRevenue(rev);
+          setPendingAmount(pend);
+          setOverdueAmount(over);
+        }
+
+        if (view === 'create') {
+          const resProjects = await axios.get(`${API_URL}/projects`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setProjects(resProjects.data);
+        }
+      } catch (error) {
+        console.error("Erreur de chargement:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [view, API_URL]);
+
+  // Après tous les useState et autres useEffect
+  useEffect(() => {
+    if (selectedInvoice) {
+      document.title = `Invoice ${selectedInvoice.invoiceNumber} - BMP Marketplace`;
+    }
+    return () => {
+      document.title = 'BMP Marketplace';
+    };
+  }, [selectedInvoice]);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem('artisan:redirect-toast');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const message = parsed?.message || 'Success';
+      const type = parsed?.type || 'success';
+
+      if (type === 'error') toast.error(message);
+      else if (type === 'warning') toast.warning(message);
+      else toast.success(message);
+    } catch {
+      toast.success('Operation completed successfully');
+    } finally {
+      sessionStorage.removeItem('artisan:redirect-toast');
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const state = params.get('invoicePayment');
+    const sessionId = params.get('session_id');
+
+    if (!state) return;
+
+    const clearParams = () => {
+      const next = new URLSearchParams(window.location.search);
+      next.delete('invoicePayment');
+      next.delete('session_id');
+      const cleaned = next.toString();
+      const nextUrl = `${window.location.pathname}${cleaned ? `?${cleaned}` : ''}${window.location.hash || ''}`;
+      window.history.replaceState({}, '', nextUrl);
+    };
+
+    if (state === 'cancel') {
+      toast.warning('Payment cancelled. You can continue later.');
+      clearParams();
+      return;
+    }
+
+    if (state !== 'success' || !sessionId) {
+      clearParams();
+      return;
+    }
+
+    const confirm = async () => {
+      try {
+        setIsPaymentLoading(true);
+        const token = getToken();
+        if (!token) return;
+
+        const res = await axios.post(
+          `${API_URL}/invoices/confirm-payment-session`,
+          { sessionId },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        const updatedInvoice = res?.data?.invoice;
+        if (updatedInvoice) {
+          setSelectedInvoice(updatedInvoice);
+          setInvoices((prev) => prev.map((item) => (item._id === updatedInvoice._id ? updatedInvoice : item)));
+          setView('details');
+        }
+
+        window.dispatchEvent(new Event('artisan-invoice-payment-success'));
+        toast.success(res?.data?.message || 'Payment successful');
+      } catch (error: any) {
+        console.error('Invoice confirm-payment-session failed:', error?.response?.data || error?.message);
+        toast.error(error?.response?.data?.message || 'Failed to confirm invoice payment');
+      } finally {
+        setIsPaymentLoading(false);
+        clearParams();
+      }
+    };
+
+    confirm();
+  }, [API_URL]);
+
+  // --- VALIDATION DES CHAMPS ---
+  const validateField = (name: string, value: any): string => {
+    switch (name) {
+      case 'project':
+        return !value ? 'Project is required' : '';
+      case 'clientName':
+        return !value ? 'Client name is required' : '';
+      case 'amount':
+        if (!value) return 'Amount is required';
+        if (isNaN(Number(value)) || Number(value) <= 0) return 'Amount must be a positive number';
+        return '';
+      case 'description':
+        return !value ? 'Description is required' : '';
+      case 'issueDate':
+        return !value ? 'Issue date is required' : '';
+      case 'dueDate':
+        if (!value) return 'Due date is required';
+        if (formData.issueDate && new Date(value) <= new Date(formData.issueDate)) {
+          return 'Due date must be after issue date';
+        }
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const fields = ['project', 'clientName', 'amount', 'description', 'issueDate', 'dueDate'];
+    for (const field of fields) {
+      if (validateField(field, formData[field as keyof typeof formData])) return false;
+    }
+    return true;
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const error = validateField(field, formData[field as keyof typeof formData]);
+    setErrors(prev => ({ ...prev, [field]: error }));
+  };
+
+  // --- CRÉATION DE FACTURE ---
+  const handleCreateInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      const token = getToken();
+      await axios.post(`${API_URL}/invoices`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Invoice generated successfully!');
+      setFormData({ project: '', clientName: '', amount: '', description: '', issueDate: '', dueDate: '' });
+      setErrors({});
+      setTouched({});
+      setView('list');
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      alert('Failed to create invoice.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getPaymentProgress = (invoice: any) => {
+    if (!invoice) return 0;
+    const fromBackend = Number(invoice.paymentProgress || 0);
+    if (Number.isFinite(fromBackend) && fromBackend > 0) {
+      return Math.max(0, Math.min(100, fromBackend));
+    }
+
+    const amount = Number(invoice.amount || 0);
+    const paidAmount = Number(invoice.paidAmount || 0);
+    if (!amount || amount <= 0) return 0;
+
+    return Math.max(0, Math.min(100, Math.round((paidAmount / amount) * 100)));
+  };
+
+  const getUpfrontAmount = (invoice: any) => {
+    const planAmount = Number(invoice?.paymentPlan?.firstTrancheAmount || 0);
+    if (planAmount > 0) return planAmount;
+    const total = Number(invoice?.amount || 0);
+    return Number((total * 0.5).toFixed(2));
+  };
+
+  const getCompletionAmount = (invoice: any) => {
+    const planAmount = Number(invoice?.paymentPlan?.secondTrancheAmount || 0);
+    if (planAmount > 0) return planAmount;
+    const total = Number(invoice?.amount || 0);
+    return Number((total - getUpfrontAmount(invoice)).toFixed(2));
+  };
+
+  const handleStartInstallmentPayment = async (invoiceId: string, phase: 'upfront' | 'completion') => {
+    try {
+      setIsPaymentLoading(true);
+      const token = getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const res = await axios.post(
+        `${API_URL}/invoices/${invoiceId}/create-payment-session`,
+        { phase },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      const checkoutUrl = res?.data?.url;
+      if (!checkoutUrl) {
+        toast.error('Unable to start payment session');
+        return;
+      }
+
+      window.location.href = checkoutUrl;
+    } catch (error: any) {
+      console.error('create invoice payment session failed:', error?.response?.data || error?.message);
+      toast.error(error?.response?.data?.message || 'Failed to initialize payment');
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
+
+  const handlePayUpfrontClick = () => {
+    if (!selectedInvoice?._id) return;
+    handleStartInstallmentPayment(selectedInvoice._id, 'upfront');
+  };
+
+  const handlePayCompletionClick = () => {
+    if (!selectedInvoice?._id) return;
+    handleStartInstallmentPayment(selectedInvoice._id, 'completion');
+  };
+
+  const handleDownloadInvoicePdf = async (invoice: any) => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await axios.get(`${API_URL}/invoices/${invoice._id}/pdf`, {
+        responseType: 'blob',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const fileURL = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = fileURL;
+      link.download = `${invoice.invoiceNumber || 'invoice'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(fileURL);
+    } catch (error: any) {
+      console.error('Error downloading invoice PDF:', error);
+      const message = error?.response?.data?.message;
+      toast.error(message || 'Failed to generate invoice PDF');
+    }
+  };
+
+  const openDeleteInvoiceModal = (invoice: any) => {
+    setInvoiceToDelete(invoice);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteInvoice = async () => {
+    if (!invoiceToDelete?._id) return;
+
+    setIsDeletingInvoice(true);
+    try {
+      const token = getToken();
+      await axios.delete(`${API_URL}/invoices/${invoiceToDelete._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setInvoices((prev) => prev.filter((item) => item._id !== invoiceToDelete._id));
+      if (selectedInvoice?._id === invoiceToDelete._id) {
+        setSelectedInvoice(null);
+        setView('list');
+      }
+
+      const deletedNumber = invoiceToDelete.invoiceNumber;
+      setShowDeleteModal(false);
+      setInvoiceToDelete(null);
+      toast.success(`Invoice ${deletedNumber} deleted successfully.`);
+    } catch (error: any) {
+      console.error('Error deleting invoice:', error);
+      const message = error?.response?.data?.message;
+      toast.error(message || 'Failed to delete invoice');
+    } finally {
+      setIsDeletingInvoice(false);
+    }
+  };
+
+  // --- UTILITAIRES DE DESIGN ---
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid': return 'bg-green-100 text-green-700 border-green-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'overdue': return 'bg-red-100 text-red-700 border-red-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'paid': return <Check size={14} />;
+      case 'pending': return <Clock size={14} />;
+      case 'overdue': return <AlertCircle size={14} />;
+      default: return null;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-GB');
+  };
+
+  const filteredInvoices = invoices.filter((invoice) => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const invoiceNumber = String(invoice?.invoiceNumber || '').toLowerCase();
+    const projectTitle = String(invoice?.project?.title || '').toLowerCase();
+    const clientName = String(invoice?.clientName || '').toLowerCase();
+
+    const matchesSearch = !normalizedQuery
+      || invoiceNumber.includes(normalizedQuery)
+      || projectTitle.includes(normalizedQuery)
+      || clientName.includes(normalizedQuery);
+
+    const currentStatus = String(invoice?.status || 'pending').toLowerCase();
+    const matchesStatus = statusFilter === 'all' || currentStatus === statusFilter;
+
+    const dueDate = invoice?.dueDate ? new Date(invoice.dueDate) : null;
+    const isOverdueByDate = dueDate ? dueDate.getTime() < Date.now() : false;
+    const isOverdue = currentStatus === 'overdue' || (currentStatus === 'pending' && isOverdueByDate);
+    const matchesDue = dueFilter === 'all' || (dueFilter === 'overdue' ? isOverdue : !isOverdue);
+
+    return matchesSearch && matchesStatus && matchesDue;
+  });
+
+  // ==========================================
+  // VUE 1 : CRÉATION
+  // ==========================================
+  if (view === 'create') {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
+          <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
+        </Button>
+        <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg">
+          <h2 className="text-3xl font-bold text-foreground mb-8">Generate New Invoice</h2>
+          <form className="space-y-6" onSubmit={handleCreateInvoice}>
+            {/* Projet */}
+            <div className="space-y-2">
+              <Label htmlFor="project" className="text-base font-semibold">
+                Select Project <span style={{ color: 'red' }}>*</span>
+              </Label>
+              <select
+                id="project"
+                value={formData.project}
+                onChange={(e) => {
+                  setFormData({ ...formData, project: e.target.value });
+                  if (touched.project) setErrors(prev => ({ ...prev, project: validateField('project', e.target.value) }));
+                }}
+                onBlur={() => handleBlur('project')}
+                className={`w-full h-12 px-4 border-2 rounded-xl focus:border-primary focus:outline-none bg-white ${touched.project && errors.project ? 'border-red-500' : 'border-gray-200'}`}
+              >
+                <option value="">Choose a project...</option>
+                {projects.map((proj) => (
+                  <option key={proj._id} value={proj._id}>{proj.title}</option>
+                ))}
+              </select>
+              {touched.project && errors.project && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.project}</p>}
+            </div>
+
+            {/* Client */}
+            <div className="space-y-2">
+              <Label htmlFor="client" className="text-base font-semibold">
+                Client Name <span style={{ color: 'red' }}>*</span>
+              </Label>
+              <Input
+                id="client"
+                value={formData.clientName}
+                onChange={(e) => {
+                  setFormData({ ...formData, clientName: e.target.value });
+                  if (touched.clientName) setErrors(prev => ({ ...prev, clientName: validateField('clientName', e.target.value) }));
+                }}
+                onBlur={() => handleBlur('clientName')}
+                placeholder="Client name"
+                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.clientName && errors.clientName ? 'border-red-500' : 'border-gray-200'}`}
+              />
+              {touched.clientName && errors.clientName && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.clientName}</p>}
+            </div>
+
+            {/* Montant */}
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-base font-semibold">
+                Total Amount (TND) <span style={{ color: 'red' }}>*</span>
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                value={formData.amount}
+                onChange={(e) => {
+                  setFormData({ ...formData, amount: e.target.value });
+                  if (touched.amount) setErrors(prev => ({ ...prev, amount: validateField('amount', e.target.value) }));
+                }}
+                onBlur={() => handleBlur('amount')}
+                placeholder="0.00"
+                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.amount && errors.amount ? 'border-red-500' : 'border-gray-200'}`}
+              />
+              {touched.amount && errors.amount && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.amount}</p>}
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-base font-semibold">
+                Description / Items <span style={{ color: 'red' }}>*</span>
+              </Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => {
+                  setFormData({ ...formData, description: e.target.value });
+                  if (touched.description) setErrors(prev => ({ ...prev, description: validateField('description', e.target.value) }));
+                }}
+                onBlur={() => handleBlur('description')}
+                placeholder="List items..."
+                rows={4}
+                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-gray-200'}`}
+              />
+              {touched.description && errors.description && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>}
+            </div>
+
+            {/* Dates */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Date d'émission */}
+              <div className="space-y-2">
+                <Label htmlFor="issueDate" className="text-base font-semibold">
+                  Issue Date <span style={{ color: 'red' }}>*</span>
+                </Label>
+                <Input
+                  id="issueDate"
+                  type="date"
+                  value={formData.issueDate}
+                  onChange={(e) => {
+                    setFormData({ ...formData, issueDate: e.target.value });
+                    if (touched.issueDate) setErrors(prev => ({ ...prev, issueDate: validateField('issueDate', e.target.value) }));
+                    // Revalider dueDate si elle existe
+                    if (formData.dueDate) {
+                      const dueError = validateField('dueDate', formData.dueDate);
+                      setErrors(prev => ({ ...prev, dueDate: dueError }));
+                    }
+                  }}
+                  onBlur={() => handleBlur('issueDate')}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.issueDate && errors.issueDate ? 'border-red-500' : 'border-gray-200'}`}
+                />
+                {touched.issueDate && errors.issueDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.issueDate}</p>}
+              </div>
+
+              {/* Date d'échéance */}
+              <div className="space-y-2">
+                <Label htmlFor="dueDate" className="text-base font-semibold">
+                  Due Date <span style={{ color: 'red' }}>*</span>
+                </Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => {
+                    setFormData({ ...formData, dueDate: e.target.value });
+                    if (touched.dueDate) setErrors(prev => ({ ...prev, dueDate: validateField('dueDate', e.target.value) }));
+                  }}
+                  onBlur={() => handleBlur('dueDate')}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.dueDate && errors.dueDate ? 'border-red-500' : 'border-gray-200'}`}
+                />
+                {touched.dueDate && errors.dueDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.dueDate}</p>}
+              </div>
+            </div>
+
+            {/* Boutons */}
+            <div className="flex gap-4 pt-4">
+              <Button
+                type="submit"
+                disabled={isSubmitting || !validateForm()}
+                className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Generating...' : 'Generate Invoice'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setView('list')} className="h-12 px-8 rounded-xl border-2">
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // VUE 2 : DÉTAILS DE LA FACTURE
+  // ==========================================
+  if (view === 'details' && selectedInvoice) {
+    const progress = getPaymentProgress(selectedInvoice);
+    const upfrontAmount = getUpfrontAmount(selectedInvoice);
+    const completionAmount = getCompletionAmount(selectedInvoice);
+    const invoiceMarkedPaid = String(selectedInvoice.status || '').toLowerCase() === 'paid' || progress >= 100;
+    const upfrontPaid = Boolean(selectedInvoice.paymentPlan?.firstTranchePaid) || invoiceMarkedPaid;
+    const completionPaid = Boolean(selectedInvoice.paymentPlan?.secondTranchePaid) || invoiceMarkedPaid;
+    const disableUpfrontButton = isPaymentLoading || upfrontPaid;
+    const disableCompletionButton = isPaymentLoading || !upfrontPaid || completionPaid;
+    const payButtonBaseClass = 'rounded-xl px-6 py-3 text-lg font-semibold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 disabled:!opacity-100';
+
+    const upfrontButtonClass = disableUpfrontButton
+      ? 'border border-slate-300 bg-slate-200 text-slate-700'
+      : 'bg-primary hover:bg-primary/90 text-white border border-primary hover:shadow-md focus-visible:ring-primary/40';
+
+    const completionButtonClass = disableCompletionButton
+      ? completionPaid
+        ? 'border border-red-700 bg-red-500 text-black'
+        : !upfrontPaid
+          ? 'border border-red-300 bg-red-100 text-black'
+          : 'border border-gray-300 bg-gray-200 text-gray-700'
+      : 'bg-red-500 hover:bg-red-600 text-black border border-red-600 hover:shadow-md focus-visible:ring-red-500/40';
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex justify-between items-center print:hidden">
+          <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2">
+            <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
+          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={handlePayUpfrontClick}
+              disabled={disableUpfrontButton}
+              className={`${payButtonBaseClass} ${upfrontButtonClass}`}
+            >
+              <CreditCard size={20} className="mr-2" />
+              {upfrontPaid ? 'UpFront Paid' : `Pay UpFront (${upfrontAmount.toFixed(2)} TND)`}
+            </Button>
+            <Button
+              onClick={handlePayCompletionClick}
+              disabled={disableCompletionButton}
+              className={`${payButtonBaseClass} ${completionButtonClass}`}
+            >
+              <CreditCard size={20} className="mr-2" />
+              {completionPaid
+                ? 'Upon Completion Paid'
+                : !upfrontPaid
+                  ? `Upon Completion Locked (${completionAmount.toFixed(2)} TND)`
+                  : `Pay Upon Completion (${completionAmount.toFixed(2)} TND)`}
+            </Button>
+          </div>
+        </div>
+
+        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-foreground">Payment Progress</h3>
+              <span className="text-xl font-bold text-primary">{progress}%</span>
+            </div>
+            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-primary to-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="rounded-xl border p-4 bg-gray-50">
+                <p className="text-sm text-muted-foreground mb-1">First Tranche (UpFront)</p>
+                <p className="font-semibold text-foreground">{upfrontAmount.toFixed(2)} TND</p>
+                <p className={`text-sm mt-1 ${upfrontPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {upfrontPaid ? 'Paid' : 'Pending'}
+                </p>
+              </div>
+              <div className="rounded-xl border p-4 bg-gray-50">
+                <p className="text-sm text-muted-foreground mb-1">Second Tranche (Upon Completion)</p>
+                <p className="font-semibold text-foreground">{completionAmount.toFixed(2)} TND</p>
+                <p className={`text-sm mt-1 ${completionPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {completionPaid ? 'Paid' : upfrontPaid ? 'Awaiting Payment' : 'Locked until UpFront is paid'}
+                </p>
+              </div>
+            </div>
+            {selectedInvoice.paymentPlan?.secondTrancheDueDate && !completionPaid && (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Completion tranche due by {formatDate(selectedInvoice.paymentPlan.secondTrancheDueDate)}
+              </p>
+            )}
+            {isPaymentLoading && <p className="text-sm text-muted-foreground">Processing payment...</p>}
+          </div>
+        </Card>
+
+        {/* Carte de facture améliorée */}
+        <Card id="invoice-card" className="p-10 bg-white rounded-2xl border-0 shadow-lg print:shadow-none print:m-0 print:border">
+          {/* En-tête */}
+          <div className="flex justify-between items-start mb-10">
+            <div>
+              <h1 className="text-4xl font-bold text-primary mb-2">INVOICE</h1>
+              <p className="text-muted-foreground font-mono">{selectedInvoice.invoiceNumber}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-foreground">BMP Marketplace</p>
+              <p className="text-muted-foreground">Tunisia</p>
+            </div>
+          </div>
+
+          {/* Badge de statut */}
+          <div className="flex justify-end mb-6">
+            <Badge className={`${getStatusColor(selectedInvoice.status)} px-4 py-2 text-sm font-semibold flex items-center gap-2`}>
+              {getStatusIcon(selectedInvoice.status)}
+              {selectedInvoice.status === 'paid' ? 'Paid' : selectedInvoice.status === 'pending' ? 'Pending' : 'Overdue'}
+            </Badge>
+          </div>
+
+          {/* Infos client et dates */}
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h4 className="font-bold text-foreground mb-2 border-b pb-1">Billed To:</h4>
+              <p className="font-semibold text-lg">{selectedInvoice.clientName}</p>
+              <p className="text-muted-foreground">Project: {selectedInvoice.project?.title || 'Unknown Project'}</p>
+            </div>
+            <div className="space-y-2 text-right">
+              <p><span className="font-medium text-muted-foreground">Issue Date:</span> <span className="font-semibold">{formatDate(selectedInvoice.issueDate)}</span></p>
+              <p><span className="font-medium text-muted-foreground">Due Date:</span> <span className="font-semibold">{formatDate(selectedInvoice.dueDate)}</span></p>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="mb-8 bg-gray-50 p-6 rounded-xl border">
+            <h4 className="font-bold text-foreground mb-4">Description of Work / Items:</h4>
+            <p className="whitespace-pre-wrap text-muted-foreground">{selectedInvoice.description}</p>
+          </div>
+
+          {/* Montant total */}
+          <div className="flex justify-end border-t-2 pt-6">
+            <div className="text-right">
+              <p className="text-muted-foreground font-medium mb-1">Total Amount Due</p>
+              <p className="text-4xl font-bold text-primary">{selectedInvoice.amount.toLocaleString()} TND</p>
+              <p className="text-sm text-muted-foreground mt-1">Paid: {Number(selectedInvoice.paidAmount || 0).toFixed(2)} TND</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {new Intl.NumberFormat('en-TN', { style: 'currency', currency: 'TND' }).format(selectedInvoice.amount)}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  
+  // ==========================================
+  // VUE 3 : LISTE PRINCIPALE
+  // ==========================================
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Invoices</h1>
+          <p className="text-lg text-muted-foreground">Manage project invoices and payments</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <StatsCard label="Total Revenue" value={`${totalRevenue.toLocaleString()} TND`} icon={<Check size={28} />} color="#10B981" trend="Paid" trendUp={true} />
+        <StatsCard label="Pending" value={`${pendingAmount.toLocaleString()} TND`} icon={<Clock size={28} />} color="#F59E0B" subtitle="Awaiting payment" />
+        <StatsCard label="Overdue" value={`${overdueAmount.toLocaleString()} TND`} icon={<AlertCircle size={28} />} color="#EF4444" subtitle="Needs attention" />
+      </div>
+
+      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
+          <div className="flex-1 h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2">
+            <Search className="text-muted-foreground shrink-0" size={18} />
+            <Input
+              placeholder="Search invoices..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-full px-0"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 lg:w-auto">
+            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+              <Filter className="text-muted-foreground shrink-0" size={16} />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'paid' | 'pending' | 'overdue')}
+                className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
+                style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
+              >
+                <option value="all">All Status</option>
+                <option value="paid">Paid</option>
+                <option value="pending">Pending</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+              <select
+                value={dueFilter}
+                onChange={(e) => setDueFilter(e.target.value as 'all' | 'overdue' | 'upcoming')}
+                className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
+                style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
+              >
+                <option value="all">All Due</option>
+                <option value="overdue">Overdue Due Date</option>
+                <option value="upcoming">Upcoming Due Date</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Liste des factures */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="text-center py-10">Loading invoices...</div>
+        ) : filteredInvoices.length === 0 ? (
+          <div className="text-center py-10 bg-white rounded-2xl shadow-lg border border-gray-100">
+            <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
+            <p className="text-xl font-semibold text-gray-500">No invoices found.</p>
+          </div>
+        ) : (
+          filteredInvoices.map((invoice) => (
+            <Card key={invoice._id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-4">
+                    <h3 className="text-xl font-bold text-foreground">{invoice.invoiceNumber}</h3>
+                    <Badge className={`${getStatusColor(invoice.status)} px-4 py-1.5 text-sm font-semibold flex items-center gap-2 border-2`}>
+                      {getStatusIcon(invoice.status)}
+                      {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                    </Badge>
+                  </div>
+                  <p className="mb-2 text-muted-foreground">
+                    <strong className="text-foreground">Project:</strong> {invoice.project?.title || 'Unknown Project'}
+                  </p>
+                  <p className="text-muted-foreground mb-4">
+                    <strong className="text-foreground">Client:</strong> {invoice.clientName}
+                  </p>
+                  <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
+                    <span>Due: <strong className="text-foreground">{formatDate(invoice.dueDate)}</strong></span>
+                    {invoice.status === 'paid' && <span>Paid on: <strong className="text-accent">{formatDate(invoice.updatedAt)}</strong></span>}
+                    <span>Paid: <strong className="text-foreground">{getPaymentProgress(invoice)}%</strong></span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground font-medium mb-2">Amount</p>
+                    <p className="text-3xl font-bold text-primary">
+                      {invoice.amount.toLocaleString()} TND
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl border-2 h-10 hover:bg-primary hover:text-white"
+                      onClick={() => { setSelectedInvoice(invoice); setView('details'); }}
+                    >
+                      <Eye size={16} className="mr-2" /> View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl border-2 h-10 hover:bg-accent hover:text-white"
+                      onClick={() => handleDownloadInvoicePdf(invoice)}
+                    >
+                      <Download size={16} className="mr-2" /> PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl border-2 h-10 hover:bg-red-600 hover:text-white"
+                      onClick={() => openDeleteInvoiceModal(invoice)}
+                    >
+                      <Trash2 size={16} className="mr-2" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] pointer-events-auto">
+          <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 size={32} className="text-red-600" />
+                </div>
+                <h3 className="text-3xl font-bold text-gray-900 mb-2">Delete Invoice?</h3>
+                <p className="text-gray-600 font-medium">{invoiceToDelete?.invoiceNumber || ''}</p>
+                <p className="text-sm text-gray-500 mt-2">Are you sure you want to delete this invoice?</p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setInvoiceToDelete(null);
+                  }}
+                  disabled={isDeletingInvoice}
+                >
+                  Non
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                  onClick={handleDeleteInvoice}
+                  disabled={isDeletingInvoice}
+                >
+                  {isDeletingInvoice ? 'Oui...' : 'Oui'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
