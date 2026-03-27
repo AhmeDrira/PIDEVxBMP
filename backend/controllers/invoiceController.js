@@ -655,6 +655,100 @@ const confirmInvoicePaymentSession = async (req, res) => {
   }
 };
 
+// @desc    Mark a tranche as manually paid (no Stripe) – artisan confirms client paid in real life
+// @route   PATCH /api/invoices/:id/mark-tranche-paid
+const markTranchePaid = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id).populate('project', 'title');
+    if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
+    if (invoice.artisan.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const phase = String(req.body?.phase || '').trim();
+    if (!['upfront', 'completion'].includes(phase)) {
+      return res.status(400).json({ message: 'Invalid phase. Use upfront or completion.' });
+    }
+
+    normalizeInvoicePaymentFields(invoice);
+
+    if (phase === 'upfront' && invoice.paymentPlan.firstTranchePaid) {
+      return res.status(400).json({ message: 'Upfront tranche already marked as paid.' });
+    }
+    if (phase === 'completion' && !invoice.paymentPlan.firstTranchePaid) {
+      return res.status(400).json({ message: 'Upfront tranche must be confirmed first.' });
+    }
+    if (phase === 'completion' && invoice.paymentPlan.secondTranchePaid) {
+      return res.status(400).json({ message: 'Completion tranche already marked as paid.' });
+    }
+
+    const amount = phaseAmount(invoice, phase);
+    invoice.paidAmount = roundMoney(Number(invoice.paidAmount || 0) + amount);
+
+    if (phase === 'upfront') {
+      invoice.paymentPlan.firstTranchePaid = true;
+      invoice.paymentPlan.firstTranchePaidAt = new Date();
+
+      const secondDue = new Date();
+      secondDue.setDate(secondDue.getDate() + 14);
+      invoice.paymentPlan.secondTrancheDueDate = secondDue;
+
+      await Notification.create({
+        type: 'invoice_second_tranche_due',
+        title: 'Second Tranche Deadline Scheduled',
+        message: `Second tranche for ${invoice.invoiceNumber} is due by ${secondDue.toLocaleDateString('en-GB')}.`,
+        recipient: req.user._id,
+        recipientRole: 'artisan',
+        icon: 'Clock3',
+        metadata: { invoiceId: String(invoice._id), dueDate: secondDue },
+      });
+    }
+
+    if (phase === 'completion') {
+      invoice.paymentPlan.secondTranchePaid = true;
+      invoice.paymentPlan.secondTranchePaidAt = new Date();
+    }
+
+    invoice.paymentProgress = Number(invoice.amount || 0) > 0
+      ? Math.min(100, Math.round((Number(invoice.paidAmount || 0) / Number(invoice.amount || 0)) * 100))
+      : 0;
+
+    if (invoice.paymentProgress >= 100 || invoice.paymentPlan.secondTranchePaid) {
+      invoice.status = 'paid';
+      await Notification.create({
+        type: 'invoice_payment_completed',
+        title: 'Invoice Fully Paid',
+        message: `${invoice.invoiceNumber} is fully paid.`,
+        recipient: req.user._id,
+        recipientRole: 'artisan',
+        icon: 'CreditCard',
+        metadata: { invoiceId: String(invoice._id) },
+      });
+    } else {
+      invoice.status = 'pending';
+    }
+
+    await invoice.save();
+
+    await logAction(req, {
+      actionKey: `artisan.invoice.manual.${phase}`,
+      actionLabel: phase === 'upfront' ? 'Confirmed Upfront Payment Received' : 'Confirmed Completion Payment Received',
+      entityType: 'invoice',
+      entityId: invoice._id,
+      description: `${invoice.invoiceNumber} ${phase} tranche manually marked as received.`,
+      metadata: { phase, amount, paidAmount: invoice.paidAmount, paymentProgress: invoice.paymentProgress },
+    });
+
+    return res.status(200).json({
+      message: phase === 'upfront' ? 'Upfront payment marked as received' : 'Completion payment marked as received',
+      invoice,
+    });
+  } catch (error) {
+    console.error('markTranchePaid error:', error);
+    return res.status(500).json({ message: 'Failed to mark tranche as paid', error: error.message });
+  }
+};
+
 module.exports = {
   createInvoice,
   getInvoices,
@@ -662,6 +756,7 @@ module.exports = {
   createInvoiceFromQuote,
   createInvoicePaymentSession,
   confirmInvoicePaymentSession,
+  markTranchePaid,
   downloadInvoicePdf,
   deleteInvoice,
 };

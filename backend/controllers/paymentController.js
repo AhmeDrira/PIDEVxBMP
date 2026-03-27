@@ -3,6 +3,7 @@ const { User } = require('../models/User');
 const SubscriptionPayment = require('../models/SubscriptionPayment');
 const ProductPayment = require('../models/ProductPayment');
 const Notification = require('../models/Notification');
+const { logAction } = require('../utils/actionLogger');
 const fs = require('fs');
 
 const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
@@ -135,8 +136,8 @@ const createSubscriptionSession = async (req, res) => {
           },
         },
       ],
-      success_url: `${appUrl}/?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/?subscription=cancel`,
+      success_url: `${appUrl}/?artisanView=subscription&subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/?artisanView=subscription&subscription=cancel`,
       metadata: {
         userId: String(req.user._id),
         planId,
@@ -186,19 +187,43 @@ const verifySubscription = async (req, res) => {
       }, { new: true });
 
       // Create a payment record
+      const paidAmount = session.amount_total / 100;
       await SubscriptionPayment.create({
         user: userId,
         planId,
-        amount: session.amount_total / 100,
+        amount: paidAmount,
         currency: session.currency.toUpperCase(),
         stripeSessionId: sessionId,
         status: 'paid',
         paymentDate: new Date(),
       });
 
-      return res.status(200).json({ 
+      // Notification for the artisan
+      await Notification.create({
+        type: 'subscription_activated',
+        title: 'Subscription Activated',
+        message: `Your ${planId} subscription has been activated! It is valid until ${endDate.toLocaleDateString('en-GB')}.`,
+        recipient: userId,
+        recipientRole: 'artisan',
+        icon: 'CreditCard',
+      });
+
+      // Admin log
+      await logAction(req, {
+        actorOverride: user,
+        actionKey: 'artisan.subscription.activated',
+        actionLabel: 'Subscription Activated',
+        entityType: 'subscription',
+        entityId: userId,
+        targetName: `${user.firstName} ${user.lastName}`,
+        targetRole: 'artisan',
+        description: `${user.firstName} ${user.lastName} subscribed to the ${planId} plan for ${paidAmount} ${session.currency.toUpperCase()}.`,
+        metadata: { planId, amount: paidAmount, durationDays, endDate },
+      });
+
+      return res.status(200).json({
         message: 'Subscription activated successfully',
-        subscription: user.subscription 
+        subscription: user.subscription
       });
     }
 
@@ -236,16 +261,75 @@ const cancelSubscription = async (req, res) => {
       return res.status(400).json({ message: 'No active subscription found' });
     }
 
+    // Calculate refund based on remaining time
+    const startDate = user.subscription.startDate ? new Date(user.subscription.startDate) : new Date();
+    const endDate = user.subscription.endDate ? new Date(user.subscription.endDate) : new Date();
+    const now = new Date();
+    const totalDaysMs = endDate.getTime() - startDate.getTime();
+    const totalDays = Math.max(1, Math.round(totalDaysMs / (1000 * 60 * 60 * 24)));
+    const remainingDaysMs = Math.max(0, endDate.getTime() - now.getTime());
+    const remainingDays = Math.round(remainingDaysMs / (1000 * 60 * 60 * 24));
+
+    // Find the original payment to get the amount
+    const lastPayment = await SubscriptionPayment.findOne({
+      user: user._id,
+      status: 'paid',
+    }).sort({ paymentDate: -1 });
+
+    const originalAmount = lastPayment ? Number(lastPayment.amount) : 0;
+    const refundAmount = totalDays > 0 && remainingDays > 0
+      ? Math.round((originalAmount / totalDays) * remainingDays * 100) / 100
+      : 0;
+
     // Mark as canceled
     user.subscription.status = 'canceled';
-    // We could also set the endDate to now if we want immediate termination, 
-    // but usually, subscriptions last until the end of the period.
-    // For this simple case, we'll mark it as canceled (inactive for UI).
     await user.save();
 
-    return res.status(200).json({ 
+    // Notification for the artisan — with refund info
+    await Notification.create({
+      type: 'subscription_canceled',
+      title: 'Subscription Canceled',
+      message: refundAmount > 0
+        ? `Your subscription has been canceled. You will receive a refund of ${refundAmount.toFixed(2)} TND for the ${remainingDays} remaining day${remainingDays > 1 ? 's' : ''}.`
+        : 'Your subscription has been canceled.',
+      recipient: user._id,
+      recipientRole: 'artisan',
+      icon: 'AlertTriangle',
+    });
+
+    // Admin log — cancellation
+    await logAction(req, {
+      actorOverride: user,
+      actionKey: 'artisan.subscription.canceled',
+      actionLabel: 'Subscription Canceled',
+      entityType: 'subscription',
+      entityId: user._id,
+      targetName: `${user.firstName} ${user.lastName}`,
+      targetRole: 'artisan',
+      description: `${user.firstName} ${user.lastName} canceled their ${user.subscription.planId} subscription.`,
+      metadata: { planId: user.subscription.planId, remainingDays, refundAmount },
+    });
+
+    // Admin log — refund if applicable
+    if (refundAmount > 0) {
+      await logAction(req, {
+        actorOverride: user,
+        actionKey: 'artisan.subscription.refund',
+        actionLabel: 'Subscription Refund Issued',
+        entityType: 'subscription',
+        entityId: user._id,
+        targetName: `${user.firstName} ${user.lastName}`,
+        targetRole: 'artisan',
+        description: `Refund of ${refundAmount.toFixed(2)} TND issued to ${user.firstName} ${user.lastName} (${remainingDays} remaining days of ${totalDays} total).`,
+        metadata: { originalAmount, refundAmount, remainingDays, totalDays },
+      });
+    }
+
+    return res.status(200).json({
       message: 'Subscription canceled successfully',
-      subscription: user.subscription 
+      subscription: user.subscription,
+      refundAmount,
+      remainingDays,
     });
   } catch (error) {
     console.error('cancelSubscription error:', error);

@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, CreditCard, Trash2, Search, Filter } from 'lucide-react';
+import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, CreditCard, Trash2, Search, Filter, Package } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
@@ -44,6 +44,7 @@ export default function ArtisanInvoices() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [isPayMaterialLoading, setIsPayMaterialLoading] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -138,6 +139,7 @@ export default function ArtisanInvoices() {
     const params = new URLSearchParams(window.location.search);
     const state = params.get('invoicePayment');
     const sessionId = params.get('session_id');
+    const invoiceId = params.get('invoiceId');
 
     if (!state) return;
 
@@ -145,14 +147,60 @@ export default function ArtisanInvoices() {
       const next = new URLSearchParams(window.location.search);
       next.delete('invoicePayment');
       next.delete('session_id');
+      next.delete('invoiceId');
       const cleaned = next.toString();
       const nextUrl = `${window.location.pathname}${cleaned ? `?${cleaned}` : ''}${window.location.hash || ''}`;
       window.history.replaceState({}, '', nextUrl);
     };
 
-    if (state === 'cancel') {
+    if (state === 'cancel' || state === 'materialsCancel') {
       toast.warning('Payment cancelled. You can continue later.');
       clearParams();
+      return;
+    }
+
+    // Handle materials payment return
+    if (state === 'materialsSuccess' && sessionId && invoiceId) {
+      const confirmMaterials = async () => {
+        try {
+          setIsPayMaterialLoading(true);
+          const token = getToken();
+          if (!token) return;
+
+          const stored = localStorage.getItem(`artisan-stripe-checkout:${sessionId}`);
+          const items = stored ? JSON.parse(stored).items || [] : [];
+
+          await axios.post(
+            `${API_URL}/products/checkout/confirm-session`,
+            { sessionId, items },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          localStorage.setItem(`materials-paid:${invoiceId}`, 'true');
+          localStorage.removeItem(`artisan-stripe-checkout:${sessionId}`);
+          toast.success('Materials payment confirmed!');
+
+          // Re-open the invoice detail view
+          const token2 = getToken();
+          const resInvoices = await axios.get(`${API_URL}/invoices`, {
+            headers: { Authorization: `Bearer ${token2}` }
+          });
+          const all = resInvoices.data;
+          setInvoices(all);
+          const found = all.find((inv: any) => inv._id === invoiceId);
+          if (found) {
+            setSelectedInvoice(found);
+            setView('details');
+          }
+        } catch (error: any) {
+          console.error('Materials confirm failed:', error?.response?.data || error?.message);
+          toast.error(error?.response?.data?.message || 'Failed to confirm materials payment');
+        } finally {
+          setIsPayMaterialLoading(false);
+          clearParams();
+        }
+      };
+      confirmMaterials();
       return;
     }
 
@@ -324,6 +372,81 @@ export default function ArtisanInvoices() {
   const handlePayCompletionClick = () => {
     if (!selectedInvoice?._id) return;
     handleStartInstallmentPayment(selectedInvoice._id, 'completion');
+  };
+
+  const handlePayMaterialsClick = async () => {
+    const projectId = selectedInvoice?.project?._id || selectedInvoice?.project;
+    if (!projectId) {
+      toast.error('No project linked to this invoice');
+      return;
+    }
+
+    try {
+      setIsPayMaterialLoading(true);
+      const token = getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const projectsRes = await axios.get(`${API_URL}/projects`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const project = projectsRes.data.find(
+        (p: any) => String(p._id) === String(projectId)
+      );
+
+      if (!project) {
+        toast.error('Project not found');
+        return;
+      }
+
+      const materials: any[] = project.materials || [];
+      if (!materials.length) {
+        toast.error('No materials linked to this project');
+        return;
+      }
+
+      const items = materials.map((mat: any) => ({
+        productId: mat._id,
+        quantity: 1,
+        name: mat.name,
+        category: mat.category || 'material',
+        price: mat.price || 0,
+        stock: mat.stock || 0,
+        description: mat.description || '',
+        image: mat.image || '',
+      }));
+
+      const res = await axios.post(
+        `${API_URL}/products/checkout/create-session`,
+        { items, invoiceId: selectedInvoice._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const sessionId = String(res?.data?.sessionId || '').trim();
+      const checkoutUrl = res?.data?.url;
+
+      if (!checkoutUrl) {
+        toast.error('Unable to initialize payment session');
+        return;
+      }
+
+      if (sessionId) {
+        localStorage.setItem(
+          `artisan-stripe-checkout:${sessionId}`,
+          JSON.stringify({ items, createdAt: Date.now() })
+        );
+      }
+
+      window.location.href = checkoutUrl;
+    } catch (error: any) {
+      console.error('Pay materials failed:', error?.response?.data || error?.message);
+      toast.error(error?.response?.data?.message || 'Failed to initialize materials payment');
+    } finally {
+      setIsPayMaterialLoading(false);
+    }
   };
 
   const handleDownloadInvoicePdf = async (invoice: any) => {
@@ -601,83 +724,240 @@ export default function ArtisanInvoices() {
     const invoiceMarkedPaid = String(selectedInvoice.status || '').toLowerCase() === 'paid' || progress >= 100;
     const upfrontPaid = Boolean(selectedInvoice.paymentPlan?.firstTranchePaid) || invoiceMarkedPaid;
     const completionPaid = Boolean(selectedInvoice.paymentPlan?.secondTranchePaid) || invoiceMarkedPaid;
-    const disableUpfrontButton = isPaymentLoading || upfrontPaid;
-    const disableCompletionButton = isPaymentLoading || !upfrontPaid || completionPaid;
-    const payButtonBaseClass = 'rounded-xl px-6 py-3 text-lg font-semibold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 disabled:!opacity-100';
+    const materialsPaid = localStorage.getItem(`materials-paid:${selectedInvoice._id}`) === 'true';
 
-    const upfrontButtonClass = disableUpfrontButton
-      ? 'border border-slate-300 bg-slate-200 text-slate-700'
-      : 'bg-primary hover:bg-primary/90 text-white border border-primary hover:shadow-md focus-visible:ring-primary/40';
-
-    const completionButtonClass = disableCompletionButton
-      ? completionPaid
-        ? 'border border-red-700 bg-red-500 text-black'
-        : !upfrontPaid
-          ? 'border border-red-300 bg-red-100 text-black'
-          : 'border border-gray-300 bg-gray-200 text-gray-700'
-      : 'bg-red-500 hover:bg-red-600 text-black border border-red-600 hover:shadow-md focus-visible:ring-red-500/40';
+    const handleMarkTranche = async (phase: 'upfront' | 'completion') => {
+      try {
+        setIsPaymentLoading(true);
+        const token = getToken();
+        if (!token) return;
+        const res = await axios.patch(
+          `${API_URL}/invoices/${selectedInvoice._id}/mark-tranche-paid`,
+          { phase },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const updated = res.data?.invoice;
+        if (updated) {
+          setSelectedInvoice(updated);
+          setInvoices(prev => prev.map(inv => inv._id === updated._id ? updated : inv));
+        }
+        toast.success(res.data?.message || 'Tranche marked as received');
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || 'Failed to update tranche');
+      } finally {
+        setIsPaymentLoading(false);
+      }
+    };
 
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-between items-center print:hidden">
+        {/* Header — Back + Pay Materials */}
+        <div className="flex flex-wrap justify-between items-center gap-3 print:hidden">
           <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2">
             <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
           </Button>
-          <div className="flex gap-3">
-            <Button
-              onClick={handlePayUpfrontClick}
-              disabled={disableUpfrontButton}
-              className={`${payButtonBaseClass} ${upfrontButtonClass}`}
+          {materialsPaid ? (
+            <button
+              disabled
+              className="rounded-xl px-4 py-2 text-sm font-semibold border border-amber-300 cursor-not-allowed"
+              style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
             >
-              <CreditCard size={20} className="mr-2" />
-              {upfrontPaid ? 'UpFront Paid' : `Pay UpFront (${upfrontAmount.toFixed(2)} TND)`}
-            </Button>
-            <Button
-              onClick={handlePayCompletionClick}
-              disabled={disableCompletionButton}
-              className={`${payButtonBaseClass} ${completionButtonClass}`}
+              <Package size={16} className="mr-1.5 inline" />
+              Materials Paid
+            </button>
+          ) : (
+            <button
+              onClick={handlePayMaterialsClick}
+              disabled={isPayMaterialLoading}
+              className="rounded-xl px-4 py-2 text-sm font-semibold border border-amber-600 hover:opacity-90 transition-opacity disabled:opacity-60"
+              style={{ backgroundColor: '#f59e0b', color: 'white' }}
             >
-              <CreditCard size={20} className="mr-2" />
-              {completionPaid
-                ? 'Upon Completion Paid'
-                : !upfrontPaid
-                  ? `Upon Completion Locked (${completionAmount.toFixed(2)} TND)`
-                  : `Pay Upon Completion (${completionAmount.toFixed(2)} TND)`}
-            </Button>
-          </div>
+              <Package size={16} className="mr-1.5 inline" />
+              {isPayMaterialLoading ? 'Processing...' : 'Pay Materials'}
+            </button>
+          )}
         </div>
 
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-foreground">Payment Progress</h3>
-              <span className="text-xl font-bold text-primary">{progress}%</span>
-            </div>
-            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-primary to-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }} />
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="rounded-xl border p-4 bg-gray-50">
-                <p className="text-sm text-muted-foreground mb-1">First Tranche (UpFront)</p>
-                <p className="font-semibold text-foreground">{upfrontAmount.toFixed(2)} TND</p>
-                <p className={`text-sm mt-1 ${upfrontPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                  {upfrontPaid ? 'Paid' : 'Pending'}
-                </p>
-              </div>
-              <div className="rounded-xl border p-4 bg-gray-50">
-                <p className="text-sm text-muted-foreground mb-1">Second Tranche (Upon Completion)</p>
-                <p className="font-semibold text-foreground">{completionAmount.toFixed(2)} TND</p>
-                <p className={`text-sm mt-1 ${completionPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                  {completionPaid ? 'Paid' : upfrontPaid ? 'Awaiting Payment' : 'Locked until UpFront is paid'}
-                </p>
+        {/* ── Payment Progress Card ── */}
+        <Card className="bg-white rounded-2xl border-0 shadow-lg overflow-hidden print:hidden">
+          {/* Header strip */}
+          <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-foreground">Payment Progress</h3>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-2xl font-extrabold tabular-nums"
+                  style={{ color: progress >= 100 ? '#10b981' : progress >= 50 ? '#6366f1' : '#6366f1' }}
+                >
+                  {progress}%
+                </span>
               </div>
             </div>
-            {selectedInvoice.paymentPlan?.secondTrancheDueDate && !completionPaid && (
-              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Completion tranche due by {formatDate(selectedInvoice.paymentPlan.secondTrancheDueDate)}
+            {/* Progress bar — tall + well separated */}
+            <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700 ease-out"
+                style={{
+                  width: `${progress}%`,
+                  background:
+                    progress >= 100
+                      ? 'linear-gradient(90deg,#10b981,#059669)'
+                      : progress >= 50
+                        ? 'linear-gradient(90deg,#6366f1,#10b981)'
+                        : 'linear-gradient(90deg,#6366f1,#818cf8)',
+                  boxShadow: progress > 0 ? '0 0 8px rgba(99,102,241,0.4)' : 'none',
+                }}
+              />
+            </div>
+            <div className="flex justify-between mt-1.5">
+              <span className="text-xs text-muted-foreground">0%</span>
+              <span className="text-xs text-muted-foreground">50%</span>
+              <span className="text-xs text-muted-foreground">100%</span>
+            </div>
+          </div>
+
+          {/* Tranche cards */}
+          <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+
+            {/* ── Tranche 1 : UpFront ── */}
+            <div className={`p-6 transition-colors duration-300 ${upfrontPaid ? 'bg-emerald-50/50' : 'bg-white'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-sm"
+                    style={{
+                      backgroundColor: upfrontPaid ? '#10b981' : '#6366f1',
+                      color: 'white',
+                    }}
+                  >
+                    {upfrontPaid ? '✓' : '1'}
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground text-sm leading-tight">First Tranche</p>
+                    <p className="text-xs text-muted-foreground">UpFront Payment</p>
+                  </div>
+                </div>
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                  style={
+                    upfrontPaid
+                      ? { backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }
+                      : { backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }
+                  }
+                >
+                  {upfrontPaid ? 'Received' : 'Pending'}
+                </span>
+              </div>
+
+              <p className="text-3xl font-extrabold text-foreground mb-0.5">
+                {upfrontAmount.toFixed(2)}{' '}
+                <span className="text-base font-semibold text-muted-foreground">TND</span>
               </p>
-            )}
-            {isPaymentLoading && <p className="text-sm text-muted-foreground">Processing payment...</p>}
+              <p className="text-xs text-muted-foreground mb-5">
+                {Math.round(selectedInvoice.paymentPlan?.firstTranchePercent ?? 50)}% of total invoice
+              </p>
+
+              {upfrontPaid ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-100 border border-emerald-200">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shrink-0">✓</span>
+                  <span className="text-sm text-emerald-800 font-medium">
+                    {selectedInvoice.paymentPlan?.firstTranchePaidAt
+                      ? `Received on ${formatDate(selectedInvoice.paymentPlan.firstTranchePaidAt)}`
+                      : 'Payment received'}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleMarkTranche('upfront')}
+                  disabled={isPaymentLoading}
+                  className="w-full rounded-xl py-3 text-sm font-bold tracking-wide hover:opacity-90 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 shadow-sm"
+                  style={{ backgroundColor: '#6366f1', color: 'white' }}
+                >
+                  {isPaymentLoading
+                    ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving…</>
+                    : <>✓ Mark as Received</>
+                  }
+                </button>
+              )}
+            </div>
+
+            {/* ── Tranche 2 : Upon Completion ── */}
+            <div className={`p-6 transition-colors duration-300 ${completionPaid ? 'bg-emerald-50/50' : !upfrontPaid ? 'bg-gray-50/80' : 'bg-white'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-sm"
+                    style={{
+                      backgroundColor: completionPaid ? '#10b981' : !upfrontPaid ? '#d1d5db' : '#6366f1',
+                      color: !upfrontPaid && !completionPaid ? '#6b7280' : 'white',
+                    }}
+                  >
+                    {completionPaid ? '✓' : !upfrontPaid ? '🔒' : '2'}
+                  </div>
+                  <div>
+                    <p className={`font-bold text-sm leading-tight ${!upfrontPaid && !completionPaid ? 'text-muted-foreground' : 'text-foreground'}`}>
+                      Second Tranche
+                    </p>
+                    <p className="text-xs text-muted-foreground">Upon Completion</p>
+                  </div>
+                </div>
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                  style={
+                    completionPaid
+                      ? { backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }
+                      : !upfrontPaid
+                        ? { backgroundColor: '#f3f4f6', color: '#6b7280', borderColor: '#e5e7eb' }
+                        : { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' }
+                  }
+                >
+                  {completionPaid ? 'Received' : !upfrontPaid ? 'Locked' : 'Ready'}
+                </span>
+              </div>
+
+              <p className={`text-3xl font-extrabold mb-0.5 ${!upfrontPaid && !completionPaid ? 'text-muted-foreground' : 'text-foreground'}`}>
+                {completionAmount.toFixed(2)}{' '}
+                <span className="text-base font-semibold text-muted-foreground">TND</span>
+              </p>
+              <p className="text-xs text-muted-foreground mb-5">
+                {Math.round(selectedInvoice.paymentPlan?.secondTranchePercent ?? 50)}% of total invoice
+              </p>
+
+              {completionPaid ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-100 border border-emerald-200">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shrink-0">✓</span>
+                  <span className="text-sm text-emerald-800 font-medium">
+                    {selectedInvoice.paymentPlan?.secondTranchePaidAt
+                      ? `Received on ${formatDate(selectedInvoice.paymentPlan.secondTranchePaidAt)}`
+                      : 'Payment received'}
+                  </span>
+                </div>
+              ) : !upfrontPaid ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-100 border border-gray-200">
+                  <span className="text-base">🔒</span>
+                  <span className="text-sm text-gray-500">Unlocks after first tranche is received</span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleMarkTranche('completion')}
+                    disabled={isPaymentLoading}
+                    className="w-full rounded-xl py-3 text-sm font-bold tracking-wide hover:opacity-90 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 shadow-sm"
+                    style={{ backgroundColor: '#6366f1', color: 'white' }}
+                  >
+                    {isPaymentLoading
+                      ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving…</>
+                      : <>✓ Mark as Received</>
+                    }
+                  </button>
+                  {selectedInvoice.paymentPlan?.secondTrancheDueDate && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
+                      📅 Due by {formatDate(selectedInvoice.paymentPlan.secondTrancheDueDate)}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </Card>
 

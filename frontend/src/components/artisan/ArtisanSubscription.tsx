@@ -82,6 +82,8 @@ export default function ArtisanSubscription() {
         toast.success('Subscription activated! Welcome to the premium club. 🎉');
         fetchUserData();
         fetchPaymentHistory();
+        // Notify dashboard to re-check subscription status
+        window.dispatchEvent(new Event('artisan-subscription-verified'));
       }
     } catch (error) {
       console.error('Verification error:', error);
@@ -129,12 +131,20 @@ export default function ArtisanSubscription() {
     try {
       setIsCanceling(true);
       const token = getToken();
-      await axios.post(`${API_URL}/payments/subscription/cancel`, {}, {
+      const response = await axios.post(`${API_URL}/payments/subscription/cancel`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('Subscription canceled successfully. We will contact you soon for your refund.');
+      const refund = response.data?.refundAmount || 0;
+      const days = response.data?.remainingDays || 0;
+      if (refund > 0) {
+        toast.success(`Subscription canceled. You will receive a refund of ${refund.toFixed(2)} TND for ${days} remaining day${days > 1 ? 's' : ''}.`);
+      } else {
+        toast.success('Subscription canceled successfully.');
+      }
       setShowCancelDialog(false);
       fetchUserData();
+      // Notify dashboard to re-check subscription status
+      window.dispatchEvent(new Event('artisan-subscription-verified'));
     } catch (error: any) {
       console.error('Cancel subscription error:', error);
       toast.error(error.response?.data?.message || 'Error canceling subscription');

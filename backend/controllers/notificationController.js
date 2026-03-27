@@ -1,9 +1,20 @@
 const Notification = require('../models/Notification');
 
+// Build a filter based on user role:
+// - admin sees notifications where recipient is null (system/admin notifications)
+// - other users see only their own notifications (recipient === userId)
+const buildUserFilter = (req) => {
+  if (req.user?.role === 'admin') {
+    return { recipient: null };
+  }
+  return { recipient: req.user?._id };
+};
+
 // GET /api/notifications
 const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find().sort({ createdAt: -1 }).limit(50);
+    const filter = buildUserFilter(req);
+    const notifications = await Notification.find(filter).sort({ createdAt: -1 }).limit(50);
     res.json(notifications);
   } catch (err) {
     console.error(err);
@@ -14,7 +25,8 @@ const getNotifications = async (req, res) => {
 // GET /api/notifications/unread-count
 const getUnreadCount = async (req, res) => {
   try {
-    const count = await Notification.countDocuments({ read: false });
+    const filter = { ...buildUserFilter(req), read: false };
+    const count = await Notification.countDocuments(filter);
     res.json({ count });
   } catch (err) {
     console.error(err);
@@ -25,7 +37,8 @@ const getUnreadCount = async (req, res) => {
 // PUT /api/notifications/read-all
 const markAllRead = async (req, res) => {
   try {
-    await Notification.updateMany({ read: false }, { read: true });
+    const filter = { ...buildUserFilter(req), read: false };
+    await Notification.updateMany(filter, { read: true });
     res.json({ message: 'All notifications marked as read' });
   } catch (err) {
     console.error(err);
@@ -52,7 +65,8 @@ const markRead = async (req, res) => {
 // DELETE /api/notifications
 const deleteAll = async (req, res) => {
   try {
-    await Notification.deleteMany({});
+    const filter = buildUserFilter(req);
+    await Notification.deleteMany(filter);
     res.json({ message: 'All notifications deleted' });
   } catch (err) {
     console.error(err);

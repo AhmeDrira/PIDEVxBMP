@@ -154,6 +154,15 @@ const registerUser = async (req, res) => {
     switch (role) {
       case 'artisan':
         user = await Artisan.create({ ...userData, location: '', domain: '' });
+        // Notify the new artisan that a subscription is required
+        await Notification.create({
+          type: 'subscription_required',
+          title: 'Subscription Required',
+          message: 'Welcome to BMP! Please subscribe to a plan to unlock all platform features (Projects, Marketplace, Quotes, Invoices…).',
+          recipient: user._id,
+          recipientRole: 'artisan',
+          icon: 'CreditCard',
+        });
         break;
       
       case 'expert':

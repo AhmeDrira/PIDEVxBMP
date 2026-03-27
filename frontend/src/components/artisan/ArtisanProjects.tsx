@@ -8,6 +8,7 @@ import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, Shopping
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useSubscriptionGuard } from './SubscriptionGuard';
 
 // Composant d'autocomplétion pour la localisation
 const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates = []  }: {
@@ -126,6 +127,15 @@ export default function ArtisanProjects() {
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const { guard, PopupElement } = useSubscriptionGuard();
+
+  // --- Quantités locales pour la vue matériaux (avant confirmation) ---
+  const [localQuantities, setLocalQuantities] = useState<Record<string, number>>({});
+  const [confirmingMaterialId, setConfirmingMaterialId] = useState<string | null>(null);
+
+  // --- Redirection depuis marketplace (viewMaterials param) ---
+  const [pendingViewMaterialsId, setPendingViewMaterialsId] = useState<string | null>(null);
+
   // État du formulaire (partagé entre création et édition)
   const [formData, setFormData] = useState({
     title: '',
@@ -186,6 +196,40 @@ export default function ArtisanProjects() {
     if (view !== 'list') return;
     fetchProjects();
   }, [view, API_URL]);
+
+  // --- Lecture du param viewMaterials (depuis la marketplace) ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const vmId = params.get('viewMaterials');
+    if (vmId) {
+      setPendingViewMaterialsId(vmId);
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
+  // --- Quand les projets chargent + pendingViewMaterialsId défini → aller à la vue matériaux ---
+  useEffect(() => {
+    if (!pendingViewMaterialsId || projects.length === 0) return;
+    const found = projects.find((p: any) => String(p._id) === pendingViewMaterialsId);
+    if (found) {
+      setSelectedProject(found);
+      setView('materials');
+      setPendingViewMaterialsId(null);
+    }
+  }, [projects, pendingViewMaterialsId]);
+
+  // --- Initialisation des quantités locales à l'entrée de la vue matériaux ---
+  useEffect(() => {
+    if (view === 'materials' && selectedProject) {
+      const initial: Record<string, number> = {};
+      const mats = Array.isArray(selectedProject.materials) ? selectedProject.materials : [];
+      mats.forEach((mat: any) => {
+        const id = String((mat && (mat._id || mat)) || '');
+        if (id) initial[id] = (initial[id] || 0) + 1;
+      });
+      setLocalQuantities(initial);
+    }
+  }, [view, selectedProject?._id]);
 
   // --- Chargement de la localisation du profil artisan ---
   useEffect(() => {
@@ -855,7 +899,7 @@ export default function ArtisanProjects() {
                 <Button
                   variant="outline"
                   className="rounded-xl border-2"
-                  onClick={() => setView('edit')}
+                  onClick={() => guard(() => setView('edit'))}
                 >
                   <Edit size={16} className="mr-2" /> Edit
                 </Button>
@@ -1011,6 +1055,7 @@ export default function ArtisanProjects() {
             </Card>
           </div>
         </div>
+        {PopupElement}
       </div>
     );
   }
@@ -1044,51 +1089,65 @@ export default function ArtisanProjects() {
       return map;
     };
 
-    const handleAdjustMaterialQuantity = async (materialId: string, delta: number) => {
+    // +/- local uniquement (sans appel API)
+    const handleAdjustLocalQuantity = (materialId: string, delta: number) => {
+      const sourceMaterials = Array.isArray(selectedProject.materials) ? selectedProject.materials : [];
+      const currentCount = localQuantities[materialId] ?? 1;
+
+      if (delta < 0 && currentCount <= 1) return;
+
+      if (delta > 0) {
+        const mat = sourceMaterials.find((m: any) => String((m && (m._id || m)) || '') === materialId);
+        const maxStock = Number(mat?.stock || 0);
+        if (maxStock > 0 && currentCount >= maxStock) {
+          toast.warning(`Maximum stock reached (${maxStock} units available).`);
+          return;
+        }
+      }
+
+      setLocalQuantities(prev => ({ ...prev, [materialId]: currentCount + delta }));
+    };
+
+    // Confirme la quantité choisie → sauvegarde en base
+    const confirmMaterialQuantity = async (materialId: string) => {
       try {
+        setConfirmingMaterialId(materialId);
         let token = localStorage.getItem('token');
         if (!token && localStorage.getItem('user')) token = JSON.parse(localStorage.getItem('user')!).token;
 
+        const newQty = localQuantities[materialId] ?? 1;
         const sourceMaterials = Array.isArray(selectedProject.materials) ? selectedProject.materials : [];
-        const materialIds = sourceMaterials
-          .map((mat: any) => String((mat && (mat._id || mat)) || ''))
-          .filter(Boolean);
+        const allIds = sourceMaterials.map((mat: any) => String((mat && (mat._id || mat)) || '')).filter(Boolean);
 
-        const currentCount = materialIds.filter((id: string) => id === materialId).length;
-        if (delta < 0 && currentCount <= 1) return;
-
-        if (delta > 0) {
-          const selectedMaterial = sourceMaterials.find((mat: any) => String((mat && (mat._id || mat)) || '') === materialId);
-          const maxStock = Number(selectedMaterial?.stock || 0);
-          if (maxStock > 0 && currentCount >= maxStock) {
-            toast.warning('You reached the maximum stock quantity for this material.');
-            return;
-          }
-        }
-
-        let updatedMaterials = [...materialIds];
-        if (delta > 0) {
-          updatedMaterials.push(materialId);
-        } else {
-          const removeIndex = updatedMaterials.findIndex((id) => id === materialId);
-          if (removeIndex >= 0) {
-            updatedMaterials = updatedMaterials.filter((_, idx) => idx !== removeIndex);
-          }
-        }
+        const otherIds = allIds.filter((id: string) => id !== materialId);
+        const updatedIds = [...otherIds, ...Array(newQty).fill(materialId)];
 
         const res = await axios.put(
           `${API_URL}/projects/${selectedProject._id}`,
-          { materials: updatedMaterials },
+          { materials: updatedIds },
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        const lookup = buildMaterialLookup();
-        const hydratedMaterials = updatedMaterials.map((id) => lookup[id] || id);
-        setSelectedProject({ ...res.data, materials: hydratedMaterials });
+        // res.data.materials is already populated by the backend (.populate('materials'))
+        // Use it directly — no manual hydration needed
+        setSelectedProject(res.data);
+
+        // Re-compute localQuantities from the saved data
+        const savedMats = Array.isArray(res.data.materials) ? res.data.materials : [];
+        const newLocal: Record<string, number> = {};
+        savedMats.forEach((mat: any) => {
+          const id = String((mat && (mat._id || mat)) || '');
+          if (id) newLocal[id] = (newLocal[id] || 0) + 1;
+        });
+        setLocalQuantities(newLocal);
+
         await fetchProjects();
+        toast.success('Quantity confirmed!');
       } catch (err) {
-        console.error('Failed to update quantity', err);
-        alert('Error updating material quantity');
+        console.error('Failed to confirm quantity', err);
+        toast.error('Error saving quantity');
+      } finally {
+        setConfirmingMaterialId(null);
       }
     };
 
@@ -1100,7 +1159,7 @@ export default function ArtisanProjects() {
           </Button>
           <h2 className="text-2xl font-bold">Materials for {selectedProject.title}</h2>
           {!isSelectedProjectCompleted ? (
-            <Button onClick={() => window.location.href = '/?artisanView=marketplace&projectId=' + selectedProject._id} className="rounded-xl bg-secondary hover:bg-secondary/90 text-white">
+            <Button onClick={() => guard(() => { window.location.href = '/?artisanView=marketplace&projectId=' + selectedProject._id; })} className="rounded-xl bg-secondary hover:bg-secondary/90 text-white">
               <ShoppingCart size={20} className="mr-2" /> Add More
             </Button>
           ) : (
@@ -1120,38 +1179,58 @@ export default function ArtisanProjects() {
                 const materialId = String((m && (m._id || m)) || '');
                 return (
                 <div key={materialId || i} className="border p-5 rounded-2xl flex flex-col justify-between items-start gap-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-4">
-                    {m.image && <img src={m.image} alt={m.name} className="w-16 h-16 object-cover rounded-lg" />}
-                    <div>
-                      <p className="font-bold text-lg">{m.name || 'Material'}</p>
-                      <p className="text-sm font-medium text-primary">{m.price ? m.price + ' TND' : ''}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-muted-foreground">Quantity in project</span>
-                        <div className="flex items-center gap-2">
-                          <Button
+                  <div className="flex items-start gap-4">
+                    {m.image && <img src={m.image} alt={m.name} className="w-16 h-16 object-cover rounded-xl shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-base leading-tight truncate">{m.name || 'Material'}</p>
+                      <p className="text-sm font-semibold text-primary mt-0.5">{m.price ? m.price + ' TND / unit' : ''}</p>
+                      {m.stock !== undefined && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Stock available: <span className="font-semibold">{m.stock}</span>
+                        </p>
+                      )}
+                      {/* Quantity adjuster */}
+                      <div className="flex items-center gap-2 mt-3">
+                        <span className="text-xs text-muted-foreground">Qty:</span>
+                        <div className="flex items-center gap-1 rounded-xl border-2 border-gray-200 overflow-hidden">
+                          <button
                             type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0 rounded-lg border-2"
-                            disabled={quantity <= 1}
-                            onClick={() => handleAdjustMaterialQuantity(materialId, -1)}
+                            className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-gray-100 transition-colors disabled:opacity-40"
+                            disabled={(localQuantities[materialId] ?? quantity) <= 1}
+                            onClick={() => handleAdjustLocalQuantity(materialId, -1)}
                           >
-                            -
-                          </Button>
-                          <div className="min-w-[36px] text-center font-semibold">{quantity}</div>
-                          <Button
+                            −
+                          </button>
+                          <div className="min-w-[32px] text-center font-bold text-sm">
+                            {localQuantities[materialId] ?? quantity}
+                          </div>
+                          <button
                             type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0 rounded-lg border-2"
-                            onClick={() => handleAdjustMaterialQuantity(materialId, 1)}
+                            className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-gray-100 transition-colors"
+                            onClick={() => handleAdjustLocalQuantity(materialId, 1)}
                           >
                             +
-                          </Button>
+                          </button>
                         </div>
                       </div>
+                      {/* Saved quantity indicator */}
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Saved: {quantity} unit{quantity > 1 ? 's' : ''} · Total: {((m.price || 0) * quantity).toFixed(2)} TND
+                      </p>
                     </div>
                   </div>
-                  <div className="w-full">
-                    <Button variant="outline" className="w-full text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600" onClick={async () => {
+                  <div className="flex gap-2 w-full mt-2">
+                    {/* Confirm button — also always visible at bottom for convenience */}
+                    <button
+                      type="button"
+                      disabled={confirmingMaterialId === materialId || (localQuantities[materialId] ?? quantity) === quantity}
+                      onClick={() => confirmMaterialQuantity(materialId)}
+                      className="flex-1 rounded-xl py-2 text-sm font-semibold border border-emerald-600 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: (localQuantities[materialId] ?? quantity) !== quantity ? '#10b981' : '#d1fae5', color: (localQuantities[materialId] ?? quantity) !== quantity ? 'white' : '#065f46' }}
+                    >
+                      {confirmingMaterialId === materialId ? 'Saving…' : (localQuantities[materialId] ?? quantity) !== quantity ? '✓ Confirm Qty' : '✓ Saved'}
+                    </button>
+                    <Button variant="outline" className="flex-1 text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 rounded-xl py-2 text-sm" onClick={async () => {
                       try {
                         let token = localStorage.getItem('token'); if (!token && localStorage.getItem('user')) token = JSON.parse(localStorage.getItem('user')!).token;
                         const sourceMaterials = Array.isArray(selectedProject.materials) ? selectedProject.materials : [];
@@ -1159,18 +1238,17 @@ export default function ArtisanProjects() {
                           .map((mat: any) => mat._id || mat)
                           .filter((id: any) => String(id) !== materialId);
                         const res = await axios.put(`${API_URL}/projects/${selectedProject._id}`, { materials: updatedMaterials }, { headers: { Authorization: `Bearer ${token}` } });
-                        const lookup = buildMaterialLookup();
-                        const hydratedMaterials = updatedMaterials.map((id: any) => lookup[String(id)] || id);
-                        setSelectedProject({ ...res.data, materials: hydratedMaterials });
+                        setSelectedProject(res.data);
                         await fetchProjects();
-                      } catch (err) { console.error('Failed to remove', err); alert('Error removing material'); }
-                    }}>Remove</Button>
+                      } catch (err) { console.error('Failed to remove', err); toast.error('Error removing material'); }
+                    }}>🗑 Remove</Button>
                   </div>
                 </div>
               )})}
             </div>
           )}
         </Card>
+        {PopupElement}
       </div>
     );
   }
@@ -1185,7 +1263,7 @@ export default function ArtisanProjects() {
           <h1 className="text-3xl font-bold text-foreground mb-2">My Projects</h1>
           <p className="text-lg text-muted-foreground">Manage and track all your construction projects</p>
         </div>
-        <Button onClick={handleCreateView} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
+        <Button onClick={() => guard(handleCreateView)} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
           <Plus size={20} className="mr-2" /> Create Project
         </Button>
       </div>
@@ -1297,7 +1375,7 @@ export default function ArtisanProjects() {
                   <Button
                     type="button"
                     className="w-full h-10 rounded-xl bg-primary text-white hover:bg-primary/90 mb-4"
-                    onClick={() => handleAddProjectToPortfolio(project._id)}
+                    onClick={() => guard(() => handleAddProjectToPortfolio(project._id))}
                     disabled={addingToPortfolio}
                   >
                     {addingToPortfolio ? 'Adding...' : 'Add to Portfolio'}
@@ -1306,7 +1384,7 @@ export default function ArtisanProjects() {
 
                 <div className="space-y-2 mb-4">
                   {!isProjectCompleted && (
-                    <Button onClick={() => window.location.href = '/?artisanView=marketplace&projectId=' + project._id} className="w-full h-10 justify-start text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md">
+                    <Button onClick={() => guard(() => { window.location.href = '/?artisanView=marketplace&projectId=' + project._id; })} className="w-full h-10 justify-start text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md">
                       <ShoppingCart size={16} className="mr-2" /> Add Material
                     </Button>
                   )}
@@ -1317,13 +1395,18 @@ export default function ArtisanProjects() {
                   )}
                   <Button
                     className="w-full h-10 justify-start text-white bg-accent hover:bg-accent/90 rounded-xl shadow-md"
-                    onClick={() => {
+                    onClick={() => guard(() => {
                       window.location.href = '/?artisanView=quotes&projectId=' + project._id;
-                    }}
+                    })}
                   >
                     <FileText size={16} className="mr-2" /> Create Quote
                   </Button>
-                  <Button className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">
+                  <Button
+                    className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md"
+                    onClick={() => guard(() => {
+                      // Generate Invoice action
+                    })}
+                  >
                     <Receipt size={16} className="mr-2" /> Generate Invoice
                   </Button>
                 </div>
@@ -1339,10 +1422,10 @@ export default function ArtisanProjects() {
                   <Button
   variant="outline"
   className="h-11 px-4 rounded-xl border-2 hover:bg-primary hover:text-white hover:border-primary"
-  onClick={() => {
-    setSelectedProject(project); // ⚡ définir le projet à éditer
-    setView('edit');             // puis passer en edit
-  }}
+  onClick={() => guard(() => {
+    setSelectedProject(project);
+    setView('edit');
+  })}
 >
   <Edit size={16} />
 </Button>
@@ -1353,6 +1436,7 @@ export default function ArtisanProjects() {
           })}
         </div>
       )}
+      {PopupElement}
     </div>
   );
 }
