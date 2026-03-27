@@ -10,8 +10,10 @@ import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useSubscriptionGuard } from './SubscriptionGuard';
 
 export default function ArtisanQuotes() {
+  const { guard, PopupElement } = useSubscriptionGuard();
   const [view, setView] = useState<'list' | 'create' | 'details'>('list');
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
 
@@ -179,10 +181,13 @@ export default function ArtisanQuotes() {
   // --- FONCTIONS DE VALIDATION ---
   const validateField = (name: string, value: any): string => {
     switch (name) {
-      case 'project':
+      case 'project': {
         if (!value) return 'Project is required';
         if (!availableProjects.some((proj) => proj._id === value)) return 'Selected project is already completed';
+        const projForQuote = projects.find((proj) => proj._id === value);
+        if (!projForQuote?.materials?.length) return 'The selected project must have at least one material before creating a quote';
         return '';
+      }
       case 'clientName':
         return !value ? 'Client name is required' : '';
       case 'laborHand':
@@ -1060,7 +1065,7 @@ export default function ArtisanQuotes() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Quotes</h1>
           <p className="text-lg text-muted-foreground">Manage project quotes and estimates</p>
         </div>
-        <Button onClick={() => setView('create')} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
+        <Button onClick={() => guard(() => setView('create'))} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
           <Plus size={20} className="mr-2" /> Generate Quote
         </Button>
       </div>
@@ -1199,6 +1204,7 @@ export default function ArtisanQuotes() {
         )}
 
         {renderGlobalOverlay()}
+        {PopupElement}
       </div>
     </div>
   );

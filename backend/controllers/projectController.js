@@ -125,7 +125,8 @@ const updateProject = async (req, res) => {
         });
       }
 
-      updatePayload.materials = [...new Set(normalizedMaterials)];
+      // Keep duplicates — each occurrence represents one unit of quantity
+      updatePayload.materials = normalizedMaterials;
     }
 
     const updatedProject = await Project.findByIdAndUpdate(

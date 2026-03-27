@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, Image } from 'lucide-react';
+import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, ShoppingBag } from 'lucide-react';
 import ArtisanHome from '../artisan/ArtisanHome';
 import ArtisanProjects from '../artisan/ArtisanProjects';
 import ArtisanMarketplace from '../artisan/ArtisanMarketplace';
@@ -10,7 +10,9 @@ import ArtisanMessages from '../artisan/ArtisanMessages';
 import ArtisanSubscription from '../artisan/ArtisanSubscription';
 import ArtisanProfile from '../artisan/ArtisanProfile';
 import ArtisanPortfolio from '../artisan/ArtisanPortfolio';
+import ArtisanOrders from '../artisan/ArtisanOrders';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
+import axios from 'axios';
 
 interface ArtisanDashboardProps {
   onLogout: () => void;
@@ -28,6 +30,30 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     return s ? JSON.parse(s) : null;
   });
   const [cartCount, setCartCount] = useState(0);
+  // Check subscription status from backend and store in sessionStorage
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        let token = localStorage.getItem('token');
+        const userStorage = localStorage.getItem('user');
+        if (!token && userStorage) token = JSON.parse(userStorage).token;
+        if (!token) return;
+
+        const res = await axios.get('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const isActive = res.data?.subscription?.status === 'active';
+        sessionStorage.setItem('artisan-sub-active', isActive ? '1' : '0');
+      } catch (err) {
+        console.error('Subscription check failed:', err);
+      }
+    };
+    checkSubscription();
+
+    const onSubSuccess = () => checkSubscription();
+    window.addEventListener('artisan-subscription-verified', onSubSuccess);
+    return () => window.removeEventListener('artisan-subscription-verified', onSubSuccess);
+  }, []);
 
   useEffect(() => {
     const handler = () => {
@@ -84,7 +110,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
   const role = currentUser?.role || 'artisan';
   const profilePhoto = currentUser?.profilePhoto || '';
 
-  const menuItems =[
+  const menuItems = [
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'projects', label: 'My Projects', icon: <FolderKanban size={20} /> },
     { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
@@ -92,7 +118,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     { id: 'invoices', label: 'Invoices', icon: <Receipt size={20} /> },
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
     { id: 'subscription', label: 'Subscription', icon: <CreditCard size={20} /> },
-    { id: 'portfolio', label: 'Portfolio', icon: <Image size={20} /> },
+    { id: 'orders', label: 'My Orders', icon: <ShoppingBag size={20} /> },
   ];
 
   const renderContent = () => {
@@ -115,6 +141,8 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
         return <ArtisanProfile />;
       case 'portfolio':
         return <ArtisanPortfolio />;
+      case 'orders':
+        return <ArtisanOrders />;
       default:
         return <ArtisanHome onNavigate={setActiveView} />;
     }
