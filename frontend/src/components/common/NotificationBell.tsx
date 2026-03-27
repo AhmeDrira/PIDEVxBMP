@@ -147,8 +147,9 @@ export default function NotificationBell() {
           fill={open ? "currentColor" : "none"}
         />
         {unreadCount > 0 && (
-          <span 
-            className="absolute -top-2 right-0 translate-x-1/2 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-primary text-[11px] font-extrabold text-white shadow-md animate-bounce"
+          <span
+            className="absolute -top-2 right-0 translate-x-1/2 flex h-5 min-w-5 px-1 items-center justify-center rounded-full text-[11px] font-extrabold shadow-md animate-bounce"
+            style={{ backgroundColor: '#ef4444', color: '#ffffff' }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>

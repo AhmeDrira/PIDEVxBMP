@@ -9,8 +9,10 @@ import { Search, ShoppingCart, Package, Check, ArrowRight, X, SlidersHorizontal,
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useSubscriptionGuard } from './SubscriptionGuard';
 
 export default function ArtisanMarketplace() {
+  const { guard, PopupElement } = useSubscriptionGuard();
   const [view, setView] = useState<'products' | 'cart' | 'confirmation' | 'detail'>('products');
   const [cart, setCart] = useState<any[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -402,7 +404,7 @@ export default function ArtisanMarketplace() {
         setShowProjectConfirm(false);
         setProductToAdd(null);
         setConfirmMessage('');
-        window.location.href = '/?artisanView=projects';
+        window.location.href = '/?artisanView=projects&viewMaterials=' + projectId;
       }, 900);
     } catch (err) {
       console.error('Error', err);
@@ -826,13 +828,14 @@ export default function ArtisanMarketplace() {
               <Button
                 disabled={selectedProduct.stock === 0}
                 className="w-full h-14 text-lg text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-lg disabled:opacity-50"
-                onClick={() => addToCart(selectedProduct)}
+                onClick={() => guard(() => addToCart(selectedProduct))}
               >
                 <ShoppingCart size={20} className="mr-2" /> {projectId ? 'Add to Project' : 'Add to Cart'}
               </Button>
             </Card>
           </div>
         </div>
+        {PopupElement}
       </div>
     );
   }
@@ -1071,7 +1074,7 @@ export default function ArtisanMarketplace() {
                       <Button variant="outline" className="h-11 rounded-xl border-2 hover:bg-gray-50 hover:text-primary transition-colors" onClick={() => { setSelectedProduct(product); setView('detail'); }}>
                         <Eye size={16} className="mr-1" /> View
                       </Button>
-                      <Button disabled={product.stock === 0} className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors" onClick={() => addToCart(product)}>
+                      <Button disabled={product.stock === 0} className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors" onClick={() => guard(() => addToCart(product))}>
                         <ShoppingCart size={16} className="mr-1" /> {projectId ? 'Add to Project' : 'Add'}
                       </Button>
                     </div>
@@ -1115,6 +1118,7 @@ export default function ArtisanMarketplace() {
           )}
         </div>
       </div>
+      {PopupElement}
     </div>
   );
 }

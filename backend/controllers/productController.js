@@ -198,47 +198,11 @@ const processMarketplaceCheckout = async ({ req, user, normalizedItems, stripeSe
   const taxAmount = 0;
   const totalAmount = materialsAmount + shippingAmount + taxAmount;
 
-  let invoice = null;
-  const artisanProject = await Project.findOne({ artisan: user._id }).sort({ createdAt: -1 }).select('_id title');
-  if (artisanProject?._id) {
-    const now = new Date();
-    const dueDate = new Date(now);
-    dueDate.setDate(now.getDate() + 7);
-
-    invoice = await Invoice.create({
-      invoiceNumber: generateInvoiceNumber(),
-      project: artisanProject._id,
-      artisan: user._id,
-      clientName: 'Marketplace Purchase',
-      amount: totalAmount,
-      description: `Marketplace checkout payment${stripeSessionId ? ` (Stripe session ${stripeSessionId})` : ''}`,
-      issueDate: now,
-      dueDate,
-      status: 'paid',
-      paidAmount: totalAmount,
-      paymentProgress: 100,
-      paymentPlan: {
-        firstTranchePercent: 50,
-        secondTranchePercent: 50,
-        firstTrancheAmount: roundMoney(totalAmount / 2),
-        secondTrancheAmount: roundMoney(totalAmount - roundMoney(totalAmount / 2)),
-        firstTranchePaid: true,
-        secondTranchePaid: true,
-        firstTranchePaidAt: now,
-        secondTranchePaidAt: now,
-      },
-      delivery: {
-        status: 'none',
-        timeline: [],
-      },
-    });
-  }
-
   await logAction(req, {
     actionKey: stripeSessionId ? 'marketplace.checkout.stripe' : 'marketplace.checkout',
     actionLabel: 'Purchased Materials',
     entityType: 'order',
-    entityId: invoice?._id ? String(invoice._id) : null,
+    entityId: null,
     description: `${user.role} completed a marketplace checkout (${summaryItems.length} items).`,
     metadata: {
       itemCount: summaryItems.length,
@@ -247,7 +211,7 @@ const processMarketplaceCheckout = async ({ req, user, normalizedItems, stripeSe
       taxAmount,
       totalAmount,
       stripeSessionId,
-      invoiceId: invoice?._id || null,
+      invoiceId: null,
       items: summaryItems,
     },
   });
@@ -304,7 +268,7 @@ const processMarketplaceCheckout = async ({ req, user, normalizedItems, stripeSe
     taxAmount,
     totalAmount,
     items: summaryItems,
-    invoiceId: invoice?._id || null,
+    invoiceId: null,
     paymentId: productPayment?._id || null,
   };
 };
@@ -427,6 +391,7 @@ const createStripeCheckoutSession = async (req, res) => {
       return res.status(403).json({ message: 'Only expert or artisan accounts can checkout materials' });
     }
 
+    const invoiceId = req.body?.invoiceId ? String(req.body.invoiceId).trim() : null;
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
     const normalizedItems = normalizeCheckoutItems(items);
     checkoutDebug(requestId, 'create-session:items-normalized', {
@@ -503,8 +468,12 @@ const createStripeCheckoutSession = async (req, res) => {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: lineItems,
-      success_url: `${appUrl}/?artisanView=marketplace&payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/?artisanView=marketplace&payment=cancel`,
+      success_url: invoiceId
+        ? `${appUrl}/?artisanView=invoices&invoicePayment=materialsSuccess&invoiceId=${invoiceId}&session_id={CHECKOUT_SESSION_ID}`
+        : `${appUrl}/?artisanView=marketplace&payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: invoiceId
+        ? `${appUrl}/?artisanView=invoices&invoicePayment=materialsCancel`
+        : `${appUrl}/?artisanView=marketplace&payment=cancel`,
       metadata: {
         userId: String(req.user._id || req.user.id),
         expectedMaterialsMinor: String(expectedMaterialsMinor),
