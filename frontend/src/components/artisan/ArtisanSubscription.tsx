@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Check, Crown, Calendar, CreditCard, Loader2, AlertTriangle, X } from 'lucide-react';
+import { Check, Crown, Calendar, CreditCard, Loader2, AlertTriangle, X, Download, Receipt } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -34,6 +34,25 @@ export default function ArtisanSubscription() {
       setUserData(response.data);
     } catch (error) {
       console.error('Error fetching user data:', error);
+    }
+  };
+
+  const handleDownloadReceipt = async (paymentId: string, receiptNo: string) => {
+    try {
+      const token = getToken();
+      const response = await axios.get(`${API_URL}/payments/subscription/history/${paymentId}/pdf`, {
+        responseType: 'blob',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `receipt-${receiptNo}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download receipt. Make sure Chrome/Edge is available on the server.');
     }
   };
 
@@ -339,58 +358,96 @@ export default function ArtisanSubscription() {
 
         {/* Payment History */}
         <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-          <h3 className="text-2xl font-bold text-foreground mb-6">Payment History</h3>
-          <div className="overflow-x-auto">
-            {loadingHistory ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="animate-spin text-primary" size={32} />
-              </div>
-            ) : paymentHistory.length > 0 ? (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-gray-100">
-                    <th className="text-left py-4 text-muted-foreground font-semibold">Date</th>
-                    <th className="text-left py-4 text-muted-foreground font-semibold">Plan</th>
-                    <th className="text-left py-4 text-muted-foreground font-semibold">Amount</th>
-                    <th className="text-left py-4 text-muted-foreground font-semibold">Status</th>
-                    <th className="text-left py-4 text-muted-foreground font-semibold">Invoice</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paymentHistory.map((payment, index) => (
-                    <tr key={index} className="border-b border-gray-100">
-                      <td className="py-4 font-medium text-foreground">
-                        {new Date(payment.paymentDate).toLocaleDateString()}
-                      </td>
-                      <td className="py-4 text-foreground">
-                        {payment.planId.charAt(0).toUpperCase() + payment.planId.slice(1)}
-                      </td>
-                      <td className="py-4 font-bold text-primary">
-                        {payment.amount} {payment.currency}
-                      </td>
-                      <td className="py-4">
-                        <Badge className="bg-accent/10 text-accent border-0 px-3 py-1 text-xs font-semibold">
-                          {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                        </Badge>
-                      </td>
-                      <td className="py-4">
-                        <Button variant="ghost" size="sm" className="rounded-xl text-primary hover:bg-primary/5">
-                          Download
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CreditCard size={32} className="text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground text-lg">No payment history found.</p>
-              </div>
-            )}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-foreground">Payment History</h3>
+              <p className="text-sm text-muted-foreground mt-1">All your subscription payments</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Receipt size={20} className="text-primary" />
+            </div>
           </div>
+
+          {loadingHistory ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+          ) : paymentHistory.length > 0 ? (
+            <div className="space-y-3">
+              {/* Header row */}
+              <div className="grid grid-cols-4 gap-4 px-4 py-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plan</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Receipt</span>
+              </div>
+
+              {paymentHistory.map((payment, index) => {
+                const receiptNo = `REC-${String(payment._id).slice(-8).toUpperCase()}`;
+                const planLabel = payment.planId
+                  ? payment.planId.charAt(0).toUpperCase() + payment.planId.slice(1)
+                  : 'Subscription';
+                return (
+                  <div
+                    key={index}
+                    className="grid grid-cols-4 gap-4 items-center px-4 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-200 transition-all duration-200"
+                  >
+                    {/* Date */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Calendar size={16} className="text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {new Date(payment.paymentDate).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{receiptNo}</p>
+                      </div>
+                    </div>
+
+                    {/* Plan */}
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                        <Crown size={12} />
+                        {planLabel}
+                      </span>
+                    </div>
+
+                    {/* Amount */}
+                    <div>
+                      <p className="text-lg font-extrabold text-foreground">
+                        {Number(payment.amount).toFixed(2)}
+                        <span className="text-sm font-semibold text-muted-foreground ml-1">DT</span>
+                      </p>
+                    </div>
+
+                    {/* Download */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleDownloadReceipt(payment._id, receiptNo)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                      >
+                        <Download size={13} />
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCard size={32} className="text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground text-lg font-medium">No payment history yet.</p>
+              <p className="text-sm text-muted-foreground mt-1">Your subscription receipts will appear here.</p>
+            </div>
+          )}
         </Card>
       </div>
 

@@ -89,7 +89,10 @@ const resolveManufacturerId = async (user) => {
 const ensureCheckoutProductId = async (checkoutItem, user) => {
   const rawId = String(checkoutItem?.productId || '').trim();
   if (mongoose.Types.ObjectId.isValid(rawId)) {
-    return rawId;
+    // Verify product still exists in DB before returning
+    const exists = await Product.exists({ _id: rawId });
+    if (exists) return rawId;
+    // Product was deleted (e.g. stock=0), fall through to static product creation
   }
 
   const name = String(checkoutItem?.name || '').trim();
@@ -148,7 +151,7 @@ const generateInvoiceNumber = () => {
   return `INV-${currentYear}-${randomCode}`;
 };
 
-const processMarketplaceCheckout = async ({ req, user, normalizedItems, stripeSessionId = null }) => {
+const processMarketplaceCheckout = async ({ req, user, normalizedItems, stripeSessionId = null, shippingAddress = null, contactInfo = null, shippingMethod = null }) => {
   const productIds = normalizedItems.map((item) => item.productId);
   const products = await Product.find({ _id: { $in: productIds } });
   const productsMap = new Map(products.map((product) => [String(product._id), product]));
@@ -169,14 +172,9 @@ const processMarketplaceCheckout = async ({ req, user, normalizedItems, stripeSe
     }
 
     product.stock -= item.quantity;
+    if (product.stock < 0) product.stock = 0;
     product.status = calculateStatus(product.stock);
-
-    // Remove products automatically from DB/marketplace when stock reaches 0.
-    if (product.stock <= 0) {
-      await product.deleteOne();
-    } else {
-      await product.save();
-    }
+    await product.save();
 
     materialsAmount += product.price * item.quantity;
     summaryItems.push({
@@ -226,15 +224,27 @@ const processMarketplaceCheckout = async ({ req, user, normalizedItems, stripeSe
     }
 
     if (!productPayment) {
-      productPayment = await ProductPayment.create({
+      const createData = {
         user: buyerId,
         items: paymentItems,
         totalAmount,
+        shippingAmount,
         currency: String(process.env.STRIPE_CURRENCY || 'usd').toUpperCase(),
         stripeSessionId: stripeSessionId || null,
         status: 'paid',
         paymentDate: new Date(),
-      });
+        deliveryTimeline: [{
+          status: 'paid',
+          label: 'Order Confirmed',
+          description: 'Your payment has been received and your order is confirmed.',
+          date: new Date(),
+        }],
+      };
+      if (shippingAddress) createData.shippingAddress = shippingAddress;
+      if (contactInfo) createData.contactInfo = contactInfo;
+      if (shippingMethod) createData.shippingMethod = shippingMethod;
+
+      productPayment = await ProductPayment.create(createData);
     }
 
     const manufacturerIds = [
@@ -545,6 +555,16 @@ const confirmStripeCheckoutSession = async (req, res) => {
       });
     }
 
+    // Double-check: if a ProductPayment already exists for this session
+    const existingPayment = await ProductPayment.findOne({ stripeSessionId: sessionId });
+    if (existingPayment) {
+      checkoutDebug(requestId, 'confirm-session:payment-already-exists', { sessionId });
+      return res.status(200).json({
+        message: 'Payment already processed',
+        alreadyProcessed: true,
+      });
+    }
+
     const stripe = getStripeClient();
     const { minorUnit } = getStripeCurrencyConfig();
     const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -582,23 +602,42 @@ const confirmStripeCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: 'Payment amount mismatch. Please retry checkout.' });
     }
 
-    const result = await processMarketplaceCheckout({
-      req,
-      user: req.user,
-      normalizedItems: resolvedItems,
-      stripeSessionId: sessionId,
-    });
+    let result;
+    try {
+      result = await processMarketplaceCheckout({
+        req,
+        user: req.user,
+        normalizedItems: resolvedItems,
+        stripeSessionId: sessionId,
+        shippingAddress: req.body?.shippingAddress || null,
+        contactInfo: req.body?.contactInfo || null,
+        shippingMethod: req.body?.shippingMethod || null,
+      });
+    } catch (checkoutError) {
+      console.error('processMarketplaceCheckout error during confirm:', checkoutError?.message);
+      // If payment already exists (race condition), still return success
+      const existingPay = await ProductPayment.findOne({ stripeSessionId: sessionId });
+      if (existingPay) {
+        return res.status(200).json({
+          message: 'Payment already processed',
+          alreadyProcessed: true,
+          paymentId: existingPay._id,
+        });
+      }
+      return res.status(400).json({ message: checkoutError?.message || 'Checkout processing failed' });
+    }
 
     return res.status(200).json({
       message: 'Payment confirmed and stock updated',
       ...result,
     });
   } catch (error) {
+    console.error('confirm-session FULL ERROR:', error);
     checkoutDebug(requestId, 'confirm-session:error', {
       message: error?.message,
       type: error?.type,
       code: error?.code,
-      stackTop: error?.stack ? String(error.stack).split('\n').slice(0, 2).join(' | ') : undefined,
+      stackTop: error?.stack ? String(error.stack).split('\n').slice(0, 4).join(' | ') : undefined,
     });
     return res.status(500).json({ message: 'Failed to confirm Stripe payment', requestId, error: error.message });
   }
@@ -902,6 +941,7 @@ const getManufacturerOrders = async (req, res) => {
 
       return {
         id: order._id,
+        orderNumber: order.orderNumber,
         stripeSessionId: order.stripeSessionId,
         customer: order.user ? (order.user.companyName || `${order.user.firstName} ${order.user.lastName}`) : 'Unknown Customer',
         customerEmail: order.user ? order.user.email : '',
@@ -909,6 +949,10 @@ const getManufacturerOrders = async (req, res) => {
         items: itemsWithImages,
         amount: manufacturerAmount,
         status: order.status === 'paid' ? 'processing' : order.status,
+        shippingAddress: order.shippingAddress,
+        contactInfo: order.contactInfo,
+        shippingMethod: order.shippingMethod,
+        deliveryTimeline: order.deliveryTimeline,
         date: new Date(order.paymentDate).toISOString().split('T')[0]
       };
     });
@@ -945,23 +989,40 @@ const updateOrderStatus = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this order' });
     }
 
+    const timelineLabels = {
+      processing: { label: 'Order Processing', description: 'Your order is being prepared by the manufacturer.' },
+      shipped: { label: 'Order Shipped', description: 'Your order has been shipped and is on its way.' },
+      delivered: { label: 'Order Delivered', description: 'Your order has been delivered successfully.' },
+    };
+
     order.status = status;
+    if (!Array.isArray(order.deliveryTimeline)) {
+      order.deliveryTimeline = [];
+    }
+    order.deliveryTimeline.push({
+      status,
+      label: timelineLabels[status]?.label || status,
+      description: timelineLabels[status]?.description || `Order status changed to ${status}.`,
+      date: new Date(),
+      updatedBy: userId,
+    });
     await order.save();
 
+    const orderNumber = order.orderNumber || `#${order._id.toString().slice(-6)}`;
     try {
       await Notification.create({
         type: 'order_status_update',
         title: 'Order Status Updated',
-        message: `Your order #${order._id.toString().slice(-6)} is now ${status}.`,
+        message: `Your order ${orderNumber} is now ${status}.`,
         relatedId: order._id,
         relatedModel: 'ProductPayment',
         recipient: order.user,
       });
     } catch (err) {
-      console.error('Failed to create notification for artisan:', err);
+      console.error('Failed to create notification for buyer:', err);
     }
 
-    res.status(200).json({ message: `Order status updated to ${status}`, status });
+    res.status(200).json({ message: `Order status updated to ${status}`, status, orderNumber });
   } catch (error) {
     console.error('updateOrderStatus error:', error);
     res.status(500).json({ message: 'Failed to update order status', error: error.message });
@@ -1056,6 +1117,94 @@ const getManufacturerAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Get all orders for the logged-in buyer (artisan/expert)
+// @route   GET /api/products/my-orders
+const getBuyerOrders = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const orders = await ProductPayment.find({ user: userId })
+      .populate('items.productId', 'documentUrl image name')
+      .sort({ paymentDate: -1 });
+
+    const formattedOrders = orders.map((order) => {
+      const itemsWithImages = order.items.map((item) => {
+        const productData = item.productId;
+        return {
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: productData?.documentUrl || productData?.image || '',
+        };
+      });
+
+      return {
+        id: order._id,
+        orderNumber: order.orderNumber,
+        items: itemsWithImages,
+        totalAmount: order.totalAmount,
+        shippingAmount: order.shippingAmount,
+        currency: order.currency,
+        status: order.status,
+        shippingAddress: order.shippingAddress,
+        shippingMethod: order.shippingMethod,
+        deliveryTimeline: order.deliveryTimeline,
+        date: order.paymentDate,
+      };
+    });
+
+    res.status(200).json(formattedOrders);
+  } catch (error) {
+    console.error('getBuyerOrders error:', error);
+    res.status(500).json({ message: 'Failed to fetch orders', error: error.message });
+  }
+};
+
+// @desc    Get single order detail for buyer
+// @route   GET /api/products/my-orders/:id
+const getOrderDetail = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const order = await ProductPayment.findOne({ _id: req.params.id, user: userId })
+      .populate('items.productId', 'documentUrl image name')
+      .populate('items.manufacturerId', 'firstName lastName companyName')
+      .populate('deliveryTimeline.updatedBy', 'firstName lastName companyName');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const itemsWithImages = order.items.map((item) => {
+      const productData = item.productId;
+      const manufacturer = item.manufacturerId;
+      return {
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        image: productData?.documentUrl || productData?.image || '',
+        manufacturerName: manufacturer?.companyName || `${manufacturer?.firstName || ''} ${manufacturer?.lastName || ''}`.trim() || 'Unknown',
+      };
+    });
+
+    res.status(200).json({
+      id: order._id,
+      orderNumber: order.orderNumber,
+      items: itemsWithImages,
+      totalAmount: order.totalAmount,
+      shippingAmount: order.shippingAmount,
+      currency: order.currency,
+      status: order.status,
+      shippingAddress: order.shippingAddress,
+      contactInfo: order.contactInfo,
+      shippingMethod: order.shippingMethod,
+      deliveryTimeline: (order.deliveryTimeline || []).sort((a, b) => new Date(a.date) - new Date(b.date)),
+      date: order.paymentDate,
+    });
+  } catch (error) {
+    console.error('getOrderDetail error:', error);
+    res.status(500).json({ message: 'Failed to fetch order detail', error: error.message });
+  }
+};
+
 module.exports = {
   createProduct,
   getProducts,
@@ -1070,4 +1219,6 @@ module.exports = {
   getManufacturerOrders,
   updateOrderStatus,
   getManufacturerAnalytics,
+  getBuyerOrders,
+  getOrderDetail,
 };

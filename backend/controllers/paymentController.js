@@ -596,4 +596,116 @@ const downloadProductPaymentPdf = async (req, res) => {
   }
 };
 
-module.exports = { createCheckoutSession, createSubscriptionSession, verifySubscription, getSubscriptionHistory, cancelSubscription, verifyCheckout, getProductPayments, downloadProductPaymentPdf };
+// GET /api/payments/subscription/history/:id/pdf
+const downloadSubscriptionReceiptPdf = async (req, res) => {
+  let browser;
+  try {
+    if (!req.user) return res.status(401).json({ message: 'Not authorized' });
+
+    const payment = await SubscriptionPayment.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    }).populate('user', 'firstName lastName email');
+
+    if (!payment) return res.status(404).json({ message: 'Payment not found' });
+
+    let puppeteer;
+    try {
+      puppeteer = require('puppeteer-core');
+    } catch {
+      return res.status(500).json({ message: 'PDF dependency missing.' });
+    }
+
+    const executablePath = resolveChromeExecutablePath();
+    if (!executablePath) {
+      return res.status(500).json({ message: 'No Chrome/Edge executable found for PDF generation.' });
+    }
+
+    const paymentDate = payment.paymentDate
+      ? new Date(payment.paymentDate).toLocaleDateString('en-GB')
+      : 'N/A';
+    const planLabel = payment.planId
+      ? payment.planId.charAt(0).toUpperCase() + payment.planId.slice(1)
+      : 'Subscription';
+    const amount = Number(payment.amount || 0).toFixed(2);
+    const receiptNumber = `REC-${String(payment._id).slice(-8).toUpperCase()}`;
+    const userName = payment.user
+      ? `${payment.user.firstName || ''} ${payment.user.lastName || ''}`.trim()
+      : 'N/A';
+
+    const html = `
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, sans-serif; color: #0f172a; background: #f8fafc; }
+          .page { padding: 32px; }
+          .card { background: #fff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 24px; }
+          .title { font-size: 40px; font-weight: 800; color: #6366f1; letter-spacing: 1px; }
+          .subtitle { color: #64748b; font-size: 14px; margin-top: 4px; }
+          .badge { display: inline-block; margin-top: 12px; border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 700; background: #dcfce7; color: #166534; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 24px 0; }
+          .field label { font-size: 12px; color: #64748b; margin-bottom: 4px; display: block; }
+          .field span { font-size: 18px; font-weight: 700; color: #0f172a; }
+          .amount-box { background: #f0f0ff; border-radius: 12px; padding: 20px 24px; margin-top: 24px; display: flex; justify-content: space-between; align-items: center; }
+          .amount-label { font-size: 14px; color: #64748b; }
+          .amount-value { font-size: 32px; font-weight: 800; color: #6366f1; }
+          .footer { margin-top: 24px; color: #94a3b8; font-size: 11px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="page">
+          <div class="card">
+            <div class="header">
+              <div>
+                <div class="title">RECEIPT</div>
+                <div class="subtitle">${receiptNumber}</div>
+                <div class="badge">✓ PAID</div>
+              </div>
+              <div style="text-align:right">
+                <h3 style="font-size:24px;font-weight:800;color:#0f172a;">BMP.tn</h3>
+                <p style="color:#64748b;font-size:13px;margin-top:4px;">Subscription Receipt</p>
+              </div>
+            </div>
+            <div class="grid">
+              <div class="field"><label>Client</label><span>${userName}</span></div>
+              <div class="field"><label>Payment Date</label><span>${paymentDate}</span></div>
+              <div class="field"><label>Plan</label><span>${planLabel}</span></div>
+              <div class="field"><label>Receipt No.</label><span>${receiptNumber}</span></div>
+            </div>
+            <div class="amount-box">
+              <span class="amount-label">Total Paid</span>
+              <span class="amount-value">${amount} DT</span>
+            </div>
+            <div class="footer">Thank you for your subscription. This is an automatically generated receipt.</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    browser = await puppeteer.launch({
+      executablePath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+    await browser.close();
+    browser = null;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="receipt-${receiptNumber}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('downloadSubscriptionReceiptPdf error:', err);
+    if (browser) await browser.close();
+    return res.status(500).json({ message: 'Failed to generate PDF receipt' });
+  }
+};
+
+module.exports = { createCheckoutSession, createSubscriptionSession, verifySubscription, getSubscriptionHistory, cancelSubscription, verifyCheckout, getProductPayments, downloadProductPaymentPdf, downloadSubscriptionReceiptPdf };

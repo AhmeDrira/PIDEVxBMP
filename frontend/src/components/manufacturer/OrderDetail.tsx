@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowLeft, Package, User, Mail, Calendar, CreditCard, Truck, FileText, CheckCircle, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft, Package, User, Mail, Calendar, CreditCard, Truck, FileText,
+  CheckCircle, Loader2, MapPin, Phone, Clock, PackageCheck, CircleDot
+} from 'lucide-react';
+import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
 import { toast } from 'sonner';
 
@@ -11,9 +15,19 @@ interface OrderDetailProps {
   onBack: () => void;
 }
 
+const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
+  processing: { label: 'Processing', color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',   icon: Package },
+  shipped:    { label: 'Shipped',    color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200',     icon: Truck },
+  delivered:  { label: 'Delivered',  color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: PackageCheck },
+  paid:       { label: 'Confirmed',  color: 'text-green-700',   bg: 'bg-green-50 border-green-200',    icon: CheckCircle },
+};
+
+const timelineSteps = ['paid', 'processing', 'shipped', 'delivered'];
+
 export default function OrderDetail({ order, onBack }: OrderDetailProps) {
   const [status, setStatus] = useState(order?.status || 'processing');
-  const [isUpdating, setIsLoading] = useState(false);
+  const [timeline, setTimeline] = useState(order?.deliveryTimeline || []);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   if (!order) return null;
 
@@ -30,7 +44,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
 
   const updateStatus = async (newStatus: string) => {
     try {
-      setIsLoading(true);
+      setIsUpdating(true);
       const token = getToken();
       if (!token) return;
 
@@ -39,221 +53,255 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
       });
 
       setStatus(newStatus);
+      // Add timeline event locally
+      const labels: Record<string, { label: string; description: string }> = {
+        processing: { label: 'Order Processing', description: 'Order is being prepared by the manufacturer.' },
+        shipped: { label: 'Order Shipped', description: 'Order has been shipped and is on its way.' },
+        delivered: { label: 'Order Delivered', description: 'Order has been delivered successfully.' },
+      };
+      setTimeline((prev: any[]) => [...prev, {
+        status: newStatus,
+        label: labels[newStatus]?.label || newStatus,
+        description: labels[newStatus]?.description || '',
+        date: new Date().toISOString(),
+      }]);
       toast.success(`Order status updated to ${newStatus}`);
     } catch (error: any) {
       console.error("Error updating status:", error);
       toast.error(error.response?.data?.message || "Failed to update order status");
     } finally {
-      setIsLoading(false);
+      setIsUpdating(false);
     }
   };
 
   const getImageUrl = (path: string) => {
     if (!path) return null;
-    const cleanPath = path.replace(/\\/g, '/');
+    const cleanPath = path.replace(/\\/g, '/').replace(/^\/+/, '');
     return cleanPath.startsWith('http') ? cleanPath : `${SERVER_URL}/${cleanPath}`;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'processing': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'shipped': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'delivered': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'paid': return 'bg-green-100 text-green-700 border-green-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
-    }
-  };
-
   const currentStatus = status?.toLowerCase() || 'processing';
+  const stConf = statusConfig[currentStatus] || statusConfig['processing'];
+  const StIcon = stConf.icon;
+  const currentStepIndex = timelineSteps.indexOf(currentStatus);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl group transition-all">
-        <ArrowLeft size={20} className="mr-2 group-hover:-translate-x-1 transition-transform" />
-        Back to Orders
+    <div className="space-y-6">
+      <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
+        <ArrowLeft size={18} className="mr-2" /> Back to Orders
       </Button>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Order #{order.id.slice(-6)}</h1>
-          <p className="text-lg text-muted-foreground flex items-center gap-2">
-            <FileText size={18} className="text-primary" />
-            Transaction ID: <span className="font-mono text-sm bg-slate-100 px-2 py-0.5 rounded text-slate-700">{order.stripeSessionId}</span>
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Badge className={`${getStatusColor(currentStatus)} px-5 py-2.5 text-sm font-bold border-2 shadow-sm uppercase tracking-wider`}>
-            {currentStatus}
+      {/* Header */}
+      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Order</p>
+            <h1 className="text-2xl font-bold text-foreground">
+              {order.orderNumber || `#${String(order.id).slice(-6).toUpperCase()}`}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">{order.date}</p>
+          </div>
+          <Badge className={`${stConf.bg} ${stConf.color} border flex items-center gap-1.5 px-4 py-2 text-sm`}>
+            <StIcon size={16} />
+            {stConf.label}
           </Badge>
         </div>
-      </div>
+      </Card>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Order Summary Table */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-2 h-full bg-primary/20"></div>
-            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <Package size={24} className="text-primary" />
-              Order Summary
-            </h2>
-            <div className="space-y-4">
-              {order.items && order.items.map((item: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 shadow-sm mb-4">
-                  <div className="flex items-center gap-5">
-                    <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center shadow-inner border border-primary/5 overflow-hidden">
+      {/* Progress Bar */}
+      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <h3 className="text-lg font-bold text-foreground mb-5">Order Progress</h3>
+        <div className="relative">
+          <div className="flex items-center justify-between relative">
+            {timelineSteps.map((stepStatus, i) => {
+              const sConf = statusConfig[stepStatus];
+              const SIcon = sConf?.icon || CircleDot;
+              const isReached = currentStepIndex >= i;
+              const isCurrent = currentStepIndex === i;
+              return (
+                <div key={stepStatus} className="flex flex-col items-center z-10" style={{ flex: 1 }}>
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 ${
+                    isReached
+                      ? isCurrent
+                        ? 'bg-primary text-white shadow-lg shadow-primary/30 ring-4 ring-primary/20'
+                        : 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {isReached && !isCurrent ? <CheckCircle size={18} /> : <SIcon size={18} />}
+                  </div>
+                  <span className={`text-xs mt-1.5 font-medium ${isReached ? (isCurrent ? 'text-primary' : 'text-green-600') : 'text-gray-400'}`}>
+                    {sConf?.label}
+                  </span>
+                </div>
+              );
+            })}
+            <div className="absolute top-5 left-[12.5%] right-[12.5%] h-1 bg-gray-100 rounded-full">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all duration-700"
+                style={{ width: currentStepIndex >= 0 ? `${Math.min(100, (currentStepIndex / (timelineSteps.length - 1)) * 100)}%` : '0%' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline Events */}
+        {timeline.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <div className="space-y-3">
+              {timeline.map((event: any, i: number) => {
+                const evConf = statusConfig[event.status] || {};
+                const EvIcon = evConf.icon || CircleDot;
+                return (
+                  <div key={i} className="flex gap-3 items-start">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${evConf.bg || 'bg-gray-100'} border`}>
+                      <EvIcon size={12} className={evConf.color || 'text-gray-500'} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{event.label}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Items */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <Package size={20} className="text-primary" /> Order Items
+            </h3>
+            <div className="space-y-3">
+              {(order.items || []).map((item: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0">
                       {item.image ? (
                         <img src={getImageUrl(item.image) || ''} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <Package size={32} className="text-primary" />
+                        <div className="w-full h-full flex items-center justify-center"><Package size={20} className="text-gray-400" /></div>
                       )}
                     </div>
                     <div>
-                      <h4 className="font-bold text-foreground text-xl mb-1">{item.name}</h4>
-                      <p className="text-sm text-muted-foreground font-medium bg-slate-100 inline-block px-3 py-1 rounded-full">Quantity: {item.quantity}</p>
+                      <p className="font-semibold text-foreground">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest mb-1">Price</p>
-                    <p className="text-2xl font-black text-primary">{(item.price * item.quantity).toFixed(2)} <span className="text-xs font-bold">TND</span></p>
-                  </div>
+                  <p className="text-lg font-bold text-primary">{(item.price * item.quantity).toFixed(2)} DT</p>
                 </div>
               ))}
-              
-              {!order.items && (
-                <div className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shadow-inner border border-primary/5">
-                      <Package size={32} className="text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-foreground text-xl mb-1">{order.products}</h4>
-                      <p className="text-sm text-muted-foreground font-medium bg-slate-100 inline-block px-3 py-1 rounded-full">Items included in this payment</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest mb-1">Total Amount</p>
-                    <p className="text-3xl font-black text-primary">{order.amount.toFixed(2)} <span className="text-sm font-bold">TND</span></p>
-                  </div>
-                </div>
-              )}
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-foreground">
+              <span>Total</span>
+              <span className="text-xl text-primary">{(order.amount || 0).toFixed(2)} DT</span>
             </div>
           </Card>
 
-          {/* Customer Information */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-2 h-full bg-secondary/20"></div>
-            <h2 className="text-2xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <User size={24} className="text-secondary" />
-              Customer Details
-            </h2>
-            <div className="grid md:grid-cols-2 gap-10">
-              <div className="flex items-center gap-6 p-5 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-slate-50 transition-all duration-300">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm border border-primary/5">
-                  <User size={32} className="text-primary" />
-                </div>
-                <div className="space-y-1.5">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">Customer Name</p>
-                  <p className="font-black text-foreground text-xl leading-none">{order.customer}</p>
+          {/* Customer Info */}
+          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <User size={20} className="text-primary" /> Customer
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                <User size={18} className="text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Name</p>
+                  <p className="font-semibold">{order.customer}</p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-6 p-5 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-slate-50 transition-all duration-300">
-                <div className="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center shadow-sm border border-secondary/5">
-                  <Mail size={32} className="text-secondary" />
-                </div>
-                <div className="space-y-1.5">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">Email Address</p>
-                  <p className="font-black text-foreground text-xl leading-none truncate max-w-[200px]" title={order.customerEmail}>{order.customerEmail || 'No email provided'}</p>
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                <Mail size={18} className="text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="font-semibold truncate">{order.customerEmail || 'N/A'}</p>
                 </div>
               </div>
             </div>
+
+            {/* Shipping address if available */}
+            {order.shippingAddress && (
+              <div className="mt-4 p-4 rounded-xl bg-gray-50">
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                  <MapPin size={16} className="text-primary" /> Shipping Address
+                </p>
+                <div className="text-sm text-muted-foreground space-y-0.5">
+                  {order.shippingAddress.fullName && <p className="font-medium text-foreground">{order.shippingAddress.fullName}</p>}
+                  {order.shippingAddress.address && <p>{order.shippingAddress.address}</p>}
+                  <p>{[order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.postalCode].filter(Boolean).join(', ')}</p>
+                  {order.shippingAddress.phone && <p className="flex items-center gap-1"><Phone size={12} /> {order.shippingAddress.phone}</p>}
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-8">
-          {/* Action Card - ENHANCED CLARITY */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-2xl ring-1 ring-slate-200 border-t-4 border-blue-600 relative overflow-hidden transition-all duration-300">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Package size={80} className="text-blue-600" />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3 relative z-10">
-                <div 
-                  className="p-3 rounded-2xl text-white shadow-lg shadow-blue-200"
-                  style={{ backgroundColor: '#2563eb' }}
-                >
-                  <Truck size={24} />
-                </div>
-                Manage Order
+        {/* Action Sidebar */}
+        <div className="space-y-4">
+          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <Truck size={20} className="text-primary" /> Update Status
             </h3>
-            <div className="space-y-5 relative z-10">
+            <div className="space-y-3">
               {(currentStatus === 'processing' || currentStatus === 'paid') && (
-                <Button 
+                <Button
                   onClick={() => updateStatus('shipped')}
                   disabled={isUpdating}
-                  className="w-full h-16 text-white rounded-2xl shadow-xl shadow-blue-200 font-black text-base uppercase tracking-widest border-0 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+                  className="w-full h-12 text-white rounded-xl font-semibold transition-all"
                   style={{ backgroundColor: '#2563eb' }}
                 >
-                  {isUpdating ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
+                  {isUpdating ? <Loader2 size={18} className="animate-spin mr-2" /> : <Truck size={18} className="mr-2" />}
                   Mark as Shipped
                 </Button>
               )}
               {currentStatus === 'shipped' && (
-                <Button 
+                <Button
                   onClick={() => updateStatus('delivered')}
                   disabled={isUpdating}
-                  className="w-full h-16 text-white rounded-2xl shadow-xl shadow-emerald-200 font-black text-base uppercase tracking-widest border-0 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+                  className="w-full h-12 text-white rounded-xl font-semibold transition-all"
                   style={{ backgroundColor: '#10b981' }}
                 >
-                  {isUpdating ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} />}
+                  {isUpdating ? <Loader2 size={18} className="animate-spin mr-2" /> : <PackageCheck size={18} className="mr-2" />}
                   Mark as Delivered
                 </Button>
               )}
-              <div className="pt-2">
-                <Button variant="outline" className="w-full h-14 rounded-xl border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm">
-                  <Mail size={18} className="text-blue-600" />
-                  Contact Customer
-                </Button>
-              </div>
+              {currentStatus === 'delivered' && (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                  <PackageCheck size={24} className="mx-auto mb-2 text-emerald-600" />
+                  <p className="text-sm font-medium text-emerald-700">Order completed</p>
+                </div>
+              )}
             </div>
           </Card>
 
-          {/* Order Details Card */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-xl border-t-4 border-primary">
-            <h3 className="text-xl font-bold text-foreground mb-8 pb-4 border-b border-slate-100 flex items-center gap-2">
-              <FileText size={20} className="text-primary" />
-              Timeline & Payment
-            </h3>
-            <div className="space-y-8">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <Calendar size={22} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Order Date</p>
-                  <p className="font-black text-foreground text-lg">{order.date}</p>
-                </div>
+          <Card className="p-5 bg-white rounded-2xl border-0 shadow-lg">
+            <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+              <FileText size={16} className="text-primary" /> Details
+            </h4>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-muted-foreground" />
+                <span className="text-muted-foreground">Date:</span>
+                <span className="font-medium">{order.date}</span>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <CreditCard size={22} className="text-secondary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Payment Method</p>
-                  <p className="font-black text-foreground text-lg">Stripe Online</p>
-                </div>
+              <div className="flex items-center gap-2">
+                <CreditCard size={14} className="text-muted-foreground" />
+                <span className="text-muted-foreground">Payment:</span>
+                <span className="font-medium">Stripe</span>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <Truck size={22} className="text-accent" />
+              {order.shippingMethod && (
+                <div className="flex items-center gap-2">
+                  <Truck size={14} className="text-muted-foreground" />
+                  <span className="text-muted-foreground">Shipping:</span>
+                  <span className="font-medium">{order.shippingMethod.name}</span>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Status</p>
-                  <p className="font-black text-foreground text-lg capitalize">{status}</p>
-                </div>
-              </div>
+              )}
             </div>
           </Card>
         </div>

@@ -1389,7 +1389,7 @@ export default function ArtisanProjects() {
                     </Button>
                   )}
                   {project.materials && project.materials.length > 0 && (
-                    <Button onClick={() => { setSelectedProject(project); setView('materials'); }} className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">
+                    <Button onClick={() => guard(() => { setSelectedProject(project); setView('materials'); })} className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">
                       <FolderKanban size={16} className="mr-2" /> View Materials
                     </Button>
                   )}
@@ -1415,7 +1415,7 @@ export default function ArtisanProjects() {
                   <Button
                     variant="outline"
                     className="flex-1 h-11 rounded-xl border-2 hover:bg-primary hover:text-white hover:border-primary"
-                    onClick={() => { setSelectedProject(project); setView('details'); }}
+                    onClick={() => guard(() => { setSelectedProject(project); setView('details'); })}
                   >
                     <Eye size={16} className="mr-2" /> View
                   </Button>

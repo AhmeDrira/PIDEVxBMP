@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowRight, MapPin, Briefcase, Calendar, Star, MessageSquare, Phone, Mail, Award } from 'lucide-react';
+import { ArrowRight, MapPin, Briefcase, Calendar, Star, MessageSquare, Phone, Mail, Award, Image, Play, ArrowLeft } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 interface ViewArtisanProfileProps {
@@ -15,14 +15,6 @@ interface ViewArtisanProfileProps {
 interface ArtisanContact {
   phone: string;
   email: string;
-}
-
-interface ArtisanPortfolioItem {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  completedDate: string;
 }
 
 interface ArtisanProfile {
@@ -39,13 +31,17 @@ interface ArtisanProfile {
   contact: ArtisanContact;
   skills: string[];
   certifications: string[];
-  portfolio: ArtisanPortfolioItem[];
 }
+
+const API_BASE = 'http://localhost:5000';
 
 export default function ViewArtisanProfile({ artisanId, onBack, onContact }: ViewArtisanProfileProps) {
   const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'profile' | 'portfolio'>('profile');
+  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [loadingPortfolio, setLoadingPortfolio] = useState(false);
 
   useEffect(() => {
     const fetchArtisan = async () => {
@@ -59,7 +55,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
         setLoading(true);
         setError(null);
 
-        const response = await axios.get(`http://localhost:5000/api/artisans/${artisanId}`);
+        const response = await axios.get(`${API_BASE}/api/artisans/${artisanId}`);
         const data = response.data;
 
         const mappedArtisan: ArtisanProfile = {
@@ -89,38 +85,9 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
             'OSHA Safety Certified',
             'Advanced Masonry Techniques',
           ],
-          portfolio: [
-            {
-              id: '1',
-              title: 'Villa Residence - Carthage',
-              description: 'Complete masonry and foundation work',
-              image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop',
-              completedDate: '2026-01-15',
-            },
-            {
-              id: '2',
-              title: 'Commercial Building - La Marsa',
-              description: 'Structural masonry for 3-story building',
-              image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=300&fit=crop',
-              completedDate: '2025-12-10',
-            },
-            {
-              id: '3',
-              title: 'Residential Complex - Sousse',
-              description: 'Foundation and brickwork for 10 units',
-              image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=400&h=300&fit=crop',
-              completedDate: '2025-11-20',
-            },
-            {
-              id: '4',
-              title: 'Historic Renovation - Medina',
-              description: 'Traditional stonework restoration',
-              image: 'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=400&h=300&fit=crop',
-              completedDate: '2025-10-05',
-            },
-          ],
-          profileImage:
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
+          profileImage: data.profilePhoto
+            ? (data.profilePhoto.startsWith('http') ? data.profilePhoto : `${API_BASE}/${data.profilePhoto.replace(/^\/+/, '')}`)
+            : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
         };
 
         setArtisan(mappedArtisan);
@@ -138,15 +105,36 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
     fetchArtisan();
   }, [artisanId]);
 
+  const fetchPortfolio = async () => {
+    if (!artisanId) return;
+    try {
+      setLoadingPortfolio(true);
+      const response = await axios.get(`${API_BASE}/api/artisans/${artisanId}/portfolio`);
+      setPortfolio(response.data || []);
+    } catch (err) {
+      console.error('Failed to fetch portfolio:', err);
+      setPortfolio([]);
+    } finally {
+      setLoadingPortfolio(false);
+    }
+  };
+
+  const handleViewPortfolio = () => {
+    fetchPortfolio();
+    setView('portfolio');
+  };
+
+  const getMediaUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${API_BASE}/${url.replace(/^\/+/, '')}`;
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
         {onBack && (
-          <Button 
-            variant="outline" 
-            onClick={onBack} 
-            className="rounded-xl border-2"
-          >
+          <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
             <ArrowRight size={20} className="mr-2 rotate-180" />
             Back to Artisan Directory
           </Button>
@@ -160,31 +148,90 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
     return (
       <div className="space-y-6">
         {onBack && (
-          <Button 
-            variant="outline" 
-            onClick={onBack} 
-            className="rounded-xl border-2"
-          >
+          <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
             <ArrowRight size={20} className="mr-2 rotate-180" />
             Back to Artisan Directory
           </Button>
         )}
-        <p className="text-sm text-red-500">
-          {error || 'Artisan not found'}
-        </p>
+        <p className="text-sm text-red-500">{error || 'Artisan not found'}</p>
       </div>
     );
   }
 
+  // ── Portfolio View ──
+  if (view === 'portfolio') {
+    const images = portfolio.flatMap(item =>
+      (item.media || []).filter((m: any) => m.type === 'image').map((m: any) => ({ ...m, projectTitle: item.title }))
+    );
+    const videos = portfolio.flatMap(item =>
+      (item.media || []).filter((m: any) => m.type === 'video').map((m: any) => ({ ...m, projectTitle: item.title }))
+    );
+
+    return (
+      <div className="space-y-6">
+        <Button variant="outline" onClick={() => setView('profile')} className="rounded-xl border-2">
+          <ArrowLeft size={20} className="mr-2" />
+          Back to Profile
+        </Button>
+
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: '0 0 4px' }}>
+            {artisan.firstName} {artisan.lastName}'s Portfolio
+          </h1>
+          <p style={{ fontSize: 15, color: '#6b7280' }}>{artisan.domain} &middot; {artisan.location}</p>
+        </div>
+
+        {loadingPortfolio ? (
+          <p className="text-sm text-muted-foreground py-10 text-center">Loading portfolio...</p>
+        ) : portfolio.length === 0 ? (
+          <Card className="p-12 bg-white rounded-2xl border-0 shadow-lg text-center">
+            <Image size={48} className="mx-auto mb-4 text-gray-300" />
+            <p className="text-xl font-semibold text-gray-500">No portfolio items yet</p>
+            <p className="text-muted-foreground mt-1">This artisan hasn't added any work to their portfolio.</p>
+          </Card>
+        ) : (
+          <div className="space-y-8">
+            {/* Portfolio Projects */}
+            {portfolio.map((item: any, idx: number) => (
+              <Card key={item._id || idx} className="bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+                <div style={{ padding: '24px 28px 20px' }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: '0 0 4px' }}>{item.title}</h3>
+                  <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 4px' }}>{item.description}</p>
+                  {item.location && <p style={{ fontSize: 13, color: '#9ca3af' }}><MapPin size={14} className="inline mr-1" />{item.location}</p>}
+                  {item.completedDate && (
+                    <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
+                      <Calendar size={14} className="inline mr-1" />
+                      Completed: {new Date(item.completedDate).toLocaleDateString('en-GB')}
+                    </p>
+                  )}
+                </div>
+                {(item.media || []).length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 4, padding: '0 4px 4px' }}>
+                    {(item.media || []).map((m: any, mi: number) => (
+                      <div key={mi} style={{ aspectRatio: '4/3', borderRadius: 8, overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
+                        {m.type === 'video' ? (
+                          <video src={getMediaUrl(m.url)} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <img src={getMediaUrl(m.url)} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Profile View ──
   return (
     <div className="space-y-6">
       {/* Back Button */}
       {onBack && (
-        <Button 
-          variant="outline" 
-          onClick={onBack} 
-          className="rounded-xl border-2"
-        >
+        <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
           <ArrowRight size={20} className="mr-2 rotate-180" />
           Back to Artisan Directory
         </Button>
@@ -193,9 +240,9 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
       {/* Profile Header */}
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Profile Image */}
+          {/* Profile Image — smaller */}
           <div className="flex-shrink-0">
-            <div className="w-40 h-40 rounded-2xl overflow-hidden ring-4 ring-gray-100 shadow-lg">
+            <div style={{ width: 96, height: 96, borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '3px solid #f3f4f6' }}>
               <ImageWithFallback
                 src={artisan.profileImage}
                 alt={`${artisan.firstName} ${artisan.lastName}`}
@@ -225,13 +272,23 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
                 </div>
               </div>
 
-              <Button
-                onClick={onContact}
-                className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg"
-              >
-                <MessageSquare size={20} className="mr-2" />
-                Contact Artisan
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleViewPortfolio}
+                  variant="outline"
+                  className="h-12 px-6 rounded-xl border-2"
+                >
+                  <Image size={18} className="mr-2" />
+                  View Portfolio
+                </Button>
+                <Button
+                  onClick={onContact}
+                  className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg"
+                >
+                  <MessageSquare size={20} className="mr-2" />
+                  Contact Artisan
+                </Button>
+              </div>
             </div>
 
             {/* Stats */}
@@ -296,7 +353,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
             <h2 className="text-xl font-bold text-foreground mb-4">Skills & Expertise</h2>
             <div className="flex flex-wrap gap-3">
               {artisan.skills.map((skill, idx) => (
-                <Badge 
+                <Badge
                   key={idx}
                   className="bg-primary/10 text-primary border-0 px-4 py-2 text-sm font-medium"
                 >
@@ -318,35 +375,6 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
               ))}
             </div>
           </Card>
-        </div>
-      </div>
-
-      {/* Portfolio Section */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground mb-6">Portfolio</h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          {artisan.portfolio.map((project) => (
-            <Card 
-              key={project.id}
-              className="group bg-white rounded-2xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
-            >
-              <div className="aspect-video relative overflow-hidden bg-gray-100">
-                <ImageWithFallback
-                  src={project.image}
-                  alt={project.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                />
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-foreground mb-2">{project.title}</h3>
-                <p className="text-muted-foreground mb-4">{project.description}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar size={16} />
-                  <span>Completed: {new Date(project.completedDate).toLocaleDateString('en-GB')}</span>
-                </div>
-              </div>
-            </Card>
-          ))}
         </div>
       </div>
     </div>

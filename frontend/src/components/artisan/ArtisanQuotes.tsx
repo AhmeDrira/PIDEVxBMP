@@ -25,6 +25,7 @@ export default function ArtisanQuotes() {
   const [showDeleteQuoteModal, setShowDeleteQuoteModal] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<any>(null);
   const [isDeletingQuote, setIsDeletingQuote] = useState(false);
+  const [deleteQuoteError, setDeleteQuoteError] = useState<string | null>(null);
   const [invoiceDueDate, setInvoiceDueDate] = useState('');
   const [invoiceTargetQuote, setInvoiceTargetQuote] = useState<any>(null);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
@@ -255,6 +256,7 @@ export default function ArtisanQuotes() {
         laborHand: Number(formData.laborHand || 0),
         materialsAmount,
         paymentTerms: paymentTermsSummary,
+        upfrontPercent: upfrontPercentage,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -408,6 +410,7 @@ export default function ArtisanQuotes() {
 
   const openDeleteQuoteModal = (quote: any) => {
     setQuoteToDelete(quote);
+    setDeleteQuoteError(null);
     setShowDeleteQuoteModal(true);
   };
 
@@ -433,8 +436,8 @@ export default function ArtisanQuotes() {
       showOverlayToast(`Quote ${deletedNumber} deleted successfully.`, 'success');
     } catch (error: any) {
       console.error('Error deleting quote:', error);
-      const message = error?.response?.data?.message;
-      showOverlayToast(message || 'Failed to delete quote', 'error');
+      const message = error?.response?.data?.message || 'Failed to delete quote';
+      setDeleteQuoteError(message);
     } finally {
       setIsDeletingQuote(false);
     }
@@ -520,12 +523,18 @@ export default function ArtisanQuotes() {
         <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
           <div className="p-6">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={32} className="text-red-600" />
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${deleteQuoteError ? 'bg-amber-50' : 'bg-red-50'}`}>
+                <Trash2 size={32} className={deleteQuoteError ? 'text-amber-600' : 'text-red-600'} />
               </div>
               <h3 className="text-3xl font-bold text-gray-900 mb-2">Delete Quote?</h3>
               <p className="text-gray-600 font-medium">{quoteToDelete?.quoteNumber || ''}</p>
-              <p className="text-sm text-gray-500 mt-2">Are you sure you want to delete this quote?</p>
+              {deleteQuoteError ? (
+                <div className="mt-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 font-medium text-left">
+                  ⚠️ {deleteQuoteError}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 mt-2">Are you sure you want to delete this quote?</p>
+              )}
             </div>
 
             <div className="flex gap-3">
@@ -536,20 +545,23 @@ export default function ArtisanQuotes() {
                 onClick={() => {
                   setShowDeleteQuoteModal(false);
                   setQuoteToDelete(null);
+                  setDeleteQuoteError(null);
                 }}
                 disabled={isDeletingQuote}
               >
-                Non
+                {deleteQuoteError ? 'Close' : 'Cancel'}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
-                onClick={handleDeleteQuote}
-                disabled={isDeletingQuote}
-              >
-                {isDeletingQuote ? 'Oui...' : 'Oui'}
-              </Button>
+              {!deleteQuoteError && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl border-2 border-red-200 bg-white text-red-600 font-semibold hover:bg-red-50 hover:border-red-300 transition-all"
+                  onClick={handleDeleteQuote}
+                  disabled={isDeletingQuote}
+                >
+                  {isDeletingQuote ? 'Deleting...' : 'Delete'}
+                </Button>
+              )}
             </div>
           </div>
         </div>

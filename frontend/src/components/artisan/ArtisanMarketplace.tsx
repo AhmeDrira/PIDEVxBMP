@@ -10,14 +10,28 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
+import CheckoutWizard from './CheckoutWizard';
+
+// Get user-specific cart key to prevent sharing across accounts on same browser
+const getUserCartKey = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const user = JSON.parse(raw);
+      const uid = user._id || user.id || '';
+      if (uid) return `artisan-marketplace-cart-${uid}`;
+    }
+  } catch { /* ignore */ }
+  return 'artisan-marketplace-cart';
+};
 
 export default function ArtisanMarketplace() {
   const { guard, PopupElement } = useSubscriptionGuard();
-  const [view, setView] = useState<'products' | 'cart' | 'confirmation' | 'detail'>('products');
+  const [view, setView] = useState<'products' | 'cart' | 'checkout' | 'confirmation' | 'detail'>('products');
   const [cart, setCart] = useState<any[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
-  const CART_STORAGE_KEY = 'artisan-marketplace-cart';
-  const CART_CONTEXT_KEY = 'artisan-marketplace-cart-context';
+  const CART_STORAGE_KEY = getUserCartKey();
+  const CART_CONTEXT_KEY = `${CART_STORAGE_KEY}-context`;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -305,24 +319,34 @@ export default function ArtisanMarketplace() {
 
     const normalizedProductId = String(product?._id || '');
     const targetSignature = getMaterialSignature(product);
-    const existing = cart.find((item) => {
+    const existingIndex = cart.findIndex((item) => {
       const sameId = String(item?._id || '') === normalizedProductId;
       const sameSignature = targetSignature !== '::' && getMaterialSignature(item) === targetSignature;
       return sameId || sameSignature;
     });
-    if (existing) {
-      showToast('This material already exists in cart.', 'error');
-      return;
-    }
 
     const nextContext = { source: 'marketplace', updatedAt: Date.now() };
     sessionStorage.setItem(CART_CONTEXT_KEY, JSON.stringify(nextContext));
 
-    setCart((prev) => {
-      return [...prev, { ...product, quantity: 1 }];
-    });
-
-    showToast('Material added to cart successfully.', 'success');
+    if (existingIndex >= 0) {
+      // Merge: increment quantity instead of rejecting
+      setCart((prev) => {
+        const updated = [...prev];
+        const current = updated[existingIndex];
+        const maxStock = Number(current.stock || 0);
+        const nextQty = Number(current.quantity || 0) + 1;
+        if (maxStock > 0 && nextQty > maxStock) {
+          showToast('Maximum stock quantity reached for this material.', 'warning');
+          return prev;
+        }
+        updated[existingIndex] = { ...current, quantity: nextQty };
+        return updated;
+      });
+      showToast('Quantity updated in cart.', 'success');
+    } else {
+      setCart((prev) => [...prev, { ...product, quantity: 1 }]);
+      showToast('Material added to cart successfully.', 'success');
+    }
   };
 
   const confirmAddToProject = async () => {
@@ -521,72 +545,6 @@ export default function ArtisanMarketplace() {
     });
   };
 
-  const handleCheckout = async () => {
-    if (!cart.length || isCheckoutLoading) return;
-    try {
-      setIsCheckoutLoading(true);
-      const token = getToken();
-      if (!token) {
-        showToast('Session expired. Please sign in again.', 'error');
-        return;
-      }
-
-      const response = await axios.post(
-        `${API_URL}/products/checkout/create-session`,
-        {
-          items: cart.map((item) => ({
-            productId: item._id,
-            quantity: item.quantity,
-            name: item.name,
-            category: item.category,
-            price: item.price,
-            stock: item.stock,
-            description: item.description,
-            image: item.image,
-          })),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const sessionId = String(response?.data?.sessionId || '').trim();
-      const checkoutUrl = response?.data?.url;
-      if (!checkoutUrl) {
-        showToast('Unable to initialize Stripe checkout.', 'error');
-        return;
-      }
-
-      if (sessionId) {
-        const pendingItems = cart.map((item) => ({
-          productId: item._id,
-          quantity: item.quantity,
-          name: item.name,
-          category: item.category,
-          price: item.price,
-          stock: item.stock,
-          description: item.description,
-          image: item.image,
-        }));
-
-        localStorage.setItem(
-          `artisan-stripe-checkout:${sessionId}`,
-          JSON.stringify({ items: pendingItems, createdAt: Date.now() }),
-        );
-      }
-
-      window.location.href = checkoutUrl;
-    } catch (error: any) {
-      console.error('Stripe create-session failed:', {
-        status: error?.response?.status,
-        data: error?.response?.data,
-        message: error?.message,
-      });
-      const message = error?.response?.data?.message || 'Checkout failed. Please try again.';
-      showToast(message, 'error');
-    } finally {
-      setIsCheckoutLoading(false);
-    }
-  };
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentState = params.get('payment');
@@ -613,11 +571,18 @@ export default function ArtisanMarketplace() {
     }
 
     const processedSessionKey = `stripe-session-processed:${stripeSessionId}`;
+    const lockKey = `stripe-session-lock:${stripeSessionId}`;
     if (sessionStorage.getItem(processedSessionKey) === '1') {
       setView('confirmation');
       clearPaymentParams();
       return;
     }
+
+    // Prevent concurrent calls (React double-effect / re-renders)
+    if (sessionStorage.getItem(lockKey) === '1') {
+      return;
+    }
+    sessionStorage.setItem(lockKey, '1');
 
     const confirmStripePayment = async () => {
       try {
@@ -639,12 +604,16 @@ export default function ArtisanMarketplace() {
           image: item.image,
         }));
 
+        let checkoutMeta: any = null;
         if (!checkoutItems.length) {
           try {
             const persistedRaw = localStorage.getItem(`artisan-stripe-checkout:${stripeSessionId}`);
             const persisted = persistedRaw ? JSON.parse(persistedRaw) : null;
             if (Array.isArray(persisted?.items)) {
               checkoutItems = persisted.items;
+            }
+            if (persisted?.checkoutMeta) {
+              checkoutMeta = persisted.checkoutMeta;
             }
           } catch (storageError) {
             console.warn('Unable to restore persisted stripe checkout items:', storageError);
@@ -661,6 +630,7 @@ export default function ArtisanMarketplace() {
           {
             sessionId: stripeSessionId,
             items: checkoutItems,
+            ...(checkoutMeta || {}),
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -680,8 +650,20 @@ export default function ArtisanMarketplace() {
           data: error?.response?.data,
           message: error?.message,
         });
-        const message = error?.response?.data?.message || 'Failed to confirm Stripe payment.';
-        showToast(message, 'error');
+        // If the payment was already processed successfully on backend, treat as success
+        if (error?.response?.data?.alreadyProcessed) {
+          sessionStorage.setItem(processedSessionKey, '1');
+          setCart([]);
+          sessionStorage.removeItem(CART_STORAGE_KEY);
+          sessionStorage.removeItem(CART_CONTEXT_KEY);
+          window.dispatchEvent(new Event('artisan-cart-updated'));
+          localStorage.removeItem(`artisan-stripe-checkout:${stripeSessionId}`);
+          setView('confirmation');
+        } else {
+          const message = error?.response?.data?.message || 'Failed to confirm Stripe payment.';
+          showToast(message, 'error');
+          sessionStorage.removeItem(lockKey);
+        }
       } finally {
         setIsConfirmingStripePayment(false);
         clearPaymentParams();
@@ -841,7 +823,103 @@ export default function ArtisanMarketplace() {
   }
 
   // ==========================================
-  // VUE : PANIER & CONFIRMATION
+  // VUE : CHECKOUT WIZARD
+  // ==========================================
+  if (view === 'checkout') {
+    const handleWizardCheckout = async (checkoutData: any) => {
+      if (!cart.length || isCheckoutLoading) return;
+      try {
+        setIsCheckoutLoading(true);
+        const token = getToken();
+        if (!token) {
+          showToast('Session expired. Please sign in again.', 'error');
+          return;
+        }
+
+        // Store checkout data for after Stripe redirect
+        const checkoutMeta = {
+          shippingAddress: {
+            fullName: checkoutData.personalInfo.fullName,
+            phone: checkoutData.personalInfo.phone,
+            ...checkoutData.shippingAddress,
+          },
+          contactInfo: {
+            email: checkoutData.personalInfo.email,
+            phone: checkoutData.personalInfo.phone,
+          },
+          shippingMethod: {
+            name: 'Standard Delivery',
+            cost: 15,
+            estimatedDays: 5,
+          },
+        };
+
+        const response = await axios.post(
+          `${API_URL}/products/checkout/create-session`,
+          {
+            items: cart.map((item) => ({
+              productId: item._id,
+              quantity: item.quantity,
+              name: item.name,
+              category: item.category,
+              price: item.price,
+              stock: item.stock,
+              description: item.description,
+              image: item.image,
+            })),
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const sessionId = String(response?.data?.sessionId || '').trim();
+        const checkoutUrl = response?.data?.url;
+        if (!checkoutUrl) {
+          showToast('Unable to initialize Stripe checkout.', 'error');
+          return;
+        }
+
+        if (sessionId) {
+          const pendingItems = cart.map((item) => ({
+            productId: item._id,
+            quantity: item.quantity,
+            name: item.name,
+            category: item.category,
+            price: item.price,
+            stock: item.stock,
+            description: item.description,
+            image: item.image,
+          }));
+
+          localStorage.setItem(
+            `artisan-stripe-checkout:${sessionId}`,
+            JSON.stringify({ items: pendingItems, checkoutMeta, createdAt: Date.now() }),
+          );
+        }
+
+        window.location.href = checkoutUrl;
+      } catch (error: any) {
+        console.error('Stripe create-session failed:', error?.response?.data || error?.message);
+        const message = error?.response?.data?.message || 'Checkout failed. Please try again.';
+        showToast(message, 'error');
+      } finally {
+        setIsCheckoutLoading(false);
+      }
+    };
+
+    return (
+      <CheckoutWizard
+        cart={cart}
+        onBack={() => setView('cart')}
+        onCheckout={handleWizardCheckout}
+        isLoading={isCheckoutLoading}
+        getManufacturerName={getManufacturerName}
+        updateCartQuantity={updateCartQuantity}
+      />
+    );
+  }
+
+  // ==========================================
+  // VUE : CONFIRMATION
   // ==========================================
   if (view === 'confirmation') {
     return (
@@ -852,10 +930,12 @@ export default function ArtisanMarketplace() {
           </div>
           <h2 className="text-4xl font-bold text-foreground mb-4">Order Placed Successfully!</h2>
           <p className="text-xl text-muted-foreground mb-3">Your order has been confirmed and will be processed soon.</p>
-          <p className="text-lg text-muted-foreground mb-8">Order ID: <strong className="text-foreground">#{Math.floor(Math.random() * 10000)}</strong></p>
-          <Button onClick={() => { setView('products'); setCart([]); }} className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
-            Continue Shopping
-          </Button>
+          <p className="text-sm text-muted-foreground mb-4">You can track your order in <strong>My Orders</strong>.</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => { setView('products'); setCart([]); }} className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
+              Continue Shopping
+            </Button>
+          </div>
         </Card>
       </div>
     );
@@ -864,9 +944,6 @@ export default function ArtisanMarketplace() {
   if (view === 'cart') {
     const itemsSubtotalAmount = getTotalPrice();
     const totalItems = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-    const shipping = 15;
-    const taxAmount = 0;
-    const grandTotal = itemsSubtotalAmount + shipping + taxAmount;
 
     return (
       <div className="space-y-6">
@@ -927,19 +1004,18 @@ export default function ArtisanMarketplace() {
             <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8">
               <h3 className="text-xl font-bold text-foreground mb-6">Order Summary</h3>
               <div className="space-y-4 mb-6">
-                <div className="flex justify-between text-muted-foreground"><span>Subtotal (items)</span><span className="font-semibold text-foreground">{totalItems}</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Shipping</span><span className="font-semibold text-foreground">{shipping.toFixed(2)} TND</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Tax (19%)</span><span className="font-semibold text-foreground">{taxAmount.toFixed(2)} TND</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Materials amount</span><span className="font-semibold text-foreground">{itemsSubtotalAmount.toFixed(2)} TND</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Items</span><span className="font-semibold text-foreground">{totalItems}</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Materials amount</span><span className="font-semibold text-foreground">{itemsSubtotalAmount.toFixed(2)} DT</span></div>
+                <div className="flex justify-between text-muted-foreground text-sm"><span>Shipping</span><span className="text-muted-foreground italic">Calculated at checkout</span></div>
                 <div className="pt-4 border-t-2 border-gray-100">
                   <div className="flex justify-between">
-                    <span className="text-lg font-semibold text-foreground">Total</span>
-                    <span className="text-2xl font-bold text-primary">{grandTotal.toFixed(2)} TND</span>
+                    <span className="text-lg font-semibold text-foreground">Subtotal</span>
+                    <span className="text-2xl font-bold text-primary">{itemsSubtotalAmount.toFixed(2)} DT</span>
                   </div>
                 </div>
               </div>
-              <Button className="w-full h-12 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-lg" onClick={handleCheckout} disabled={cart.length === 0 || isCheckoutLoading}>
-                {isCheckoutLoading ? 'Processing...' : 'Proceed to Checkout'}
+              <Button className="w-full h-12 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-lg" onClick={() => setView('checkout')} disabled={cart.length === 0}>
+                Proceed to Checkout
               </Button>
             </Card>
           </div>

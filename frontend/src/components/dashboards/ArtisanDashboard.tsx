@@ -10,7 +10,7 @@ import ArtisanMessages from '../artisan/ArtisanMessages';
 import ArtisanSubscription from '../artisan/ArtisanSubscription';
 import ArtisanProfile from '../artisan/ArtisanProfile';
 import ArtisanPortfolio from '../artisan/ArtisanPortfolio';
-import ArtisanOrders from '../artisan/ArtisanOrders';
+import MyOrders from '../common/MyOrders';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
 import axios from 'axios';
 
@@ -76,9 +76,16 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
   }, []);
 
   useEffect(() => {
+    const getCartKey = () => {
+      try {
+        const u = localStorage.getItem('user');
+        if (u) { const p = JSON.parse(u); if (p._id || p.id) return `artisan-marketplace-cart-${p._id || p.id}`; }
+      } catch { /* ignore */ }
+      return 'artisan-marketplace-cart';
+    };
     const syncCartCount = () => {
       try {
-        const raw = sessionStorage.getItem('artisan-marketplace-cart');
+        const raw = sessionStorage.getItem(getCartKey());
         if (!raw) {
           setCartCount(0);
           return;
@@ -142,7 +149,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       case 'portfolio':
         return <ArtisanPortfolio />;
       case 'orders':
-        return <ArtisanOrders />;
+        return <MyOrders />;
       default:
         return <ArtisanHome onNavigate={setActiveView} />;
     }
