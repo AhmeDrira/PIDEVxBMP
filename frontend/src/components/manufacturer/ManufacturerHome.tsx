@@ -1,274 +1,253 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { Package, ShoppingCart, TrendingUp, DollarSign, Eye, ArrowRight, AlertCircle, MessageSquare, Loader2 } from 'lucide-react';
-import StatsCard from '../common/StatsCard';
-import { Badge } from '../ui/badge';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell
+} from 'recharts';
+import {
+  TrendingUp, TrendingDown, DollarSign, ShoppingBag, Package, BarChart3,
+  Loader2, ArrowUpRight, ArrowDownRight
+} from 'lucide-react';
 import axios from 'axios';
 
 interface ManufacturerHomeProps {
   onNavigate: (view: string) => void;
 }
 
-export default function ManufacturerHome({ onNavigate }: ManufacturerHomeProps) {
-  const userStorage = localStorage.getItem('user');
-  const user = userStorage ? JSON.parse(userStorage) : null;
-  const firstName = user?.firstName || '';
-  const lastName = user?.lastName || '';
-  const companyName = user?.companyName || '';
-  const displayName = companyName || `${firstName} ${lastName}`.trim() || 'Manufacturer';
+export default function ManufacturerAnalytics() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({ totalRevenue: 0, totalOrders: 0, avgOrderValue: 0, activeProducts: 0 });
+  const [monthlyData, setMonthlyData] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const getToken = () => {
-    const direct = localStorage.getItem('token');
-    if (direct) return direct;
-    const stored = localStorage.getItem('user');
-    if (stored) return JSON.parse(stored).token;
-    return null;
+    let token = localStorage.getItem('token');
+    const userStorage = localStorage.getItem('user');
+    if (!token && userStorage) token = JSON.parse(userStorage).token;
+    return token;
   };
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchAnalytics = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
         const token = getToken();
         if (!token) return;
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        const [resProd, resConv] = await Promise.all([
-          axios.get('/api/products', config).catch(() => ({ data: [] })),
-          axios.get('/api/conversations', config).catch(() => ({ data: [] })),
-        ]);
-        setProducts(Array.isArray(resProd.data) ? resProd.data : []);
-        setConversations(Array.isArray(resConv.data) ? resConv.data : []);
-      } catch {
-        // silently fail
+        const res = await axios.get(`${API_URL}/products/analytics`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = res.data;
+        setStats(data.stats || {});
+        setMonthlyData(data.monthlyData || []);
+        setTopProducts(data.topProducts || []);
+      } catch (error) {
+        console.error('Failed to fetch analytics:', error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
-    fetchData();
+    fetchAnalytics();
   }, []);
 
-  const totalProducts = products.length;
-  const activeConversations = conversations.length;
-
-  const stats = [
-    { 
-      label: 'Total Products', 
-      value: loading ? '…' : String(totalProducts),
-      icon: <Package size={28} />, 
-      color: '#1E40AF', 
-    },
-    { 
-      label: 'Active Conversations', 
-      value: loading ? '…' : String(activeConversations),
-      icon: <MessageSquare size={28} />, 
-      color: '#8B5CF6', 
-    },
-    { 
-      label: 'Revenue (This Month)', 
-      value: '—', 
-      icon: <DollarSign size={28} />, 
-      color: '#10B981', 
-    },
-    { 
-      label: 'Pending Orders', 
-      value: '0', 
-      icon: <Eye size={28} />, 
-      color: '#EF4444', 
-    },
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'processing': return 'bg-secondary/10 text-secondary border-secondary/20';
-      case 'shipped': return 'bg-primary/10 text-primary border-primary/20';
-      case 'delivered': return 'bg-accent/10 text-accent border-accent/20';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
-    }
+  const formatCurrency = (val: number) => {
+    if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
+    return val.toFixed(0);
   };
 
-  const quickActions = [
-    { 
-      label: 'Add Product', 
-      icon: <Package size={24} />, 
-      action: () => onNavigate('products'), 
-      color: '#1E40AF',
-      description: 'List new products in catalog'
+  // Category distribution from top products
+  const totalSales = topProducts.reduce((s, p) => s + p.sales, 0);
+  const PIE_COLORS = ['#7c3aed', '#10b981', '#f59e0b', '#3b82f6', '#ef4444'];
+
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937', marginBottom: 4 }}>{label}</p>
+        {payload.map((entry: any, i: number) => (
+          <p key={i} style={{ fontSize: 12, color: entry.color, margin: 0 }}>
+            {entry.name === 'sales' ? 'Revenue' : 'Orders'}: <strong>{entry.name === 'sales' ? `${entry.value.toLocaleString()} TND` : entry.value}</strong>
+          </p>
+        ))}
+      </div>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+        <Loader2 size={40} className="animate-spin" style={{ color: '#7c3aed' }} />
+      </div>
+    );
+  }
+
+  const statCards = [
+    {
+      label: 'Total Revenue',
+      value: `${formatCurrency(stats.totalRevenue)} TND`,
+      icon: DollarSign,
+      color: '#10b981',
+      bg: '#ecfdf5',
     },
-    { 
-      label: 'Messages', 
-      icon: <ShoppingCart size={24} />, 
-      action: () => onNavigate('messages'), 
-      color: '#F59E0B',
-      description: 'Communicate with your clients'
+    {
+      label: 'Total Orders',
+      value: stats.totalOrders,
+      icon: ShoppingBag,
+      color: '#7c3aed',
+      bg: '#f5f3ff',
     },
-    { 
-      label: 'View Analytics', 
-      icon: <TrendingUp size={24} />, 
-      action: () => onNavigate('analytics'), 
-      color: '#10B981',
-      description: 'Check sales performance'
+    {
+      label: 'Avg Order Value',
+      value: `${stats.avgOrderValue.toFixed(0)} TND`,
+      icon: TrendingUp,
+      color: '#f59e0b',
+      bg: '#fffbeb',
+    },
+    {
+      label: 'Active Products',
+      value: stats.activeProducts,
+      icon: Package,
+      color: '#3b82f6',
+      bg: '#eff6ff',
     },
   ];
 
-  const recentConversations = conversations.slice(0, 3).map((conv: any) => {
-    const other = conv.participants?.find((p: any) => p._id !== user?._id);
-    return {
-      name: other ? `${other.firstName} ${other.lastName}` : 'Unknown',
-      role: other?.role || 'Client',
-      lastContact: conv.updatedAt ? new Date(conv.updatedAt).toLocaleDateString() : '—',
-      id: conv._id,
-    };
-  });
+  const maxTopSales = topProducts.length > 0 ? Math.max(...topProducts.map(p => p.sales)) : 1;
 
   return (
-    <div className="space-y-8">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <StatsCard key={index} {...stat} />
-        ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Page Header */}
+      <div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: 0 }}>Dashboard</h1>
+        <p style={{ fontSize: 15, color: '#6b7280', margin: '4px 0 0' }}>Overview of your business performance</p>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Quick Actions</h2>
-            <p className="text-muted-foreground mt-1">Common tasks and shortcuts</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {quickActions.map((action, index) => (
-            <button
-              key={index}
-              onClick={action.action}
-              className="group p-6 rounded-2xl border-2 border-gray-200 hover:border-transparent hover:shadow-xl transition-all duration-300 text-left"
+      {/* Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        {statCards.map((card, i) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={i}
               style={{
-                background: `linear-gradient(135deg, ${action.color}05 0%, ${action.color}10 100%)`
+                backgroundColor: '#fff',
+                borderRadius: 16,
+                padding: '24px 20px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                border: '1px solid #f3f4f6',
               }}
             >
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 shadow-md group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: action.color }}
-              >
-                <span className="text-white">{action.icon}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <p style={{ fontSize: 13, fontWeight: 500, color: '#6b7280', margin: 0 }}>{card.label}</p>
+                <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={20} style={{ color: card.color }} />
+                </div>
               </div>
-              <h3 className="font-semibold text-foreground text-lg mb-2">{action.label}</h3>
-              <p className="text-sm text-muted-foreground mb-3">{action.description}</p>
-              <div className="flex items-center text-sm font-medium" style={{ color: action.color }}>
-                Get Started
-                <ArrowRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Recent Products */}
-        <div className="lg:col-span-2">
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">Your Products</h2>
-                <p className="text-muted-foreground mt-1">Recently added items in your catalog</p>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={() => onNavigate('products')}
-                className="rounded-xl border-2 hover:border-primary hover:text-primary"
-              >
-                View All
-                <ArrowRight size={16} className="ml-2" />
-              </Button>
+              <p style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: 0, lineHeight: 1 }}>
+                {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
+              </p>
             </div>
-            {loading ? (
-              <div className="flex justify-center py-8"><Loader2 size={32} className="animate-spin text-primary" /></div>
-            ) : products.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No products yet. Add your first product!</p>
-            ) : (
-              <div className="space-y-4">
-                {products.slice(0, 3).map((product: any) => (
-                  <div
-                    key={product._id}
-                    className="p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
-                  >
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-bold text-foreground text-lg">{product.name || product.title || 'Unnamed Product'}</h4>
-                          <Badge className={`${getStatusColor(product.status || 'active')} px-3 py-1 text-sm font-semibold border-2`}>
-                            {product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1) : 'Active'}
-                          </Badge>
-                        </div>
-                        {product.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">{product.description}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Added: <strong className="text-foreground">{new Date(product.createdAt).toLocaleDateString()}</strong>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {product.price !== undefined && (
-                          <p className="text-2xl font-bold text-primary">{product.price} TND</p>
-                        )}
-                        <Button variant="outline" size="sm" className="rounded-xl border-2" onClick={() => onNavigate('products')}>
-                          View
-                        </Button>
-                      </div>
-                    </div>
+          );
+        })}
+      </div>
+
+      {/* Revenue Chart */}
+      <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: 0 }}>Revenue Overview</h2>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Last 6 months performance</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6b7280' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#7c3aed', display: 'inline-block' }} /> Revenue
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6b7280' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#10b981', display: 'inline-block' }} /> Orders
+            </span>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={monthlyData}>
+            <defs>
+              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v} />
+            <Tooltip content={<CustomTooltip />} />
+            <Area type="monotone" dataKey="sales" stroke="#7c3aed" strokeWidth={2.5} fill="url(#colorRevenue)" name="sales" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Bottom Grid: Top Products + Orders Chart */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+        {/* Top Selling Products */}
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: '0 0 20px' }}>Top Selling Products</h2>
+          {topProducts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
+              <Package size={40} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+              <p style={{ fontSize: 14 }}>No sales data yet</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {topProducts.map((product, index) => (
+                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {/* Rank */}
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700,
+                    backgroundColor: index === 0 ? '#f5f3ff' : '#f9fafb',
+                    color: index === 0 ? '#7c3aed' : '#6b7280',
+                  }}>
+                    {index + 1}
                   </div>
-                ))}
-              </div>
-            )}
-          </Card>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#1f2937', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{product.name}</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#10b981', margin: 0 }}>{product.sales.toLocaleString()} TND</p>
+                    </div>
+                    {/* Bar */}
+                    <div style={{ height: 6, backgroundColor: '#f3f4f6', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${(product.sales / maxTopSales) * 100}%`, backgroundColor: PIE_COLORS[index] || '#7c3aed', borderRadius: 999, transition: 'width 0.5s' }} />
+                    </div>
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{product.units} units sold</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Recent Conversations */}
-        <div className="space-y-6">
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
-            <div className="flex items-center gap-2 mb-6">
-              <MessageSquare size={24} className="text-primary" />
-              <h3 className="text-xl font-bold text-foreground">Recent Messages</h3>
+        {/* Monthly Orders */}
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: '0 0 20px' }}>Monthly Orders</h2>
+          {monthlyData.every(d => d.orders === 0) ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
+              <BarChart3 size={40} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+              <p style={{ fontSize: 14 }}>No orders yet</p>
             </div>
-            {loading ? (
-              <div className="flex justify-center py-4"><Loader2 size={24} className="animate-spin text-primary" /></div>
-            ) : recentConversations.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No messages yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {recentConversations.map((conv, index) => (
-                  <div
-                    key={index}
-                    className="p-4 rounded-xl bg-gray-50 border-2 border-gray-100 hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer"
-                    onClick={() => onNavigate('messages')}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0"
-                        style={{ backgroundColor: '#1E40AF' }}
-                      >
-                        {conv.name.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-foreground text-sm truncate">{conv.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{conv.role}</p>
-                        <p className="text-xs text-muted-foreground">{conv.lastContact}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <Button size="sm" className="w-full rounded-xl" onClick={() => onNavigate('messages')}>
-                  Open Messages
-                </Button>
-              </div>
-            )}
-          </Card>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyData} barSize={32}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="orders" fill="#7c3aed" radius={[6, 6, 0, 0]} name="orders" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>

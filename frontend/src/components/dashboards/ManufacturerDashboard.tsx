@@ -4,7 +4,6 @@ import { Home, Package, ShoppingBag, BarChart3 } from 'lucide-react';
 import ManufacturerHome from '../manufacturer/ManufacturerHome';
 import ManufacturerProducts from '../manufacturer/ManufacturerProducts';
 import ManufacturerOrders from '../manufacturer/ManufacturerOrders';
-import ManufacturerAnalytics from '../manufacturer/ManufacturerAnalytics';
 import ManufacturerProfile from '../manufacturer/ManufacturerProfile';
 import NotificationBell from '../common/NotificationBell';
 import axios from 'axios';
@@ -66,7 +65,6 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'products', label: 'My Products', icon: <Package size={20} /> },
     { id: 'orders', label: 'Orders', icon: <ShoppingBag size={20} />, badge: unreadOrdersCount },
-    { id: 'analytics', label: 'Sales Analytics', icon: <BarChart3 size={20} /> },
   ];
 
   const handleMenuItemClick = async (id: string) => {
@@ -108,8 +106,6 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
         return <ManufacturerProducts />;
       case 'orders':
         return <ManufacturerOrders />;
-      case 'analytics':
-        return <ManufacturerAnalytics />;
       case 'profile':
         return <ManufacturerProfile />;
       default:

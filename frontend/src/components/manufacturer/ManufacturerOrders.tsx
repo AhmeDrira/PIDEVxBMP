@@ -140,7 +140,7 @@ export default function ManufacturerOrders() {
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-xl font-bold text-foreground truncate max-w-[200px]">Order #{order.id.slice(-6)}</h3>
+                        <h3 className="text-xl font-bold text-foreground truncate max-w-[250px]">{order.orderNumber || `Order #${order.id.slice(-6)}`}</h3>
                         <Badge className={`${getStatusColor(order.status)} px-4 py-1.5 text-sm font-semibold flex items-center gap-2 border-2`}>
                           {getStatusIcon(order.status)}
                           {order.status.charAt(0).toUpperCase() + order.status.slice(1)}

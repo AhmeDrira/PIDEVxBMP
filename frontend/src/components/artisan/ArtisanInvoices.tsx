@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useSubscriptionGuard } from './SubscriptionGuard';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, CreditCard, Trash2, Search, Filter, Package } from 'lucide-react';
+import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, CreditCard, Trash2, Search, Filter, Package, ShoppingBag } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
+import CheckoutWizard from './CheckoutWizard';
 import axios from 'axios';
 import { toast } from 'sonner';
 
 export default function ArtisanInvoices() {
-  const [view, setView] = useState<'list' | 'create' | 'details'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'details' | 'materials-checkout'>('list');
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -22,6 +24,8 @@ export default function ArtisanInvoices() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
   const [dueFilter, setDueFilter] = useState<'all' | 'overdue' | 'upcoming'>('all');
+  const [materialsCart, setMaterialsCart] = useState<any[]>([]);
+  const [isMaterialsCheckoutLoading, setIsMaterialsCheckoutLoading] = useState(false);
 
   // Stats calculées dynamiquement
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -41,6 +45,8 @@ export default function ArtisanInvoices() {
   // États de validation
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const { guard: subGuard, PopupElement: SubPopup } = useSubscriptionGuard();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
@@ -306,25 +312,31 @@ export default function ArtisanInvoices() {
     }
   };
 
+  const getFirstTranchePercent = (invoice: any) => {
+    return Math.round(Number(invoice?.paymentPlan?.firstTranchePercent) || 50);
+  };
+
+  const getSecondTranchePercent = (invoice: any) => {
+    return 100 - getFirstTranchePercent(invoice);
+  };
+
   const getPaymentProgress = (invoice: any) => {
     if (!invoice) return 0;
-    const fromBackend = Number(invoice.paymentProgress || 0);
-    if (Number.isFinite(fromBackend) && fromBackend > 0) {
-      return Math.max(0, Math.min(100, fromBackend));
-    }
+    const upfrontPaid = Boolean(invoice.paymentPlan?.firstTranchePaid);
+    const completionPaid = Boolean(invoice.paymentPlan?.secondTranchePaid);
+    const invoiceFullyPaid = String(invoice.status || '').toLowerCase() === 'paid';
 
-    const amount = Number(invoice.amount || 0);
-    const paidAmount = Number(invoice.paidAmount || 0);
-    if (!amount || amount <= 0) return 0;
-
-    return Math.max(0, Math.min(100, Math.round((paidAmount / amount) * 100)));
+    if (invoiceFullyPaid || (upfrontPaid && completionPaid)) return 100;
+    if (upfrontPaid) return getFirstTranchePercent(invoice);
+    return 0;
   };
 
   const getUpfrontAmount = (invoice: any) => {
     const planAmount = Number(invoice?.paymentPlan?.firstTrancheAmount || 0);
     if (planAmount > 0) return planAmount;
     const total = Number(invoice?.amount || 0);
-    return Number((total * 0.5).toFixed(2));
+    const pct = getFirstTranchePercent(invoice) / 100;
+    return Number((total * pct).toFixed(2));
   };
 
   const getCompletionAmount = (invoice: any) => {
@@ -408,45 +420,102 @@ export default function ArtisanInvoices() {
         return;
       }
 
-      const items = materials.map((mat: any) => ({
-        productId: mat._id,
-        quantity: 1,
+      const cartItems = materials.map((mat: any) => ({
+        _id: mat._id,
         name: mat.name,
-        category: mat.category || 'material',
         price: mat.price || 0,
-        stock: mat.stock || 0,
-        description: mat.description || '',
+        quantity: 1,
         image: mat.image || '',
+        stock: mat.stock || 999,
+        category: mat.category || 'material',
+        manufacturer: mat.manufacturer || {},
       }));
 
-      const res = await axios.post(
+      setMaterialsCart(cartItems);
+      setView('materials-checkout');
+    } catch (error: any) {
+      console.error('Load materials failed:', error?.response?.data || error?.message);
+      toast.error(error?.response?.data?.message || 'Failed to load project materials');
+    } finally {
+      setIsPayMaterialLoading(false);
+    }
+  };
+
+  const handleMaterialsWizardCheckout = async (checkoutData: any) => {
+    if (!materialsCart.length || isMaterialsCheckoutLoading) return;
+    try {
+      setIsMaterialsCheckoutLoading(true);
+      const token = getToken();
+      if (!token) {
+        toast.error('Session expired. Please sign in again.');
+        return;
+      }
+
+      const checkoutMeta = {
+        shippingAddress: {
+          fullName: checkoutData.personalInfo.fullName,
+          phone: checkoutData.personalInfo.phone,
+          ...checkoutData.shippingAddress,
+        },
+        contactInfo: {
+          email: checkoutData.personalInfo.email,
+          phone: checkoutData.personalInfo.phone,
+        },
+        shippingMethod: {
+          name: 'Standard Delivery',
+          cost: 15,
+          estimatedDays: 5,
+        },
+      };
+
+      const items = materialsCart.map((item: any) => ({
+        productId: item._id,
+        quantity: item.quantity,
+        name: item.name,
+        category: item.category || 'material',
+        price: item.price,
+        stock: item.stock,
+        description: item.description || '',
+        image: item.image || '',
+      }));
+
+      const response = await axios.post(
         `${API_URL}/products/checkout/create-session`,
-        { items, invoiceId: selectedInvoice._id },
+        { items, invoiceId: selectedInvoice?._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const sessionId = String(res?.data?.sessionId || '').trim();
-      const checkoutUrl = res?.data?.url;
-
+      const sessionId = String(response?.data?.sessionId || '').trim();
+      const checkoutUrl = response?.data?.url;
       if (!checkoutUrl) {
-        toast.error('Unable to initialize payment session');
+        toast.error('Unable to initialize Stripe checkout.');
         return;
       }
 
       if (sessionId) {
         localStorage.setItem(
           `artisan-stripe-checkout:${sessionId}`,
-          JSON.stringify({ items, createdAt: Date.now() })
+          JSON.stringify({ items, checkoutMeta, createdAt: Date.now() }),
         );
       }
 
       window.location.href = checkoutUrl;
     } catch (error: any) {
-      console.error('Pay materials failed:', error?.response?.data || error?.message);
-      toast.error(error?.response?.data?.message || 'Failed to initialize materials payment');
+      console.error('Materials checkout failed:', error?.response?.data || error?.message);
+      toast.error(error?.response?.data?.message || 'Checkout failed. Please try again.');
     } finally {
-      setIsPayMaterialLoading(false);
+      setIsMaterialsCheckoutLoading(false);
     }
+  };
+
+  const updateMaterialsCartQuantity = (productId: string, delta: number) => {
+    setMaterialsCart(prev =>
+      prev.map(item =>
+        item._id === productId
+          ? { ...item, quantity: Math.max(1, Math.min(item.stock || 999, item.quantity + delta)) }
+          : item
+      )
+    );
   };
 
   const handleDownloadInvoicePdf = async (invoice: any) => {
@@ -715,6 +784,22 @@ export default function ArtisanInvoices() {
   }
 
   // ==========================================
+  // VUE : MATERIALS CHECKOUT WIZARD
+  // ==========================================
+  if (view === 'materials-checkout' && materialsCart.length > 0) {
+    return (
+      <CheckoutWizard
+        cart={materialsCart}
+        onBack={() => { setView('details'); setMaterialsCart([]); }}
+        onCheckout={handleMaterialsWizardCheckout}
+        isLoading={isMaterialsCheckoutLoading}
+        getManufacturerName={(item: any) => item.manufacturer?.companyName || item.manufacturer?.firstName || 'Supplier'}
+        updateCartQuantity={updateMaterialsCartQuantity}
+      />
+    );
+  }
+
+  // ==========================================
   // VUE 2 : DÉTAILS DE LA FACTURE
   // ==========================================
   if (view === 'details' && selectedInvoice) {
@@ -749,9 +834,12 @@ export default function ArtisanInvoices() {
       }
     };
 
+    const firstPct = getFirstTranchePercent(selectedInvoice);
+    const secondPct = getSecondTranchePercent(selectedInvoice);
+
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header — Back + Pay Materials */}
+        {/* Header — Back + Buy Materials */}
         <div className="flex flex-wrap justify-between items-center gap-3 print:hidden">
           <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2">
             <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
@@ -759,110 +847,116 @@ export default function ArtisanInvoices() {
           {materialsPaid ? (
             <button
               disabled
-              className="rounded-xl px-4 py-2 text-sm font-semibold border border-amber-300 cursor-not-allowed"
-              style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold cursor-not-allowed shadow-sm"
+              style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1.5px solid #a7f3d0' }}
             >
-              <Package size={16} className="mr-1.5 inline" />
-              Materials Paid
+              <Check size={16} />
+              Materials Purchased
             </button>
           ) : (
             <button
               onClick={handlePayMaterialsClick}
               disabled={isPayMaterialLoading}
-              className="rounded-xl px-4 py-2 text-sm font-semibold border border-amber-600 hover:opacity-90 transition-opacity disabled:opacity-60"
-              style={{ backgroundColor: '#f59e0b', color: 'white' }}
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold hover:shadow-md active:scale-[0.97] transition-all duration-150 disabled:opacity-60 shadow-sm"
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: 'white' }}
             >
-              <Package size={16} className="mr-1.5 inline" />
-              {isPayMaterialLoading ? 'Processing...' : 'Pay Materials'}
+              <ShoppingBag size={16} />
+              {isPayMaterialLoading ? 'Loading...' : 'Buy Materials'}
             </button>
           )}
         </div>
 
         {/* ── Payment Progress Card ── */}
-        <Card className="bg-white rounded-2xl border-0 shadow-lg overflow-hidden print:hidden">
-          {/* Header strip */}
-          <div className="px-6 pt-6 pb-4 border-b border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold text-foreground">Payment Progress</h3>
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-2xl font-extrabold tabular-nums"
-                  style={{ color: progress >= 100 ? '#10b981' : progress >= 50 ? '#6366f1' : '#6366f1' }}
-                >
-                  {progress}%
-                </span>
-              </div>
-            </div>
-            {/* Progress bar — tall + well separated */}
-            <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-700 ease-out"
+        <div className="rounded-2xl overflow-hidden shadow-lg print:hidden" style={{ backgroundColor: '#ffffff' }}>
+
+          {/* ── Header with progress bar ── */}
+          <div style={{ padding: '28px 32px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: 0 }}>Payment Progress</h3>
+              <span
                 style={{
+                  fontSize: 28,
+                  fontWeight: 800,
+                  color: progress >= 100 ? '#10b981' : '#7c3aed',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {progress}%
+              </span>
+            </div>
+
+            {/* Single smooth progress bar */}
+            <div style={{ height: 10, backgroundColor: '#f3f4f6', borderRadius: 999, overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
                   width: `${progress}%`,
-                  background:
-                    progress >= 100
-                      ? 'linear-gradient(90deg,#10b981,#059669)'
-                      : progress >= 50
-                        ? 'linear-gradient(90deg,#6366f1,#10b981)'
-                        : 'linear-gradient(90deg,#6366f1,#818cf8)',
-                  boxShadow: progress > 0 ? '0 0 8px rgba(99,102,241,0.4)' : 'none',
+                  borderRadius: 999,
+                  background: progress >= 100
+                    ? 'linear-gradient(90deg, #10b981, #059669)'
+                    : 'linear-gradient(90deg, #7c3aed, #a78bfa)',
+                  transition: 'width 0.7s ease-out',
                 }}
               />
             </div>
-            <div className="flex justify-between mt-1.5">
-              <span className="text-xs text-muted-foreground">0%</span>
-              <span className="text-xs text-muted-foreground">50%</span>
-              <span className="text-xs text-muted-foreground">100%</span>
+
+            {/* Marker labels below bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>0%</span>
+              <span style={{ fontSize: 12, color: '#6b7280', position: 'relative', left: `${firstPct - 50}%` }}>{firstPct}%</span>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>100%</span>
             </div>
           </div>
 
-          {/* Tranche cards */}
-          <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          {/* ── Tranche cards ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #f3f4f6' }}>
 
-            {/* ── Tranche 1 : UpFront ── */}
-            <div className={`p-6 transition-colors duration-300 ${upfrontPaid ? 'bg-emerald-50/50' : 'bg-white'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-sm"
-                    style={{
-                      backgroundColor: upfrontPaid ? '#10b981' : '#6366f1',
-                      color: 'white',
-                    }}
-                  >
-                    {upfrontPaid ? '✓' : '1'}
+            {/* Tranche 1 */}
+            <div style={{
+              padding: '28px 32px',
+              borderRight: '1px solid #f3f4f6',
+              backgroundColor: upfrontPaid ? '#f0fdf4' : '#fff',
+            }}>
+              {/* Top row: number + badge */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: upfrontPaid ? '#10b981' : '#7c3aed',
+                    color: '#fff', fontSize: 14, fontWeight: 700,
+                  }}>
+                    {upfrontPaid ? <Check size={18} /> : '1'}
                   </div>
                   <div>
-                    <p className="font-bold text-foreground text-sm leading-tight">First Tranche</p>
-                    <p className="text-xs text-muted-foreground">UpFront Payment</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#1f2937', margin: 0 }}>Upfront</p>
+                    <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>First payment</p>
                   </div>
                 </div>
-                <span
-                  className="text-xs font-semibold px-2.5 py-1 rounded-full border"
-                  style={
-                    upfrontPaid
-                      ? { backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }
-                      : { backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }
-                  }
-                >
+                <span style={{
+                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
+                  backgroundColor: upfrontPaid ? '#d1fae5' : '#f5f3ff',
+                  color: upfrontPaid ? '#065f46' : '#7c3aed',
+                }}>
                   {upfrontPaid ? 'Received' : 'Pending'}
                 </span>
               </div>
 
-              <p className="text-3xl font-extrabold text-foreground mb-0.5">
-                {upfrontAmount.toFixed(2)}{' '}
-                <span className="text-base font-semibold text-muted-foreground">TND</span>
+              {/* Amount */}
+              <p style={{ fontSize: 26, fontWeight: 800, color: '#1f2937', margin: '0 0 2px' }}>
+                {upfrontAmount.toLocaleString('en', { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>TND</span>
               </p>
-              <p className="text-xs text-muted-foreground mb-5">
-                {Math.round(selectedInvoice.paymentPlan?.firstTranchePercent ?? 50)}% of total invoice
+              <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px' }}>
+                {firstPct}% of {selectedInvoice.amount?.toLocaleString()} TND
               </p>
 
+              {/* Action / status */}
               {upfrontPaid ? (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-100 border border-emerald-200">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shrink-0">✓</span>
-                  <span className="text-sm text-emerald-800 font-medium">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5' }}>
+                  <Check size={16} style={{ color: '#059669' }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
                     {selectedInvoice.paymentPlan?.firstTranchePaidAt
-                      ? `Received on ${formatDate(selectedInvoice.paymentPlan.firstTranchePaidAt)}`
+                      ? `Received ${formatDate(selectedInvoice.paymentPlan.firstTranchePaidAt)}`
                       : 'Payment received'}
                   </span>
                 </div>
@@ -870,96 +964,97 @@ export default function ArtisanInvoices() {
                 <button
                   onClick={() => handleMarkTranche('upfront')}
                   disabled={isPaymentLoading}
-                  className="w-full rounded-xl py-3 text-sm font-bold tracking-wide hover:opacity-90 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 shadow-sm"
-                  style={{ backgroundColor: '#6366f1', color: 'white' }}
+                  style={{
+                    width: '100%', padding: '12px 0', borderRadius: 12, border: 'none', cursor: 'pointer',
+                    background: '#7c3aed', color: '#fff', fontSize: 14, fontWeight: 700,
+                    opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
+                  }}
                 >
                   {isPaymentLoading
-                    ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving…</>
-                    : <>✓ Mark as Received</>
+                    ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving...</>
+                    : <><Check size={15} className="inline mr-1.5 align-middle" />Mark as Received</>
                   }
                 </button>
               )}
             </div>
 
-            {/* ── Tranche 2 : Upon Completion ── */}
-            <div className={`p-6 transition-colors duration-300 ${completionPaid ? 'bg-emerald-50/50' : !upfrontPaid ? 'bg-gray-50/80' : 'bg-white'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-sm"
-                    style={{
-                      backgroundColor: completionPaid ? '#10b981' : !upfrontPaid ? '#d1d5db' : '#6366f1',
-                      color: !upfrontPaid && !completionPaid ? '#6b7280' : 'white',
-                    }}
-                  >
-                    {completionPaid ? '✓' : !upfrontPaid ? '🔒' : '2'}
+            {/* Tranche 2 */}
+            <div style={{
+              padding: '28px 32px',
+              backgroundColor: completionPaid ? '#f0fdf4' : !upfrontPaid ? '#fafafa' : '#fff',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: completionPaid ? '#10b981' : !upfrontPaid ? '#d1d5db' : '#7c3aed',
+                    color: !upfrontPaid && !completionPaid ? '#6b7280' : '#fff',
+                    fontSize: 14, fontWeight: 700,
+                  }}>
+                    {completionPaid ? <Check size={18} /> : '2'}
                   </div>
                   <div>
-                    <p className={`font-bold text-sm leading-tight ${!upfrontPaid && !completionPaid ? 'text-muted-foreground' : 'text-foreground'}`}>
-                      Second Tranche
-                    </p>
-                    <p className="text-xs text-muted-foreground">Upon Completion</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: !upfrontPaid && !completionPaid ? '#9ca3af' : '#1f2937', margin: 0 }}>Completion</p>
+                    <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>Final payment</p>
                   </div>
                 </div>
-                <span
-                  className="text-xs font-semibold px-2.5 py-1 rounded-full border"
-                  style={
-                    completionPaid
-                      ? { backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }
-                      : !upfrontPaid
-                        ? { backgroundColor: '#f3f4f6', color: '#6b7280', borderColor: '#e5e7eb' }
-                        : { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' }
-                  }
-                >
+                <span style={{
+                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
+                  backgroundColor: completionPaid ? '#d1fae5' : !upfrontPaid ? '#f3f4f6' : '#f5f3ff',
+                  color: completionPaid ? '#065f46' : !upfrontPaid ? '#9ca3af' : '#7c3aed',
+                }}>
                   {completionPaid ? 'Received' : !upfrontPaid ? 'Locked' : 'Ready'}
                 </span>
               </div>
 
-              <p className={`text-3xl font-extrabold mb-0.5 ${!upfrontPaid && !completionPaid ? 'text-muted-foreground' : 'text-foreground'}`}>
-                {completionAmount.toFixed(2)}{' '}
-                <span className="text-base font-semibold text-muted-foreground">TND</span>
+              <p style={{ fontSize: 26, fontWeight: 800, color: !upfrontPaid && !completionPaid ? '#9ca3af' : '#1f2937', margin: '0 0 2px' }}>
+                {completionAmount.toLocaleString('en', { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>TND</span>
               </p>
-              <p className="text-xs text-muted-foreground mb-5">
-                {Math.round(selectedInvoice.paymentPlan?.secondTranchePercent ?? 50)}% of total invoice
+              <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px' }}>
+                {secondPct}% of {selectedInvoice.amount?.toLocaleString()} TND
               </p>
 
               {completionPaid ? (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-100 border border-emerald-200">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shrink-0">✓</span>
-                  <span className="text-sm text-emerald-800 font-medium">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5' }}>
+                  <Check size={16} style={{ color: '#059669' }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
                     {selectedInvoice.paymentPlan?.secondTranchePaidAt
-                      ? `Received on ${formatDate(selectedInvoice.paymentPlan.secondTranchePaidAt)}`
+                      ? `Received ${formatDate(selectedInvoice.paymentPlan.secondTranchePaidAt)}`
                       : 'Payment received'}
                   </span>
                 </div>
               ) : !upfrontPaid ? (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-100 border border-gray-200">
-                  <span className="text-base">🔒</span>
-                  <span className="text-sm text-gray-500">Unlocks after first tranche is received</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}>
+                  <span style={{ fontSize: 16 }}>🔒</span>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>Pay first tranche to unlock</span>
                 </div>
               ) : (
-                <>
+                <div>
                   <button
                     onClick={() => handleMarkTranche('completion')}
                     disabled={isPaymentLoading}
-                    className="w-full rounded-xl py-3 text-sm font-bold tracking-wide hover:opacity-90 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 shadow-sm"
-                    style={{ backgroundColor: '#6366f1', color: 'white' }}
+                    style={{
+                      width: '100%', padding: '12px 0', borderRadius: 12, border: 'none', cursor: 'pointer',
+                      background: '#7c3aed', color: '#fff', fontSize: 14, fontWeight: 700,
+                      opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
+                    }}
                   >
                     {isPaymentLoading
-                      ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving…</>
-                      : <>✓ Mark as Received</>
+                      ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving...</>
+                      : <><Check size={15} className="inline mr-1.5 align-middle" />Mark as Received</>
                     }
                   </button>
                   {selectedInvoice.paymentPlan?.secondTrancheDueDate && (
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
-                      📅 Due by {formatDate(selectedInvoice.paymentPlan.secondTrancheDueDate)}
+                    <p style={{ fontSize: 12, fontWeight: 500, padding: '8px 12px', borderRadius: 8, marginTop: 12, backgroundColor: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' }}>
+                      Due by {formatDate(selectedInvoice.paymentPlan.secondTrancheDueDate)}
                     </p>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Carte de facture améliorée */}
         <Card id="invoice-card" className="p-10 bg-white rounded-2xl border-0 shadow-lg print:shadow-none print:m-0 print:border">
@@ -1126,7 +1221,7 @@ export default function ArtisanInvoices() {
                       variant="outline"
                       size="sm"
                       className="rounded-xl border-2 h-10 hover:bg-primary hover:text-white"
-                      onClick={() => { setSelectedInvoice(invoice); setView('details'); }}
+                      onClick={() => subGuard(() => { setSelectedInvoice(invoice); setView('details'); })}
                     >
                       <Eye size={16} className="mr-2" /> View
                     </Button>
@@ -1194,6 +1289,7 @@ export default function ArtisanInvoices() {
           </div>
         </div>
       )}
+      {SubPopup}
     </div>
   );
 }

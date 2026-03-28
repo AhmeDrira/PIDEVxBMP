@@ -10,10 +10,12 @@ const {
   checkoutProducts,
   createStripeCheckoutSession,
   confirmStripeCheckoutSession,
-  ensureStaticProduct, // <--- C'EST ICI QU'ELLE MANQUAIT ! 🚨
+  ensureStaticProduct,
   getManufacturerOrders,
   updateOrderStatus,
   getManufacturerAnalytics,
+  getBuyerOrders,
+  getOrderDetail,
 } = require('../controllers/productController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -31,6 +33,8 @@ router.post('/ensure-static', protect, ensureStaticProduct);
 
 // Routes pour les achats et les avis
 router.get('/analytics', protect, getManufacturerAnalytics);
+router.get('/my-orders', protect, getBuyerOrders);
+router.get('/my-orders/:id', protect, getOrderDetail);
 router.get('/orders', protect, getManufacturerOrders);
 router.put('/orders/:id/status', protect, updateOrderStatus);
 router.post('/checkout/create-session', protect, createStripeCheckoutSession);

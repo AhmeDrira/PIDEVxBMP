@@ -51,6 +51,12 @@ const quoteSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  upfrontPercent: {
+    type: Number,
+    default: 50,
+    min: 0,
+    max: 100,
+  },
   status: {
     type: String,
     enum:['pending', 'approved', 'rejected'],

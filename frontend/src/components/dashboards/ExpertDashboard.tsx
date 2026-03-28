@@ -7,9 +7,9 @@ import ExpertArtisanDirectory from '../expert/ExpertArtisanDirectory';
 import ExpertMessages from '../expert/ExpertMessages';
 import ExpertMarketplace from '../expert/ExpertMarketplace';
 import ExpertProfile from '../expert/ExpertProfile';
-import ExpertPayments from '../expert/ExpertPayments';
+import MyOrders from '../common/MyOrders';
 import NotificationBell from '../common/NotificationBell';
-import { Wallet } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -35,8 +35,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
       window.history.replaceState({}, '', cleaned ? `/?${cleaned}` : '/');
       return;
     }
-    if (view === 'payments') {
-      setActiveView('payments');
+    if (view === 'payments' || view === 'orders') {
+      setActiveView('orders');
       // Clean up the URL to remove the parameter
       params.delete('view');
       const cleaned = params.toString();
@@ -45,9 +45,16 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   }, []);
 
   useEffect(() => {
+    const getCartKey = () => {
+      try {
+        const u = localStorage.getItem('user');
+        if (u) { const p = JSON.parse(u); if (p._id || p.id) return `artisan-marketplace-cart-${p._id || p.id}`; }
+      } catch { /* ignore */ }
+      return 'artisan-marketplace-cart';
+    };
     const syncCartCount = () => {
       try {
-        const raw = sessionStorage.getItem('artisan-marketplace-cart');
+        const raw = sessionStorage.getItem(getCartKey());
         if (!raw) {
           setCartCount(0);
           return;
@@ -99,7 +106,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     { id: 'directory', label: 'Artisan Directory', icon: <Users size={20} /> },
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
     { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
-    { id: 'payments', label: 'Payments', icon: <Wallet size={20} /> },
+    { id: 'orders', label: 'My Orders', icon: <ShoppingBag size={20} /> },
   ];
 
   const renderContent = () => {
@@ -114,8 +121,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         return <ExpertMessages />;
       case 'marketplace':
         return <ExpertMarketplace />;
-      case 'payments':
-        return <ExpertPayments />;
+      case 'orders':
+        return <MyOrders />;
       case 'profile':
         return <ExpertProfile />;
       default:
