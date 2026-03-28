@@ -1,5 +1,6 @@
 const { Artisan } = require('../models/User');
 const Project = require('../models/Project');
+const Review = require('../models/Review');
 const fs = require('fs');
 const path = require('path');
 
@@ -286,6 +287,61 @@ exports.addMediaToPortfolioItem = async (req, res) => {
     await artisan.save({ validateBeforeSave: false });
 
     return res.status(200).json(item);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Public: get a specific portfolio item by artisan ID and item ID
+exports.getPublicPortfolioItemById = async (req, res) => {
+  try {
+    const artisan = await Artisan.findById(req.params.id).select('portfolio');
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan not found' });
+    }
+    const item = artisan.portfolio.id(req.params.itemId);
+    if (!item) {
+      return res.status(404).json({ message: 'Portfolio item not found' });
+    }
+    return res.status(200).json(item);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Public: get all reviews for an artisan
+exports.getArtisanReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ artisanId: req.params.id }).sort({ createdAt: -1 });
+    const averageRating =
+      reviews.length > 0
+        ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
+        : 0;
+    return res.status(200).json({ reviews, averageRating, total: reviews.length });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Protected (expert): add a review for an artisan
+exports.addArtisanReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    if (!rating || !comment) {
+      return res.status(400).json({ message: 'Rating and comment are required' });
+    }
+    const existing = await Review.findOne({ artisanId: req.params.id, expertId: req.user._id });
+    if (existing) {
+      return res.status(400).json({ message: 'You have already reviewed this artisan' });
+    }
+    const review = await Review.create({
+      artisanId: req.params.id,
+      expertId: req.user._id,
+      expertName: `${req.user.firstName} ${req.user.lastName}`,
+      rating: Number(rating),
+      comment,
+    });
+    return res.status(201).json(review);
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }

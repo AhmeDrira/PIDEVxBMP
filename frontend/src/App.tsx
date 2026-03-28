@@ -18,6 +18,8 @@ import authService from './services/authService';
 import { Toaster, toast } from 'sonner';
 import RoleGuard from './components/common/RoleGuard';
 import PortfolioGalleryPage from './components/artisan/PortfolioGalleryPage';
+import ExpertArtisanPortfolioPage from './components/expert/ExpertArtisanPortfolioPage';
+import ExpertPortfolioProjectPage from './components/expert/ExpertPortfolioProjectPage';
 import axios from 'axios';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin' | null;
@@ -174,6 +176,13 @@ export default function App() {
     setAuthView('login');
   };
 
+  const getExpertArtisanPortfolioPath = () => {
+    const path = window.location.pathname;
+    const match = path.match(/^\/portfolio\/artisan\/([^/]+)(?:\/project\/([^/]+))?$/);
+    if (!match) return null;
+    return { artisanId: match[1], itemId: match[2] || null };
+  };
+
   const getPortfolioGalleryItemId = () => {
     const path = window.location.pathname;
     if (!path.startsWith('/portfolio/gallery/')) return null;
@@ -263,7 +272,16 @@ export default function App() {
             })()}
           </RoleGuard>
           <RoleGuard allow={['expert']}>
-            {currentUser === 'expert' && <ExpertDashboard onLogout={handleLogout} />}
+            {currentUser === 'expert' && (() => {
+              const expertPath = getExpertArtisanPortfolioPath();
+              if (expertPath?.itemId) {
+                return <ExpertPortfolioProjectPage artisanId={expertPath.artisanId} itemId={expertPath.itemId} />;
+              }
+              if (expertPath?.artisanId) {
+                return <ExpertArtisanPortfolioPage artisanId={expertPath.artisanId} />;
+              }
+              return <ExpertDashboard onLogout={handleLogout} />;
+            })()}
           </RoleGuard>
           <RoleGuard allow={['manufacturer']}>
             {currentUser === 'manufacturer' && <ManufacturerDashboard onLogout={handleLogout} />}

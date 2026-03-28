@@ -4,8 +4,7 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { Search, Filter, MapPin, Star, MessageSquare, Briefcase } from 'lucide-react';
-import { Badge } from '../ui/badge';
+import { Search, Filter, MapPin, MessageSquare, Briefcase, FolderOpen } from 'lucide-react';
 import ViewArtisanProfile from './ViewArtisanProfile';
 
 interface ExpertArtisanDirectoryProps {
@@ -19,10 +18,7 @@ interface Artisan {
   location: string;
   experience: string;
   bio: string;
-  rating: number;
-  reviews: number;
-  completedProjects: number;
-  skills: string[];
+  portfolioCount: number;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -59,20 +55,14 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
       const data = Array.isArray(response.data) ? response.data : [];
 
-      const randomInt = (min: number, max: number) =>
-        Math.floor(Math.random() * (max - min + 1)) + min;
-
       const mappedArtisans: Artisan[] = data.map((item: any) => ({
         id: item._id,
         name: `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim(),
-        specialization: item.domain,
-        location: item.location,
+        specialization: item.domain ?? '',
+        location: item.location ?? '',
         experience: `${item.yearsExperience ?? 0} years`,
-        bio: item.bio,
-        rating: 4.8,
-        reviews: randomInt(20, 60),
-        completedProjects: randomInt(30, 100),
-        skills: ['Construction', 'Project Management', 'Renovation'],
+        bio: item.bio ?? '',
+        portfolioCount: Array.isArray(item.portfolio) ? item.portfolio.length : 0,
       }));
 
       setArtisans(mappedArtisans);
@@ -168,25 +158,24 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
               </Avatar>
               <div className="flex-1">
                 <h3 className="text-xl font-bold text-foreground mb-2">{artisan.name}</h3>
-                <p className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
-                  <Briefcase size={14} />
-                  {artisan.specialization}
-                </p>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
+                {artisan.specialization && (
+                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                    <Briefcase size={14} />
+                    {artisan.specialization}
+                  </p>
+                )}
+                {artisan.location && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <MapPin size={14} />
                     {artisan.location}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Star size={14} className="text-secondary fill-secondary" />
-                    <span className="font-semibold text-foreground">{artisan.rating}</span>
-                    <span>({artisan.reviews})</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{artisan.bio}</p>
+            {artisan.bio && (
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-3">{artisan.bio}</p>
+            )}
 
             <div className="grid grid-cols-2 gap-4 mb-6 p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white">
               <div>
@@ -194,20 +183,9 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
                 <p className="text-sm font-bold text-foreground">{artisan.experience}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Projects</p>
-                <p className="text-sm font-bold text-foreground">{artisan.completedProjects}</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Portfolio</p>
+                <p className="text-sm font-bold text-foreground">{artisan.portfolioCount} item{artisan.portfolioCount !== 1 ? 's' : ''}</p>
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              {artisan.skills.map((skill) => (
-                <Badge
-                  key={skill}
-                  className="bg-primary/10 text-primary px-3 py-1 text-xs font-semibold border-0"
-                >
-                  {skill}
-                </Badge>
-              ))}
             </div>
 
             <div className="flex gap-3">
@@ -218,11 +196,12 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
                 <MessageSquare size={16} className="mr-2" />
                 Contact
               </Button>
-              <Button 
-                variant="outline" 
-                className="h-11 px-6 rounded-xl border-2"
+              <Button
+                variant="outline"
+                className="flex-1 h-11 rounded-xl border-2"
                 onClick={() => setSelectedArtisanId(artisan.id)}
               >
+                <FolderOpen size={16} className="mr-2" />
                 View Profile
               </Button>
             </div>
