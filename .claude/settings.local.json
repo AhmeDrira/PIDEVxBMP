@@ -4,7 +4,12 @@
       "Bash(done)",
       "Bash(find /c/Users/ahmed/Documents/esprit/pi/bmp/PIDEVxBMP/backend -name *otification* -o -name *Notification*)",
       "Bash(npx tsc:*)",
-      "Bash(npx -p typescript tsc --noEmit --pretty)"
+      "Bash(npx -p typescript tsc --noEmit --pretty)",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)",
+      "Bash(node -e \"const m = require\\(''mongoose''\\); console.log\\(''Mongoose version:'', m.version\\)\")",
+      "Bash(node -e \":*)",
+      "Bash(python3 -c \":*)"
     ]
   }
 }

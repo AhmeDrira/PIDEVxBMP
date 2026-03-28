@@ -102,6 +102,7 @@ export default function Messages() {
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [blockedByOther, setBlockedByOther] = useState(false);
   const [selectedProfileArtisanId, setSelectedProfileArtisanId] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ type: 'delete-conv' | 'block' | 'unblock' | 'report' | 'delete-msg'; messageId?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const conversationMenuRef = useRef<HTMLDivElement | null>(null);
@@ -465,8 +466,6 @@ export default function Messages() {
 
   const handleDeleteConversation = async () => {
     if (!selectedConversationId) return;
-    const confirmed = window.confirm('Delete this conversation?');
-    if (!confirmed) return;
     try {
       const token = getToken();
       if (!token) return;
@@ -487,8 +486,6 @@ export default function Messages() {
   const handleToggleBlock = async () => {
     if (!selectedConversationId || !selectedConv) return;
     const blocking = !blockedByMe;
-    const confirmed = window.confirm(blocking ? 'Block this user?' : 'Unblock this user?');
-    if (!confirmed) return;
     try {
       const token = getToken();
       if (!token) return;
@@ -508,8 +505,6 @@ export default function Messages() {
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    const confirmed = window.confirm('Delete this message?');
-    if (!confirmed) return;
     try {
       const token = getToken();
       if (!token) return;
@@ -520,6 +515,44 @@ export default function Messages() {
       fetchConversations();
     } catch (err) {
       console.error('Error deleting message:', err);
+    }
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmModal) return;
+    switch (confirmModal.type) {
+      case 'delete-conv':
+        await handleDeleteConversation();
+        break;
+      case 'block':
+      case 'unblock':
+        await handleToggleBlock();
+        break;
+      case 'report':
+        setIsConversationMenuOpen(false);
+        break;
+      case 'delete-msg':
+        if (confirmModal.messageId) await handleDeleteMessage(confirmModal.messageId);
+        break;
+    }
+    setConfirmModal(null);
+  };
+
+  const getConfirmModalConfig = () => {
+    if (!confirmModal) return { title: '', message: '', confirmLabel: '', color: '' };
+    switch (confirmModal.type) {
+      case 'delete-conv':
+        return { title: 'Delete Conversation', message: 'Are you sure you want to delete this conversation? All messages will be permanently removed.', confirmLabel: 'Delete', color: '#ef4444' };
+      case 'block':
+        return { title: 'Block User', message: `Are you sure you want to block ${selectedConv?.name || 'this user'}? They won't be able to send you messages.`, confirmLabel: 'Block', color: '#ef4444' };
+      case 'unblock':
+        return { title: 'Unblock User', message: `Are you sure you want to unblock ${selectedConv?.name || 'this user'}?`, confirmLabel: 'Unblock', color: '#10b981' };
+      case 'report':
+        return { title: 'Report User', message: `Are you sure you want to report ${selectedConv?.name || 'this user'}? Our team will review the conversation.`, confirmLabel: 'Report', color: '#f59e0b' };
+      case 'delete-msg':
+        return { title: 'Delete Message', message: 'Are you sure you want to delete this message?', confirmLabel: 'Delete', color: '#ef4444' };
+      default:
+        return { title: '', message: '', confirmLabel: '', color: '' };
     }
   };
 
@@ -772,11 +805,11 @@ export default function Messages() {
                       </button>
                       <button
                         type="button"
-                        onClick={handleToggleBlock}
+                        onClick={() => { setConfirmModal({ type: blockedByMe ? 'unblock' : 'block' }); setIsProfileMenuOpen(false); }}
                         className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50"
                       >
                         {blockedByMe ? <ShieldCheck size={16} /> : <Ban size={16} />}
-                        {blockedByMe ? 'Débloquer' : 'Bloquer'}
+                        {blockedByMe ? 'Unblock' : 'Block'}
                       </button>
                     </div>
                   )}
@@ -804,30 +837,27 @@ export default function Messages() {
                   <div className="absolute right-0 top-full mt-2 z-40 min-w-[220px] rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
                     <button
                       type="button"
-                      onClick={handleDeleteConversation}
+                      onClick={() => { setConfirmModal({ type: 'delete-conv' }); setIsConversationMenuOpen(false); }}
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 text-left"
                     >
                       <Trash2 size={16} />
-                      Supprimer la conversation
+                      Delete Conversation
                     </button>
                     <button
                       type="button"
-                      onClick={handleToggleBlock}
+                      onClick={() => { setConfirmModal({ type: blockedByMe ? 'unblock' : 'block' }); setIsConversationMenuOpen(false); }}
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 text-left"
                     >
                       {blockedByMe ? <ShieldCheck size={16} /> : <Ban size={16} />}
-                      {blockedByMe ? 'Débloquer l’utilisateur' : 'Bloquer l’utilisateur'}
+                      {blockedByMe ? 'Unblock User' : 'Block User'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        window.alert('Signalement envoyé');
-                        setIsConversationMenuOpen(false);
-                      }}
+                      onClick={() => { setConfirmModal({ type: 'report' }); setIsConversationMenuOpen(false); }}
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 text-left"
                     >
                       <Flag size={16} />
-                      Signaler
+                      Report
                     </button>
                   </div>
                 )}
@@ -882,7 +912,7 @@ export default function Messages() {
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 hover:text-destructive"
-                            onClick={() => handleDeleteMessage(message.id)}
+                            onClick={() => setConfirmModal({ type: 'delete-msg', messageId: message.id })}
                           >
                             <Trash2 size={14} />
                           </Button>
@@ -912,8 +942,8 @@ export default function Messages() {
                           : 'bg-gray-100 border-l-gray-400 text-gray-700'
                       }`}
                     >
-                      <p className="text-[11px] font-semibold mb-0.5">Vous avez répondu à {message.replyTo.senderName}</p>
-                      <p className="text-xs line-clamp-2 opacity-90">{message.replyTo.content || 'Pièce jointe'}</p>
+                      <p className="text-[11px] font-semibold mb-0.5">Replied to {message.replyTo.senderName}</p>
+                      <p className="text-xs line-clamp-2 opacity-90">{message.replyTo.content || 'Attachment'}</p>
                     </div>
                   )}
                   {message.content && (
@@ -1125,6 +1155,39 @@ export default function Messages() {
           )}
         </div>
       </Card>
+
+      {/* Confirmation Modal */}
+      {confirmModal && (() => {
+        const config = getConfirmModalConfig();
+        return (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setConfirmModal(null)}
+          >
+            <div
+              style={{ backgroundColor: '#fff', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1f2937', textAlign: 'center', margin: '0 0 8px' }}>{config.title}</h3>
+              <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>{config.message}</p>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => setConfirmModal(null)}
+                  style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid #e5e7eb', backgroundColor: '#fff', color: '#374151', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmAction}
+                  style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: 'none', backgroundColor: config.color, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {config.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

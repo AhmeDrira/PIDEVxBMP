@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { isSubscriptionActive, SubscriptionPopup } from './SubscriptionGuard';
 import axios from 'axios';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -58,6 +59,8 @@ const emptyForm = {
 };
 
 export default function ArtisanPortfolio() {
+  const [subLocked] = useState(() => !isSubscriptionActive());
+  const [showSubPopup, setShowSubPopup] = useState(subLocked);
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -557,6 +560,11 @@ export default function ArtisanPortfolio() {
             </div>
           )}
         </>
+      )}
+
+      {/* Subscription lock overlay */}
+      {showSubPopup && (
+        <SubscriptionPopup onClose={() => setShowSubPopup(false)} />
       )}
     </div>
   );

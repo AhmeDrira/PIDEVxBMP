@@ -103,6 +103,19 @@ exports.getMyPortfolio = async (req, res) => {
   }
 };
 
+// Public: get any artisan's portfolio by artisan ID
+exports.getArtisanPortfolio = async (req, res) => {
+  try {
+    const artisan = await Artisan.findById(req.params.id).select('portfolio');
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan not found' });
+    }
+    return res.status(200).json(artisan.portfolio || []);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 exports.getPortfolioItemById = async (req, res) => {
   try {
     const artisan = await Artisan.findById(req.user._id).select('portfolio');

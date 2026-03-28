@@ -41,9 +41,12 @@ export default function ManufacturerProducts() {
     return token;
   };
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<any>(null);
+
   const getImageUrl = (path: string) => {
     if (!path) return null;
-    const cleanPath = path.replace(/\\/g, '/');
+    const cleanPath = path.replace(/\\/g, '/').replace(/^\/+/, '');
     return cleanPath.startsWith('http') ? cleanPath : `${SERVER_URL}/${cleanPath}`;
   };
 
@@ -67,16 +70,23 @@ export default function ManufacturerProducts() {
     if (view === 'list') fetchProducts();
   }, [view]);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure?")) return;
+  const confirmDelete = (product: any) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!productToDelete) return;
     try {
       const token = getToken();
-      await axios.delete(`${API_URL}/products/${id}`, {
+      await axios.delete(`${API_URL}/products/${productToDelete._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setProducts(products.filter(p => p._id !== id));
+      setProducts(products.filter(p => p._id !== productToDelete._id));
+      setShowDeleteModal(false);
+      setProductToDelete(null);
     } catch (error) {
-      alert("Failed to delete.");
+      console.error('Delete failed:', error);
     }
   };
 
@@ -284,7 +294,7 @@ export default function ManufacturerProducts() {
               
               <div className="flex gap-3 pt-6 border-t border-slate-100">
                 <Button onClick={() => handleEditClick(product)} className="flex-1 h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-semibold"><Edit size={18} className="mr-2" /> Edit Material</Button>
-                <Button onClick={() => handleDelete(product._id)} variant="outline" className="h-12 px-5 rounded-xl border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"><Trash2 size={18} /></Button>
+                <Button onClick={() => confirmDelete(product)} variant="outline" className="h-12 px-5 rounded-xl border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"><Trash2 size={18} /></Button>
               </div>
             </div>
           </div>
@@ -391,7 +401,7 @@ export default function ManufacturerProducts() {
                   <Edit size={16} />
                 </Button>
                 <Button 
-                  onClick={() => handleDelete(product._id)} 
+                  onClick={() => confirmDelete(product)} 
                   variant="outline" 
                   className="rounded-lg h-10 w-10 p-0 border-slate-200 text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
                 >
@@ -401,6 +411,41 @@ export default function ManufacturerProducts() {
               
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && productToDelete && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            style={{ backgroundColor: '#fff', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Trash2 size={28} style={{ color: '#ef4444' }} />
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1f2937', textAlign: 'center', margin: '0 0 8px' }}>Delete Product</h3>
+            <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>
+              Are you sure you want to delete <strong style={{ color: '#1f2937' }}>{productToDelete.name}</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid #e5e7eb', backgroundColor: '#fff', color: '#374151', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

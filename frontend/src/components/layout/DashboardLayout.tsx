@@ -196,12 +196,12 @@ export default function DashboardLayout({
         <div className="flex items-center gap-2">
           {(userRole === 'expert' || userRole === 'artisan') && (
             <button
-              onClick={() => onMenuItemClick('messages')}
+              onClick={() => { setUnreadCount(0); onMenuItemClick('messages'); }}
               className="p-2 rounded-lg hover:bg-gray-100 relative"
             >
               <MessageCircle size={20} className="text-muted-foreground transition-colors hover:text-primary" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white box-content">
+                <span style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', minWidth: 18, height: 18, padding: '0 4px', fontSize: 10, fontWeight: 700, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', boxSizing: 'content-box' }}>
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -302,13 +302,13 @@ export default function DashboardLayout({
           </div>
           <div className="flex items-center gap-4">
             {(userRole === 'expert' || userRole === 'artisan') && (
-              <button 
-                onClick={() => onMenuItemClick('messages')}
+              <button
+                onClick={() => { setUnreadCount(0); onMenuItemClick('messages'); }}
                 className="p-3 rounded-xl hover:bg-gray-100 relative transition-colors"
               >
                 <MessageCircle size={20} className="text-muted-foreground hover:text-primary transition-colors" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white min-w-[20px] h-[20px] px-1 text-xs font-bold rounded-full flex items-center justify-center border-2 border-white box-content">
+                  <span style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', minWidth: 20, height: 20, padding: '0 5px', fontSize: 11, fontWeight: 700, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', boxSizing: 'content-box' }}>
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}

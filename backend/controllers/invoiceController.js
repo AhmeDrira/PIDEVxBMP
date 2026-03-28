@@ -170,10 +170,13 @@ const createInvoice = async (req, res) => {
 // @route   GET /api/invoices
 const getInvoices = async (req, res) => {
   try {
-    // On récupère les factures ET on "populate" le projet pour avoir son Titre
     const invoices = await Invoice.find({ artisan: req.user._id })
       .populate('project', 'title')
       .sort({ createdAt: -1 });
+
+    // Normalize payment fields so the frontend always sees correct tranche amounts
+    invoices.forEach((inv) => normalizeInvoicePaymentFields(inv));
+
     res.status(200).json(invoices);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -259,8 +262,8 @@ const createInvoiceFromQuote = async (req, res) => {
       paidAmount: 0,
       paymentProgress: 0,
       paymentPlan: {
-        firstTranchePercent: 50,
-        secondTranchePercent: 50,
+        firstTranchePercent: Number(quote.upfrontPercent) || 50,
+        secondTranchePercent: 100 - (Number(quote.upfrontPercent) || 50),
         firstTranchePaid: false,
         secondTranchePaid: false,
       },
