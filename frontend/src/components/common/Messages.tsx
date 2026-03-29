@@ -31,7 +31,7 @@ import CallingModal from './CallingModal';
 import VideoCall from './VideoCall';
 import AudioCall from './AudioCall';
 import { useSocket } from '../../context/SocketContext';
-import { useCall } from '../../hooks/useCall';
+import { useGlobalCall } from '../../context/GlobalCallContext';
 import { useWebRTC } from '../../hooks/useWebRTC';
 
 interface Conversation {
@@ -108,7 +108,17 @@ export default function Messages() {
   const conversationMenuRef = useRef<HTMLDivElement | null>(null);
 
   const { socket } = useSocket();
-  const { callState, initiateCall, acceptCall: acceptCallState, rejectCall, endCall: endCallState, patchRemoteUser } = useCall(socket, currentUserId);
+  const {
+    callState,
+    initiateCall,
+    acceptCall: acceptCallState,
+    rejectCall,
+    endCall: endCallState,
+    patchRemoteUser,
+    setIsMessagesOpen,
+    pendingOffer,
+    clearPendingOffer,
+  } = useGlobalCall();
   const {
     localStream,
     remoteStream,
@@ -123,6 +133,29 @@ export default function Messages() {
     isCameraEnabled
   } = useWebRTC(socket, selectedConversationId);
 
+  // Tell GlobalCallContext that Messages is mounted so global IncomingCallModal is suppressed
+  useEffect(() => {
+    setIsMessagesOpen(true);
+    return () => setIsMessagesOpen(false);
+  }, [setIsMessagesOpen]);
+
+  // Check for pending call conversation (accepted from another page)
+  useEffect(() => {
+    const pending = localStorage.getItem('pendingCallConvId');
+    if (pending) {
+      setSelectedConversationId(pending);
+      localStorage.removeItem('pendingCallConvId');
+    }
+  }, []);
+
+  // Handle buffered WebRTC offer (callee navigated to Messages after accepting)
+  useEffect(() => {
+    if (pendingOffer && callState.type && callState.status === 'in-call' && !callState.isCaller) {
+      acceptWebRTCCall(callState.type, pendingOffer).catch(console.error);
+      clearPendingOffer();
+    }
+  }, [pendingOffer, callState.type, callState.status, callState.isCaller, acceptWebRTCCall, clearPendingOffer]);
+
   useEffect(() => {
     if (callState.status === 'in-call' && callState.isCaller && callState.type) {
       startCall(callState.type).catch(console.error);
@@ -131,20 +164,20 @@ export default function Messages() {
 
   useEffect(() => {
     if (!socket) return;
-    
+
     const onOffer = ({ offer }: any) => {
       if (callState.type) {
         acceptWebRTCCall(callState.type, offer).catch(console.error);
       }
     };
-    
+
     const onAnswer = ({ answer }: any) => handleAnswer(answer);
     const onIceCandidate = ({ candidate }: any) => handleIceCandidate(candidate);
-    
+
     socket.on('call:offer', onOffer);
     socket.on('call:answer', onAnswer);
     socket.on('call:ice-candidate', onIceCandidate);
-    
+
     return () => {
       socket.off('call:offer', onOffer);
       socket.off('call:answer', onAnswer);
@@ -623,14 +656,6 @@ export default function Messages() {
     setBlockedByOther(Boolean(selectedConv.blockedByOtherUser));
   }, [selectedConv]);
 
-  // Debugging logs for Call State
-  useEffect(() => {
-    console.log('=== Messages Render ===');
-    console.log('callState.status:', callState.status);
-    console.log('callState.type:', callState.type);
-    console.log('localStream:', !!localStream);
-    console.log('remoteStream:', !!remoteStream);
-  }, [callState, localStream, remoteStream]);
 
   if (selectedProfileArtisanId) {
     return (
@@ -647,7 +672,7 @@ export default function Messages() {
         {/* Conversations List */}
         <div className="lg:w-96 border-r-2 border-gray-100 flex flex-col">
           <div className="p-6 border-b-2 border-gray-100">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Messages</h2>
+            
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
               <Input
@@ -703,68 +728,51 @@ export default function Messages() {
         {/* Chat Area */}
         <div className="flex-1 flex flex-col relative bg-gray-50 h-full">
           {callState.status === 'ringing' ? (
-            <IncomingCallModal 
-              callState={callState} 
+            <IncomingCallModal
+              callState={callState}
               onAccept={() => {
                 acceptCallState();
                 const currentConv = conversations.find(c => c.id === callState.conversationId);
                 if (currentConv) setSelectedConversationId(currentConv.id);
-              }} 
-              onReject={rejectCall} 
+              }}
+              onReject={rejectCall}
             />
           ) : callState.status === 'calling' ? (
             <CallingModal callState={callState} onCancel={endEntireCall} />
           ) : callState.status === 'in-call' ? (
-            (() => {
-              console.log('Rendering call window - status:', callState.status);
-              console.log('Rendering call window - type:', callState.type);
-              console.log('localStream available:', !!localStream);
-              console.log('remoteStream available:', !!remoteStream);
-              
-              return (
-                <div 
-                  className="fixed inset-0 flex items-center justify-center pointer-events-auto"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 9999 }}
-                >
-                  <div 
-                    className="relative flex flex-col overflow-hidden"
-                    style={{ 
-                      width: '850px', 
-                      height: '650px', 
-                      maxWidth: '90vw', 
-                      maxHeight: '85vh', 
-                      backgroundColor: '#000', 
-                      borderRadius: '16px', 
-                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-                    }}
-                  >
-                    {callState.type === 'video' ? (
-                      <VideoCall
-                        callState={callState}
-                        localStream={localStream}
-                        remoteStream={remoteStream}
-                        isMicrophoneEnabled={isMicrophoneEnabled}
-                        isCameraEnabled={isCameraEnabled}
-                        toggleMicrophone={toggleMicrophone}
-                        toggleCamera={toggleCamera}
-                        endCall={endEntireCall}
-                      />
-                    ) : (
-                      <AudioCall
-                        callState={callState}
-                        remoteStream={remoteStream}
-                        isMicrophoneEnabled={isMicrophoneEnabled}
-                        toggleMicrophone={toggleMicrophone}
-                        endCall={endEntireCall}
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })()
+            <div
+              className="fixed inset-0 flex items-center justify-center pointer-events-auto"
+              style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 9999 }}
+            >
+              <div
+                className="relative flex flex-col overflow-hidden"
+                style={{ width: '850px', height: '650px', maxWidth: '90vw', maxHeight: '85vh', backgroundColor: '#000', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}
+              >
+                {callState.type === 'video' ? (
+                  <VideoCall
+                    callState={callState}
+                    localStream={localStream}
+                    remoteStream={remoteStream}
+                    isMicrophoneEnabled={isMicrophoneEnabled}
+                    isCameraEnabled={isCameraEnabled}
+                    toggleMicrophone={toggleMicrophone}
+                    toggleCamera={toggleCamera}
+                    endCall={endEntireCall}
+                  />
+                ) : (
+                  <AudioCall
+                    callState={callState}
+                    remoteStream={remoteStream}
+                    isMicrophoneEnabled={isMicrophoneEnabled}
+                    toggleMicrophone={toggleMicrophone}
+                    endCall={endEntireCall}
+                  />
+                )}
+              </div>
+            </div>
           ) : (
             <>
-              {selectedConv && (
+          {selectedConv && (
                 <div className="p-6 flex items-center justify-between border-b-2 border-gray-100 bg-white">
               <div className="flex items-center gap-4">
                 <div className="relative">

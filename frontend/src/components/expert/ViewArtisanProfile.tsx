@@ -3,18 +3,14 @@ import axios from 'axios';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowRight, MapPin, Briefcase, Calendar, Star, MessageSquare, Phone, Mail, Award, Image, Play, ArrowLeft } from 'lucide-react';
+import { ArrowRight, MapPin, Briefcase, Calendar, Star, MessageSquare, Phone, Mail, Award, Image, ArrowLeft, Send } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 interface ViewArtisanProfileProps {
   artisanId?: string;
   onBack?: () => void;
   onContact?: () => void;
-}
-
-interface ArtisanContact {
-  phone: string;
-  email: string;
+  onViewPortfolio?: () => void;
 }
 
 interface ArtisanProfile {
@@ -28,106 +24,162 @@ interface ArtisanProfile {
   completedProjects: number;
   profileImage: string;
   bio: string;
-  contact: ArtisanContact;
+  phone: string;
+  email: string;
   skills: string[];
   certifications: string[];
 }
 
-const API_BASE = 'http://localhost:5000';
+interface Review {
+  _id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  expert: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    profilePhoto?: string;
+  };
+}
 
-export default function ViewArtisanProfile({ artisanId, onBack, onContact }: ViewArtisanProfileProps) {
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '')
+  : 'http://localhost:5000';
+
+const API_URL = `${API_BASE}/api`;
+
+const getToken = () => {
+  const direct = localStorage.getItem('token');
+  if (direct) return direct;
+  try {
+    const parsed = JSON.parse(localStorage.getItem('user') || '{}');
+    return parsed?.token || '';
+  } catch {
+    return '';
+  }
+};
+
+const getMediaUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}/${url.replace(/^\/+/, '')}`;
+};
+
+export default function ViewArtisanProfile({ artisanId, onBack, onContact, onViewPortfolio }: ViewArtisanProfileProps) {
   const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'profile' | 'portfolio'>('profile');
-  const [portfolio, setPortfolio] = useState<any[]>([]);
-  const [loadingPortfolio, setLoadingPortfolio] = useState(false);
+
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [newRating, setNewRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [newComment, setNewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
 
   useEffect(() => {
-    const fetchArtisan = async () => {
-      if (!artisanId) {
-        setError('Artisan not found');
-        setLoading(false);
-        return;
-      }
+    if (!artisanId) {
+      setError('Artisan not found');
+      setLoading(false);
+      return;
+    }
 
+    const fetchArtisan = async () => {
       try {
         setLoading(true);
         setError(null);
-
-        const response = await axios.get(`${API_BASE}/api/artisans/${artisanId}`);
+        const response = await axios.get(`${API_URL}/artisans/${artisanId}`);
         const data = response.data;
 
-        const mappedArtisan: ArtisanProfile = {
+        setArtisan({
           firstName: data.firstName,
           lastName: data.lastName,
           domain: data.domain,
           location: data.location,
-          yearsExperience: data.yearsExperience,
+          yearsExperience: data.yearsExperience ?? 0,
           bio: data.bio,
-          contact: {
-            phone: data.phone,
-            email: data.email,
-          },
-          rating: 4.8,
-          reviewCount: 47,
-          completedProjects: 120,
-          skills: [
-            'Masonry',
-            'Concrete Work',
-            'Foundation Building',
-            'Brickwork',
-            'Stone Work',
-            'Plastering',
-          ],
-          certifications: [
-            'Licensed General Contractor',
-            'OSHA Safety Certified',
-            'Advanced Masonry Techniques',
-          ],
+          phone: data.phone,
+          email: data.email,
+          rating: data.rating ?? 0,
+          reviewCount: data.reviewCount ?? 0,
+          completedProjects: data.portfolioCount ?? data.completedProjects ?? 0,
+          skills: Array.isArray(data.skills) ? data.skills : [],
+          certifications: Array.isArray(data.certifications) ? data.certifications : [],
           profileImage: data.profilePhoto
-            ? (data.profilePhoto.startsWith('http') ? data.profilePhoto : `${API_BASE}/${data.profilePhoto.replace(/^\/+/, '')}`)
-            : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-        };
-
-        setArtisan(mappedArtisan);
+            ? (data.profilePhoto.startsWith('http') || data.profilePhoto.startsWith('data:')
+                ? data.profilePhoto
+                : `${API_BASE}/${data.profilePhoto.replace(/^\/+/, '')}`)
+            : '',
+        });
       } catch (err: any) {
-        const message =
-          err?.response?.data?.message ||
-          err?.message ||
-          'Failed to load artisan';
-        setError(message);
+        setError(err?.response?.data?.message || err?.message || 'Failed to load artisan');
       } finally {
         setLoading(false);
       }
     };
 
+    const fetchReviews = async () => {
+      try {
+        setLoadingReviews(true);
+        const response = await axios.get(`${API_URL}/artisans/${artisanId}/reviews`);
+        setReviews(response.data || []);
+      } catch {
+        setReviews([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
     fetchArtisan();
+    fetchReviews();
   }, [artisanId]);
 
-  const fetchPortfolio = async () => {
-    if (!artisanId) return;
+  const handleSubmitReview = async () => {
+    if (!newRating) { setReviewError('Please select a rating'); return; }
+    setReviewError('');
     try {
-      setLoadingPortfolio(true);
-      const response = await axios.get(`${API_BASE}/api/artisans/${artisanId}/portfolio`);
-      setPortfolio(response.data || []);
-    } catch (err) {
-      console.error('Failed to fetch portfolio:', err);
-      setPortfolio([]);
+      setSubmittingReview(true);
+      const token = getToken();
+      if (!token) { setReviewError('Please login to submit a review'); return; }
+
+      const response = await axios.post(
+        `${API_URL}/artisans/${artisanId}/reviews`,
+        { rating: newRating, comment: newComment },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setReviews(prev => {
+        const existing = prev.findIndex(r => r.expert._id === response.data.expert._id);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = response.data;
+          return updated;
+        }
+        return [response.data, ...prev];
+      });
+
+      // Update displayed rating
+      setArtisan(prev => {
+        if (!prev) return prev;
+        const allRatings = reviews.map(r => r.rating);
+        const existingIdx = reviews.findIndex(r => r.expert?._id === response.data.expert?._id);
+        if (existingIdx >= 0) allRatings[existingIdx] = newRating;
+        else allRatings.push(newRating);
+        const avg = allRatings.length > 0
+          ? Math.round((allRatings.reduce((s, r) => s + r, 0) / allRatings.length) * 10) / 10
+          : 0;
+        return { ...prev, rating: avg, reviewCount: allRatings.length };
+      });
+
+      setNewRating(0);
+      setNewComment('');
+    } catch (err: any) {
+      setReviewError(err?.response?.data?.message || 'Failed to submit review');
     } finally {
-      setLoadingPortfolio(false);
+      setSubmittingReview(false);
     }
-  };
-
-  const handleViewPortfolio = () => {
-    fetchPortfolio();
-    setView('portfolio');
-  };
-
-  const getMediaUrl = (url: string) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    return `${API_BASE}/${url.replace(/^\/+/, '')}`;
   };
 
   if (loading) {
@@ -158,81 +210,14 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
     );
   }
 
-  // ── Portfolio View ──
-  if (view === 'portfolio') {
-    const images = portfolio.flatMap(item =>
-      (item.media || []).filter((m: any) => m.type === 'image').map((m: any) => ({ ...m, projectTitle: item.title }))
-    );
-    const videos = portfolio.flatMap(item =>
-      (item.media || []).filter((m: any) => m.type === 'video').map((m: any) => ({ ...m, projectTitle: item.title }))
-    );
+  const avgRating = artisan.rating;
 
-    return (
-      <div className="space-y-6">
-        <Button variant="outline" onClick={() => setView('profile')} className="rounded-xl border-2">
-          <ArrowLeft size={20} className="mr-2" />
-          Back to Profile
-        </Button>
-
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: '0 0 4px' }}>
-            {artisan.firstName} {artisan.lastName}'s Portfolio
-          </h1>
-          <p style={{ fontSize: 15, color: '#6b7280' }}>{artisan.domain} &middot; {artisan.location}</p>
-        </div>
-
-        {loadingPortfolio ? (
-          <p className="text-sm text-muted-foreground py-10 text-center">Loading portfolio...</p>
-        ) : portfolio.length === 0 ? (
-          <Card className="p-12 bg-white rounded-2xl border-0 shadow-lg text-center">
-            <Image size={48} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-xl font-semibold text-gray-500">No portfolio items yet</p>
-            <p className="text-muted-foreground mt-1">This artisan hasn't added any work to their portfolio.</p>
-          </Card>
-        ) : (
-          <div className="space-y-8">
-            {/* Portfolio Projects */}
-            {portfolio.map((item: any, idx: number) => (
-              <Card key={item._id || idx} className="bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
-                <div style={{ padding: '24px 28px 20px' }}>
-                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: '0 0 4px' }}>{item.title}</h3>
-                  <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 4px' }}>{item.description}</p>
-                  {item.location && <p style={{ fontSize: 13, color: '#9ca3af' }}><MapPin size={14} className="inline mr-1" />{item.location}</p>}
-                  {item.completedDate && (
-                    <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
-                      <Calendar size={14} className="inline mr-1" />
-                      Completed: {new Date(item.completedDate).toLocaleDateString('en-GB')}
-                    </p>
-                  )}
-                </div>
-                {(item.media || []).length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 4, padding: '0 4px 4px' }}>
-                    {(item.media || []).map((m: any, mi: number) => (
-                      <div key={mi} style={{ aspectRatio: '4/3', borderRadius: 8, overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
-                        {m.type === 'video' ? (
-                          <video src={getMediaUrl(m.url)} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <img src={getMediaUrl(m.url)} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Profile View ──
   return (
     <div className="space-y-6">
       {/* Back Button */}
       {onBack && (
         <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
-          <ArrowRight size={20} className="mr-2 rotate-180" />
+          <ArrowLeft size={20} className="mr-2" />
           Back to Artisan Directory
         </Button>
       )}
@@ -240,7 +225,6 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
       {/* Profile Header */}
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Profile Image — smaller */}
           <div className="flex-shrink-0">
             <div style={{ width: 96, height: 96, borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '3px solid #f3f4f6' }}>
               <ImageWithFallback
@@ -251,30 +235,29 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
             </div>
           </div>
 
-          {/* Profile Info */}
           <div className="flex-1">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-foreground mb-2">
                   {artisan.firstName} {artisan.lastName}
                 </h1>
-                <div className="flex items-center gap-2 mb-3">
-                  <Briefcase size={20} className="text-primary" />
+                <div className="flex items-center gap-2 mb-2">
+                  <Briefcase size={18} className="text-primary" />
                   <span className="text-lg font-medium text-muted-foreground">{artisan.domain}</span>
                 </div>
-                <div className="flex items-center gap-2 mb-3">
-                  <MapPin size={20} className="text-muted-foreground" />
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin size={18} className="text-muted-foreground" />
                   <span className="text-muted-foreground">{artisan.location}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar size={20} className="text-muted-foreground" />
+                  <Calendar size={18} className="text-muted-foreground" />
                   <span className="text-muted-foreground">{artisan.yearsExperience} years of experience</span>
                 </div>
               </div>
 
               <div className="flex gap-3">
                 <Button
-                  onClick={handleViewPortfolio}
+                  onClick={onViewPortfolio}
                   variant="outline"
                   className="h-12 px-6 rounded-xl border-2"
                 >
@@ -296,7 +279,9 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
               <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Star size={20} className="text-secondary fill-secondary" />
-                  <span className="text-2xl font-bold text-foreground">{artisan.rating}</span>
+                  <span className="text-2xl font-bold text-foreground">
+                    {avgRating > 0 ? avgRating.toFixed(1) : '—'}
+                  </span>
                 </div>
                 <p className="text-sm text-muted-foreground">{artisan.reviewCount} Reviews</p>
               </div>
@@ -326,21 +311,21 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
               <Phone size={20} className="text-primary mt-1" />
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Phone</p>
-                <p className="font-medium text-foreground">{artisan.contact.phone}</p>
+                <p className="font-medium text-foreground">{artisan.phone || '—'}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <Mail size={20} className="text-primary mt-1" />
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Email</p>
-                <p className="font-medium text-foreground">{artisan.contact.email}</p>
+                <p className="font-medium text-foreground">{artisan.email || '—'}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <MapPin size={20} className="text-primary mt-1" />
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Location</p>
-                <p className="font-medium text-foreground">{artisan.location}</p>
+                <p className="font-medium text-foreground">{artisan.location || '—'}</p>
               </div>
             </div>
           </div>
@@ -351,32 +336,148 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact }: Vie
           {/* Skills */}
           <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
             <h2 className="text-xl font-bold text-foreground mb-4">Skills & Expertise</h2>
-            <div className="flex flex-wrap gap-3">
-              {artisan.skills.map((skill, idx) => (
-                <Badge
-                  key={idx}
-                  className="bg-primary/10 text-primary border-0 px-4 py-2 text-sm font-medium"
-                >
-                  {skill}
-                </Badge>
-              ))}
-            </div>
+            {artisan.skills.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {artisan.skills.map((skill, idx) => (
+                  <Badge key={idx} className="bg-primary/10 text-primary border-0 px-4 py-2 text-sm font-medium">
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No skills listed yet.</p>
+            )}
           </Card>
 
           {/* Certifications */}
           <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
             <h2 className="text-xl font-bold text-foreground mb-4">Certifications</h2>
-            <div className="space-y-3">
-              {artisan.certifications.map((cert, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-accent/5">
-                  <Award size={20} className="text-accent" />
-                  <span className="font-medium text-foreground">{cert}</span>
-                </div>
-              ))}
-            </div>
+            {artisan.certifications.length > 0 ? (
+              <div className="space-y-3">
+                {artisan.certifications.map((cert, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-accent/5">
+                    <Award size={20} className="text-accent" />
+                    <span className="font-medium text-foreground">{cert}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No certifications listed yet.</p>
+            )}
           </Card>
         </div>
       </div>
+
+      {/* Reviews & Ratings */}
+      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <h2 className="text-xl font-bold text-foreground mb-6">Reviews & Ratings</h2>
+
+        {/* Rating summary */}
+        <div className="flex items-center gap-4 mb-8 p-4 rounded-xl bg-gradient-to-br from-secondary/5 to-secondary/10">
+          <div className="text-center">
+            <p className="text-5xl font-extrabold text-foreground">
+              {avgRating > 0 ? avgRating.toFixed(1) : '—'}
+            </p>
+            <div className="flex justify-center gap-1 mt-1">
+              {[1,2,3,4,5].map(s => (
+                <Star
+                  key={s}
+                  size={16}
+                  className={s <= Math.round(avgRating) ? 'text-secondary fill-secondary' : 'text-gray-300'}
+                />
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">{artisan.reviewCount} review{artisan.reviewCount !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+
+        {/* Submit review form */}
+        <div className="mb-8 p-5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
+          <h3 className="text-base font-semibold text-foreground mb-1">Leave a Review</h3>
+          <p className="text-xs text-muted-foreground mb-3">Select a rating — comment is optional</p>
+          <div className="flex gap-1 mb-3">
+            {[1,2,3,4,5].map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setNewRating(s)}
+                onMouseEnter={() => setHoverRating(s)}
+                onMouseLeave={() => setHoverRating(0)}
+                className="focus:outline-none"
+              >
+                <Star
+                  size={32}
+                  className={(hoverRating || newRating) >= s ? 'text-secondary fill-secondary' : 'text-gray-300'}
+                />
+              </button>
+            ))}
+            {newRating > 0 && (
+              <span className="ml-2 self-center text-sm font-medium text-muted-foreground">
+                {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][newRating]}
+              </span>
+            )}
+          </div>
+          <textarea
+            value={newComment}
+            onChange={e => setNewComment(e.target.value)}
+            placeholder="Share your experience (optional)..."
+            className="w-full border-2 border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-primary"
+            rows={3}
+          />
+          {reviewError && <p className="text-sm text-red-500 mt-2">{reviewError}</p>}
+          <Button
+            onClick={handleSubmitReview}
+            disabled={submittingReview || !newRating}
+            className="mt-8 h-11 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl disabled:opacity-50"
+          >
+            <Send size={16} className="mr-2" />
+            {submittingReview ? 'Submitting...' : 'Submit Review'}
+          </Button>
+        </div>
+
+        {/* Reviews list */}
+        {loadingReviews ? (
+          <p className="text-sm text-muted-foreground text-center py-6">Loading reviews...</p>
+        ) : reviews.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No reviews yet. Be the first to review!</p>
+        ) : (
+          <div className="space-y-4">
+            {reviews.filter(review => review.expert).map(review => (
+              <div key={review._id} className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span className="text-white text-sm font-bold">
+                      {review.expert?.firstName?.[0]}{review.expert?.lastName?.[0]}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-foreground text-sm">
+                        {review.expert?.firstName} {review.expert?.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(review.createdAt).toLocaleDateString('en-GB')}
+                      </p>
+                    </div>
+                    <div className="flex gap-0.5 mb-2">
+                      {[1,2,3,4,5].map(s => (
+                        <Star
+                          key={s}
+                          size={14}
+                          className={s <= review.rating ? 'text-secondary fill-secondary' : 'text-gray-300'}
+                        />
+                      ))}
+                    </div>
+                    {review.comment && (
+                      <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

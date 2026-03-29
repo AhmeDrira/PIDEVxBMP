@@ -10,7 +10,7 @@ const setupCallSocket = (io, socket) => {
     console.log(`[Backend Socket] call:start received from user ${userId}`, data);
     try {
       const { conversationId, type } = data;
-      
+
       const conversation = await Conversation.findById(conversationId);
       if (!conversation) {
         console.log(`[Backend Socket] Conversation ${conversationId} not found`);
@@ -24,7 +24,7 @@ const setupCallSocket = (io, socket) => {
 
       const otherParticipantId = conversation.participants.find(p => String(p) !== String(userId));
       const room = `call:${conversationId}`;
-      
+
       socket.join(room);
 
       // Timeout si pas de reponse
@@ -54,13 +54,13 @@ const setupCallSocket = (io, socket) => {
   socket.on('call:accepted', (data) => {
     const { conversationId } = data;
     const room = `call:${conversationId}`;
-    
+
     // Annuler le timeout
     const callState = activeCalls.get(conversationId);
     if (callState && callState.timer) {
       clearTimeout(callState.timer);
     }
-    
+
     socket.join(room);
     socket.to(room).emit('call:accepted', { accepterId: userId });
   });
@@ -68,7 +68,7 @@ const setupCallSocket = (io, socket) => {
   socket.on('call:rejected', (data) => {
     const { conversationId } = data;
     const room = `call:${conversationId}`;
-    
+
     // Annuler le timeout
     const callState = activeCalls.get(conversationId);
     if (callState && callState.timer) {
@@ -104,7 +104,7 @@ const setupCallSocket = (io, socket) => {
   socket.on('call:end', (data) => {
     const { conversationId } = data;
     const room = `call:${conversationId}`;
-    
+
     const callState = activeCalls.get(conversationId);
     if (callState && callState.timer) {
       clearTimeout(callState.timer);
@@ -114,7 +114,7 @@ const setupCallSocket = (io, socket) => {
     socket.to(room).emit('call:end');
     io.in(room).socketsLeave(room);
   });
-  
+
   socket.on('disconnecting', () => {
     // Lorsqu'on se deconnecte, on avertit les rooms call:*
     for (const room of socket.rooms) {

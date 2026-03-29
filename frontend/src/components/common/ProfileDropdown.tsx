@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, User, LogOut, Settings, KeyRound } from 'lucide-react';
+import { ChevronDown, User, LogOut, Settings, KeyRound, Star } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 
@@ -11,10 +11,11 @@ interface ProfileDropdownProps {
   onEditProfile: () => void;
   editProfileLabel?: string;
   onUpdatePassword?: () => void;
+  onViewReviews?: () => void;
   onLogout: () => void;
 }
 
-export default function ProfileDropdown({ userName, userRole, profilePhoto, onViewProfile, onEditProfile, editProfileLabel = 'Edit Profile', onUpdatePassword, onLogout }: ProfileDropdownProps) {
+export default function ProfileDropdown({ userName, userRole, profilePhoto, onViewProfile, onEditProfile, editProfileLabel = 'Edit Profile', onUpdatePassword, onViewReviews, onLogout }: ProfileDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const getRoleBadgeColor = (role: string) => {
@@ -98,6 +99,19 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                 <Settings size={18} className="text-muted-foreground" />
                 <span className="font-medium text-foreground">{editProfileLabel}</span>
               </button>
+
+              {onViewReviews && (
+                <button
+                  onClick={() => {
+                    onViewReviews();
+                    setIsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <Star size={18} className="text-muted-foreground" />
+                  <span className="font-medium text-foreground">View Profile Reviews</span>
+                </button>
+              )}
 
               {onUpdatePassword && (
                 <button

@@ -140,16 +140,23 @@ export default function MyOrders() {
                     const isCurrent = currentStepIndex === i;
                     return (
                       <div key={stepStatus} className="flex flex-col items-center z-10" style={{ flex: 1 }}>
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${
-                          isReached
-                            ? isCurrent
-                              ? 'bg-primary text-white shadow-lg shadow-primary/30 ring-4 ring-primary/20'
-                              : 'bg-green-500 text-white'
-                            : 'bg-gray-100 text-gray-400'
-                        }`}>
-                          {isReached && !isCurrent ? <CheckCircle size={20} /> : <StepIcon size={20} />}
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500"
+                          style={{
+                            backgroundColor: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#22c55e') : '#f3f4f6',
+                            color: isReached ? '#ffffff' : '#9ca3af',
+                            boxShadow: isCurrent ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
+                          }}
+                        >
+                          {isReached && !isCurrent
+                            ? <CheckCircle size={20} style={{ color: '#ffffff' }} />
+                            : <StepIcon size={20} style={{ color: isReached ? '#ffffff' : '#9ca3af' }} />
+                          }
                         </div>
-                        <span className={`text-xs mt-2 font-medium ${isReached ? (isCurrent ? 'text-primary' : 'text-green-600') : 'text-gray-400'}`}>
+                        <span
+                          className="text-xs mt-2 font-medium"
+                          style={{ color: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#16a34a') : '#9ca3af' }}
+                        >
                           {stepConf?.label}
                         </span>
                       </div>
@@ -158,8 +165,11 @@ export default function MyOrders() {
                   {/* Connecting line */}
                   <div className="absolute top-6 left-[12.5%] right-[12.5%] h-1 bg-gray-100 rounded-full">
                     <div
-                      className="h-full bg-green-500 rounded-full transition-all duration-700"
-                      style={{ width: currentStepIndex >= 0 ? `${Math.min(100, (currentStepIndex / (timelineSteps.length - 1)) * 100)}%` : '0%' }}
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        backgroundColor: '#22c55e',
+                        width: currentStepIndex >= 0 ? `${Math.min(100, (currentStepIndex / (timelineSteps.length - 1)) * 100)}%` : '0%',
+                      }}
                     />
                   </div>
                 </div>
@@ -297,12 +307,6 @@ export default function MyOrders() {
   // --- ORDER LIST VIEW ---
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">My Orders</h1>
-        <p className="text-muted-foreground mt-1">Track your material purchases and deliveries</p>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4 bg-white rounded-2xl border-0 shadow-lg">

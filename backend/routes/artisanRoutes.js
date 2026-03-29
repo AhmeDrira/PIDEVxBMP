@@ -14,6 +14,9 @@ const {
   addMediaToPortfolioItem,
   getPortfolioItemById,
   getArtisanPortfolio,
+  getArtisanReviews,
+  addArtisanReview,
+  getPublicPortfolioItem,
 } = require('../controllers/artisanController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -48,5 +51,8 @@ router.get('/', getAllArtisans);
 router.get('/search', searchArtisans); // MUST be before /:id
 router.get('/:id', getArtisanById);
 router.get('/:id/portfolio', getArtisanPortfolio);
+router.get('/:id/portfolio/:itemId', getPublicPortfolioItem);
+router.get('/:id/reviews', getArtisanReviews);
+router.post('/:id/reviews', protect, addArtisanReview);
 
 module.exports = router;

@@ -10,8 +10,10 @@ import ArtisanMessages from '../artisan/ArtisanMessages';
 import ArtisanSubscription from '../artisan/ArtisanSubscription';
 import ArtisanProfile from '../artisan/ArtisanProfile';
 import ArtisanPortfolio from '../artisan/ArtisanPortfolio';
+import PortfolioGalleryPage from '../artisan/PortfolioGalleryPage';
 import MyOrders from '../common/MyOrders';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
+import ArtisanProfileReviews from '../artisan/ArtisanProfileReviews';
 import axios from 'axios';
 
 interface ArtisanDashboardProps {
@@ -24,6 +26,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     const fromQuery = params.get('artisanView');
     return fromQuery || 'home';
   });
+  const [selectedPortfolioItemId, setSelectedPortfolioItemId] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState(() => {
     const s = localStorage.getItem('user');
@@ -73,6 +76,12 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       const cleaned = params.toString();
       window.history.replaceState({}, '', cleaned ? `/?${cleaned}` : '/');
     }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setActiveView('messages');
+    window.addEventListener('goto-messages-call', handler);
+    return () => window.removeEventListener('goto-messages-call', handler);
   }, []);
 
   useEffect(() => {
@@ -147,7 +156,16 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       case 'profile':
         return <ArtisanProfile />;
       case 'portfolio':
-        return <ArtisanPortfolio />;
+        return <ArtisanPortfolio
+          onViewReviews={() => setActiveView('reviews')}
+          onViewGallery={(itemId) => { setSelectedPortfolioItemId(itemId); setActiveView('gallery'); }}
+        />;
+      case 'gallery':
+        return selectedPortfolioItemId
+          ? <PortfolioGalleryPage itemId={selectedPortfolioItemId} onBack={() => setActiveView('portfolio')} />
+          : null;
+      case 'reviews':
+        return <ArtisanProfileReviews />;
       case 'orders':
         return <MyOrders />;
       default:
@@ -161,6 +179,10 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
 
   const handleEditProfile = () => {
     setActiveView('portfolio');
+  };
+
+  const handleViewReviews = () => {
+    setActiveView('reviews');
   };
 
   const handleUpdatePassword = () => {
@@ -205,6 +227,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}
       editProfileLabel="View Portfolio"
+      onViewReviews={handleViewReviews}
       userRole={role}
       userName={fullName}
       profilePhoto={profilePhoto}

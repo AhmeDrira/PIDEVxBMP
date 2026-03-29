@@ -5,20 +5,36 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Loader2, Plus, X, Award } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
+import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { TUNISIA_STATES } from '../../lib/tunisiaStates';
 
+const SPECIALIZATIONS = [
+  'Masonry',
+  'Concrete Work',
+  'Foundation Construction',
+  'Plumbing',
+  'Electrical Installation',
+  'Carpentry',
+  'Painting',
+  'Tiling',
+  'Plastering',
+  'Roofing',
+  'Waterproofing',
+  'HVAC',
+  'Metal Work',
+  'Aluminum Work',
+];
+
 export default function ArtisanProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  
-  // Use Vite proxy to avoid CORS issues in development
+  const [isLoading, setIsLoading] = useState(false);
   const API_URL = '/api';
 
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -26,26 +42,26 @@ export default function ArtisanProfile() {
     phone: '',
     location: '',
     bio: '',
-    domain: '', // domain correspond à specialization
+    domain: '',
     yearsExperience: '',
-    profilePhoto: ''
+    profilePhoto: '',
   });
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [skills, setSkills] = useState<string[]>([]);
+  const [certifications, setCertifications] = useState<string[]>([]);
+  const [newSkill, setNewSkill] = useState('');
+  const [newCertification, setNewCertification] = useState('');
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image must be less than 5MB');
-        return;
-      }
+      if (file.size > 5 * 1024 * 1024) { toast.error('Image must be less than 5MB'); return; }
       const reader = new FileReader();
       reader.onloadend = () => {
         const newPhoto = reader.result as string;
         setFormData(prev => ({ ...prev, profilePhoto: newPhoto }));
-        // Sync immediately so header/dropdown avatars update right away
         const stored = localStorage.getItem('user');
         if (stored) {
           const parsed = JSON.parse(stored);
@@ -57,51 +73,25 @@ export default function ArtisanProfile() {
     }
   };
 
-  // 1. Récupérer les données de l'artisan au chargement
-  // 1. Récupérer les données de l'artisan au chargement
+  const getToken = () => {
+    const direct = localStorage.getItem('token');
+    if (direct) return direct;
+    try { return JSON.parse(localStorage.getItem('user') || '{}').token || null; } catch { return null; }
+  };
+
   useEffect(() => {
     const fetchProfile = async () => {
-      try {// Remplace la partie "VÉRIFICATION DU TOKEN" par ceci :
-  let token = null;
-  
-  // On cherche d'abord si la clé s'appelle directement 'token'
-  const directToken = localStorage.getItem('token');
-  
-  // Sinon on regarde si c'est stocké dans un objet 'user'
-  const userStorage = localStorage.getItem('user');
-
-  if (directToken) {
-    token = directToken;
-  } else if (userStorage) {
-    // Si c'est un objet, on le transforme en JSON pour extraire le token
-    const parsedUser = JSON.parse(userStorage);
-    token = parsedUser.token; // Assure-toi que c'est bien ".token" que le backend renvoie lors du login
-  }
-
-  console.log("1. Token extrait :", token);
-
-  if (!token) {
-    console.error("Toujours aucun token ! Il faut vérifier le authService.ts");
-    setLoading(false);
-    return;
-  }
+      try {
+        const token = getToken();
+        if (!token) { setLoading(false); return; }
 
         const response = await axios.get(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
-        
-        console.log("2. Réponse du Backend :", response.data);
-
-        // Adaptation si le backend renvoie { user: { ... } } ou directement les données
-        const userData = response.data.user ? response.data.user : response.data;
-        
-        console.log("3. Données extraites :", userData);
+        const userData = response.data.user ?? response.data;
 
         const locationValue = userData.location || '';
-        const parsedStates = locationValue
-          .split(',')
-          .map((state: string) => state.trim())
-          .filter(Boolean);
+        const parsedStates = locationValue.split(',').map((s: string) => s.trim()).filter(Boolean);
 
         setFormData({
           firstName: userData.firstName || '',
@@ -112,12 +102,12 @@ export default function ArtisanProfile() {
           bio: userData.bio || '',
           domain: userData.domain || '',
           yearsExperience: userData.yearsExperience?.toString() || '',
-          profilePhoto: userData.profilePhoto || ''
+          profilePhoto: userData.profilePhoto || '',
         });
-
         setSelectedStates(parsedStates);
+        setSkills(Array.isArray(userData.skills) ? userData.skills : []);
+        setCertifications(Array.isArray(userData.certifications) ? userData.certifications : []);
 
-        // Sync localStorage so header/dropdown avatars reflect the DB photo on load
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser);
@@ -129,48 +119,48 @@ export default function ArtisanProfile() {
           }));
           window.dispatchEvent(new Event('storage'));
         }
-
-        setLoading(false);
       } catch (error: any) {
-        console.error("Erreur détaillée lors du chargement du profil:", error.response?.data || error.message);
+        console.error('Profile load error:', error.response?.data || error.message);
+      } finally {
         setLoading(false);
       }
     };
-
     fetchProfile();
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      location: selectedStates.join(', '),
-    }));
+    setFormData(prev => ({ ...prev, location: selectedStates.join(', ') }));
   }, [selectedStates]);
 
-  // 2. Sauvegarder les modifications
+  const handleAddSkill = () => {
+    const trimmed = newSkill.trim();
+    if (trimmed && !skills.includes(trimmed)) {
+      setSkills(prev => [...prev, trimmed]);
+      setNewSkill('');
+    }
+  };
+
+  const handleAddCertification = () => {
+    const trimmed = newCertification.trim();
+    if (trimmed && !certifications.includes(trimmed)) {
+      setCertifications(prev => [...prev, trimmed]);
+      setNewCertification('');
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // --- ON RÉCUPÈRE LE TOKEN DE LA MÊME FAÇON ---
-      let token = localStorage.getItem('token');
-      const userStorage = localStorage.getItem('user');
-      
-      if (!token && userStorage) {
-        const parsedUser = JSON.parse(userStorage);
-        token = parsedUser.token; 
-      }
+      const token = getToken();
+      if (!token) { toast.error('Security error: Unable to find token.'); return; }
 
-      if (!token) {
-        toast.error('Security error: Unable to find token.');
-        return;
-      }
-      // ---------------------------------------------
+      await axios.put(
+        `${API_URL}/auth/profile`,
+        { ...formData, yearsExperience: Number(formData.yearsExperience) || 0, skills, certifications },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      await axios.put(`${API_URL}/auth/profile`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
       setIsEditing(false);
       toast.success('Profile updated successfully');
 
@@ -185,16 +175,15 @@ export default function ArtisanProfile() {
         }));
         window.dispatchEvent(new Event('storage'));
       }
-      
     } catch (error) {
-      console.error("Erreur lors de la mise à jour:", error);
+      console.error('Save error:', error);
       toast.error('Failed to save profile');
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Chargement du profil...</div>;
+  if (loading) return <div className="p-8 text-center">Loading profile...</div>;
 
   const fullName = `${formData.firstName} ${formData.lastName}`;
   const initials = `${formData.firstName?.charAt(0) || ''}${formData.lastName?.charAt(0) || ''}`.toUpperCase();
@@ -206,21 +195,12 @@ export default function ArtisanProfile() {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex flex-col items-center">
             <div className="relative">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handlePhotoUpload}
-                accept="image/*"
-                className="hidden"
-              />
+              <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
               <Avatar className="w-32 h-32">
                 {formData.profilePhoto ? (
                   <img src={formData.profilePhoto} alt="Profile" className="w-full h-full object-cover rounded-full" />
                 ) : (
-                  <AvatarFallback
-                    className="text-4xl"
-                    style={{ backgroundColor: '#1F3A8A', color: '#FFFFFF' }}
-                  >
+                  <AvatarFallback className="text-4xl" style={{ backgroundColor: '#1F3A8A', color: '#FFFFFF' }}>
                     {initials}
                   </AvatarFallback>
                 )}
@@ -230,7 +210,6 @@ export default function ArtisanProfile() {
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 right-0 p-2 rounded-full text-white hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: '#F59E0B' }}
-                title="Upload Photo"
               >
                 <Camera size={20} />
               </button>
@@ -242,13 +221,11 @@ export default function ArtisanProfile() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-2xl mb-1" style={{ color: '#111827' }}>{fullName}</h2>
-                <p className="flex items-center gap-2 mb-2" style={{ color: '#6B7280' }}>
-                  <Briefcase size={16} />
-                  {formData.domain}
+                <p className="flex items-center gap-2 mb-1" style={{ color: '#6B7280' }}>
+                  <Briefcase size={16} /> {formData.domain || '—'}
                 </p>
                 <p className="flex items-center gap-2" style={{ color: '#6B7280' }}>
-                  <MapPin size={16} />
-                  {formData.location}
+                  <MapPin size={16} /> {formData.location || '—'}
                 </p>
               </div>
               <Button
@@ -267,69 +244,76 @@ export default function ArtisanProfile() {
       {/* Profile Information */}
       <Card className="p-6 bg-white">
         <h3 className="text-xl mb-6" style={{ color: '#111827' }}>Profile Information</h3>
-        
+
         {isEditing ? (
           <form onSubmit={handleSave} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
+              {/* First Name */}
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
-                  <Input
-                    id="firstName"
-                    placeholder="Enter your first name"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="pl-10"
-                  />
+                  <Input id="firstName" placeholder="First name" value={formData.firstName}
+                    onChange={e => setFormData({ ...formData, firstName: e.target.value })} className="pl-10" />
                 </div>
               </div>
 
+              {/* Last Name */}
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
-                  <Input
-                    id="lastName"
-                    placeholder="Enter your last name"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="pl-10"
-                  />
+                  <Input id="lastName" placeholder="Last name" value={formData.lastName}
+                    onChange={e => setFormData({ ...formData, lastName: e.target.value })} className="pl-10" />
                 </div>
               </div>
 
+              {/* Phone */}
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
-                  <Input
-                    id="phone"
-                    placeholder="Enter your phone number"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="pl-10"
-                  />
+                  <Input id="phone" placeholder="+216 XX XXX XXX" value={formData.phone}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })} className="pl-10" />
                 </div>
               </div>
 
+              {/* Years of Experience */}
+              <div className="space-y-2">
+                <Label htmlFor="yearsExperience">Years of Experience</Label>
+                <Input id="yearsExperience" type="number" min="0" placeholder="0" value={formData.yearsExperience}
+                  onChange={e => setFormData({ ...formData, yearsExperience: e.target.value })} />
+              </div>
+
+              {/* Specialization dropdown */}
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="domain">Specialization</Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={18} style={{ color: '#6B7280' }} />
+                  <select
+                    id="domain"
+                    value={formData.domain}
+                    onChange={e => setFormData({ ...formData, domain: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-white"
+                  >
+                    <option value="">Select a specialization…</option>
+                    {SPECIALIZATIONS.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Location (Tunisia checkboxes) */}
               <div className="space-y-3 md:col-span-2">
-                <Label htmlFor="location">Location (Tunisia)</Label>
+                <Label>Location (Tunisia)</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {TUNISIA_STATES.map((state) => (
-                    <label
-                      key={state}
-                      className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-foreground"
-                    >
+                  {TUNISIA_STATES.map(state => (
+                    <label key={state} className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-foreground cursor-pointer">
                       <Checkbox
                         checked={selectedStates.includes(state)}
-                        onCheckedChange={(checked) => {
-                          const isChecked = Boolean(checked);
-                          setSelectedStates((prev) => (
-                            isChecked
-                              ? [...prev, state]
-                              : prev.filter((item) => item !== state)
-                          ));
+                        onCheckedChange={checked => {
+                          setSelectedStates(prev => checked ? [...prev, state] : prev.filter(s => s !== state));
                         }}
                       />
                       <span>{state}</span>
@@ -338,38 +322,68 @@ export default function ArtisanProfile() {
                 </div>
                 <p className="text-xs text-muted-foreground">Select one or more governorates.</p>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="domain">Specialization (Domain)</Label>
-                <Input
-                  id="domain"
-                  placeholder="e.g., Electrical Wiring, Plumbing"
-                  value={formData.domain}
-                  onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                />
+            {/* Bio */}
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea id="bio" placeholder="Tell us about yourself, your skills and experience..." value={formData.bio}
+                onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} />
+            </div>
+
+            {/* Skills */}
+            <div className="space-y-3">
+              <Label>Skills & Expertise</Label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {skills.map((skill, idx) => (
+                  <span key={idx} className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+                    {skill}
+                    <button type="button" onClick={() => setSkills(prev => prev.filter((_, i) => i !== idx))} className="ml-1 hover:text-red-500">
+                      <X size={13} />
+                    </button>
+                  </span>
+                ))}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="yearsExperience">Years of Experience</Label>
+              <div className="flex gap-2">
                 <Input
-                  id="yearsExperience"
-                  type="number"
-                  placeholder="0"
-                  value={formData.yearsExperience}
-                  onChange={(e) => setFormData({ ...formData, yearsExperience: e.target.value })}
+                  placeholder="Add a skill (e.g. Brickwork)..."
+                  value={newSkill}
+                  onChange={e => setNewSkill(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSkill(); } }}
+                  className="flex-1"
                 />
+                <Button type="button" variant="outline" onClick={handleAddSkill} className="rounded-xl">
+                  <Plus size={16} />
+                </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                placeholder="Tell us about yourself, your skills, and experience..."
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                rows={4}
-              />
+            {/* Certifications */}
+            <div className="space-y-3">
+              <Label>Certifications</Label>
+              <div className="flex flex-col gap-2 mb-2">
+                {certifications.map((cert, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-3 rounded-xl bg-accent/5 border border-gray-100">
+                    <Award size={16} className="text-accent flex-shrink-0" />
+                    <span className="flex-1 text-sm font-medium text-foreground">{cert}</span>
+                    <button type="button" onClick={() => setCertifications(prev => prev.filter((_, i) => i !== idx))} className="hover:text-red-500">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a certification (e.g. OSHA Safety Certified)..."
+                  value={newCertification}
+                  onChange={e => setNewCertification(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCertification(); } }}
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" onClick={handleAddCertification} className="rounded-xl">
+                  <Plus size={16} />
+                </Button>
+              </div>
             </div>
 
             <Button type="submit" disabled={isLoading} className="text-white" style={{ backgroundColor: '#10B981' }}>
@@ -411,6 +425,30 @@ export default function ArtisanProfile() {
               <p style={{ color: '#111827' }}>{formData.bio || 'No bio written yet.'}</p>
             </div>
 
+            {skills.length > 0 && (
+              <div>
+                <p className="text-sm mb-2" style={{ color: '#6B7280' }}>Skills & Expertise</p>
+                <div className="flex flex-wrap gap-2">
+                  {skills.map((skill, idx) => (
+                    <Badge key={idx} className="bg-primary/10 text-primary border-0 px-3 py-1 text-sm">{skill}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {certifications.length > 0 && (
+              <div>
+                <p className="text-sm mb-2" style={{ color: '#6B7280' }}>Certifications</p>
+                <div className="space-y-2">
+                  {certifications.map((cert, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-3 rounded-xl bg-accent/5">
+                      <Award size={16} className="text-accent" />
+                      <span className="text-sm font-medium text-foreground">{cert}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Card>

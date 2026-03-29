@@ -152,7 +152,6 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl mb-1" style={{ color: '#111827' }}>Knowledge Library Management</h1>
           <p style={{ color: '#6B7280' }}>Manage platform articles and content</p>
         </div>
         <Button

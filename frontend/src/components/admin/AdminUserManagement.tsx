@@ -250,11 +250,6 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">User Management</h1>
-        <p className="text-lg text-muted-foreground">Manage all platform users</p>
-      </div>
-
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {stats.map((stat, index) => (
           <StatsCard key={index} {...stat} />

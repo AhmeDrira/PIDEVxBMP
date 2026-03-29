@@ -81,11 +81,6 @@ export default function ManufacturerOrders() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Orders</h1>
-        <p className="text-lg text-muted-foreground">Manage customer orders</p>
-      </div>
-
       <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />

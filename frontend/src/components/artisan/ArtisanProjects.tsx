@@ -1260,7 +1260,6 @@ export default function ArtisanProjects() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Projects</h1>
           <p className="text-lg text-muted-foreground">Manage and track all your construction projects</p>
         </div>
         <Button onClick={() => guard(handleCreateView)} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
