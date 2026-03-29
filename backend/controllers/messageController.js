@@ -1,5 +1,6 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
+const { getIo } = require('../socket');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -80,8 +81,7 @@ exports.getMessages = async (req, res) => {
 
     const messages = await Message.find({ conversation: conversationId, deleted: { $ne: true } })
       .populate('sender', 'firstName lastName')
-      .populate('replyTo', 'content sender')
-      .populate('replyTo.sender', 'firstName lastName')
+      .populate({ path: 'replyTo', select: 'content sender', populate: { path: 'sender', select: 'firstName lastName' } })
       .populate('reactions.user', 'firstName lastName')
       .sort({ createdAt: 1 });
 
@@ -155,9 +155,21 @@ exports.sendMessage = async (req, res) => {
 
     const populated = await Message.findById(message._id)
       .populate('sender', 'firstName lastName')
-      .populate('replyTo', 'content sender')
-      .populate('replyTo.sender', 'firstName lastName')
+      .populate({ path: 'replyTo', select: 'content sender', populate: { path: 'sender', select: 'firstName lastName' } })
       .populate('reactions.user', 'firstName lastName');
+
+    // Notify recipient in real-time
+    const recipientId = conversation.participants.find((p) => String(p) !== String(userId));
+    if (recipientId) {
+      try {
+        getIo().to(`user:${recipientId}`).emit('message:new', {
+          conversationId,
+          senderId: String(userId),
+          message: populated,
+        });
+      } catch (_) {}
+    }
+
     res.json(populated);
   } catch (err) {
     console.error(err);
@@ -216,8 +228,7 @@ exports.toggleReaction = async (req, res) => {
     await message.save();
     const populated = await Message.findById(id)
       .populate('sender', 'firstName lastName')
-      .populate('replyTo', 'content sender')
-      .populate('replyTo.sender', 'firstName lastName')
+      .populate({ path: 'replyTo', select: 'content sender', populate: { path: 'sender', select: 'firstName lastName' } })
       .populate('reactions.user', 'firstName lastName');
 
     res.json(populated);
@@ -275,10 +286,21 @@ exports.sendVoiceMessage = async (req, res) => {
 
     const populated = await Message.findById(message._id)
       .populate('sender', 'firstName lastName')
-      .populate('replyTo', 'content sender')
-      .populate('replyTo.sender', 'firstName lastName')
+      .populate({ path: 'replyTo', select: 'content sender', populate: { path: 'sender', select: 'firstName lastName' } })
       .populate('reactions.user', 'firstName lastName');
-      
+
+    // Notify recipient in real-time
+    const recipientId = conversation.participants.find((p) => String(p) !== String(userId));
+    if (recipientId) {
+      try {
+        getIo().to(`user:${recipientId}`).emit('message:new', {
+          conversationId,
+          senderId: String(userId),
+          message: populated,
+        });
+      } catch (_) {}
+    }
+
     res.json(populated);
   } catch (err) {
     console.error(err);

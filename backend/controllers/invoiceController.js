@@ -109,11 +109,14 @@ const resolveChromeExecutablePath = () => {
 // @access  Private (Artisan only)
 const createInvoice = async (req, res) => {
   try {
-    const { project, clientName, amount, description, issueDate, dueDate } = req.body;
+    const { project, clientName, amount, description, issueDate, dueDate, upfrontPercent } = req.body;
 
     if (!project || !clientName || !amount || !description || !issueDate || !dueDate) {
       return res.status(400).json({ message: 'Please add all fields' });
     }
+
+    const firstPct = Math.min(99, Math.max(1, Number(upfrontPercent) || 50));
+    const secondPct = 100 - firstPct;
 
     // Générer un numéro de facture unique (ex: INV-2026-4589)
     const currentYear = new Date().getFullYear();
@@ -132,8 +135,8 @@ const createInvoice = async (req, res) => {
       paidAmount: 0,
       paymentProgress: 0,
       paymentPlan: {
-        firstTranchePercent: 50,
-        secondTranchePercent: 50,
+        firstTranchePercent: firstPct,
+        secondTranchePercent: secondPct,
         firstTranchePaid: false,
         secondTranchePaid: false,
       },
@@ -752,6 +755,73 @@ const markTranchePaid = async (req, res) => {
   }
 };
 
+// @desc    Unmark (cancel) a tranche payment
+// @route   PATCH /api/invoices/:id/unmark-tranche-paid
+const unmarkTranchePaid = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id).populate('project', 'title');
+    if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
+    if (invoice.artisan.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const phase = String(req.body?.phase || '').trim();
+    if (!['upfront', 'completion'].includes(phase)) {
+      return res.status(400).json({ message: 'Invalid phase. Use upfront or completion.' });
+    }
+
+    normalizeInvoicePaymentFields(invoice);
+
+    if (phase === 'upfront') {
+      if (!invoice.paymentPlan.firstTranchePaid) {
+        return res.status(400).json({ message: 'Upfront tranche is not marked as paid.' });
+      }
+      if (invoice.paymentPlan.secondTranchePaid) {
+        return res.status(400).json({ message: 'Cannot cancel upfront while completion is already received. Cancel completion first.' });
+      }
+      const amount = phaseAmount(invoice, 'upfront');
+      invoice.paidAmount = roundMoney(Math.max(0, Number(invoice.paidAmount || 0) - amount));
+      invoice.paymentPlan.firstTranchePaid = false;
+      invoice.paymentPlan.firstTranchePaidAt = null;
+      invoice.paymentPlan.secondTrancheDueDate = null;
+    }
+
+    if (phase === 'completion') {
+      if (!invoice.paymentPlan.secondTranchePaid) {
+        return res.status(400).json({ message: 'Completion tranche is not marked as paid.' });
+      }
+      const amount = phaseAmount(invoice, 'completion');
+      invoice.paidAmount = roundMoney(Math.max(0, Number(invoice.paidAmount || 0) - amount));
+      invoice.paymentPlan.secondTranchePaid = false;
+      invoice.paymentPlan.secondTranchePaidAt = null;
+    }
+
+    invoice.paymentProgress = Number(invoice.amount || 0) > 0
+      ? Math.min(100, Math.round((Number(invoice.paidAmount || 0) / Number(invoice.amount || 0)) * 100))
+      : 0;
+    invoice.status = invoice.paymentProgress >= 100 ? 'paid' : 'pending';
+
+    await invoice.save();
+
+    await logAction(req, {
+      actionKey: `artisan.invoice.unmark.${phase}`,
+      actionLabel: phase === 'upfront' ? 'Cancelled Upfront Payment Mark' : 'Cancelled Completion Payment Mark',
+      entityType: 'invoice',
+      entityId: invoice._id,
+      description: `${invoice.invoiceNumber} ${phase} tranche mark cancelled.`,
+      metadata: { phase, paidAmount: invoice.paidAmount, paymentProgress: invoice.paymentProgress },
+    });
+
+    return res.status(200).json({
+      message: phase === 'upfront' ? 'Upfront payment mark cancelled' : 'Completion payment mark cancelled',
+      invoice,
+    });
+  } catch (error) {
+    console.error('unmarkTranchePaid error:', error);
+    return res.status(500).json({ message: 'Failed to cancel tranche mark', error: error.message });
+  }
+};
+
 module.exports = {
   createInvoice,
   getInvoices,
@@ -760,6 +830,7 @@ module.exports = {
   createInvoicePaymentSession,
   confirmInvoicePaymentSession,
   markTranchePaid,
+  unmarkTranchePaid,
   downloadInvoicePdf,
   deleteInvoice,
 };

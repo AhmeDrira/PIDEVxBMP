@@ -120,16 +120,25 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
               const isCurrent = currentStepIndex === i;
               return (
                 <div key={stepStatus} className="flex flex-col items-center z-10" style={{ flex: 1 }}>
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 ${
-                    isReached
-                      ? isCurrent
-                        ? 'bg-primary text-white shadow-lg shadow-primary/30 ring-4 ring-primary/20'
-                        : 'bg-green-500 text-white'
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    {isReached && !isCurrent ? <CheckCircle size={18} /> : <SIcon size={18} />}
+                  <div
+                    className="rounded-full flex items-center justify-center transition-all duration-500 flex-shrink-0"
+                    style={{
+                      width: 44, height: 44,
+                      minWidth: 44, minHeight: 44,
+                      backgroundColor: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#22c55e') : '#f3f4f6',
+                      color: isReached ? '#ffffff' : '#9ca3af',
+                      boxShadow: isCurrent ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
+                    }}
+                  >
+                    {isReached && !isCurrent
+                      ? <CheckCircle size={18} style={{ color: '#ffffff' }} />
+                      : <SIcon size={18} style={{ color: isReached ? '#ffffff' : '#9ca3af' }} />
+                    }
                   </div>
-                  <span className={`text-xs mt-1.5 font-medium ${isReached ? (isCurrent ? 'text-primary' : 'text-green-600') : 'text-gray-400'}`}>
+                  <span
+                    className="text-xs mt-1.5 font-medium"
+                    style={{ color: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#16a34a') : '#9ca3af' }}
+                  >
                     {sConf?.label}
                   </span>
                 </div>
@@ -137,7 +146,8 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
             })}
             <div className="absolute top-5 left-[12.5%] right-[12.5%] h-1 bg-gray-100 rounded-full">
               <div
-                className="h-full bg-green-500 rounded-full transition-all duration-700"
+                className="h-full rounded-full transition-all duration-700"
+                style={{ backgroundColor: '#22c55e' }}
                 style={{ width: currentStepIndex >= 0 ? `${Math.min(100, (currentStepIndex / (timelineSteps.length - 1)) * 100)}%` : '0%' }}
               />
             </div>

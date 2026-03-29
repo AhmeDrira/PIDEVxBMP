@@ -141,6 +141,8 @@ const Artisan = User.discriminator('artisan', new mongoose.Schema({
   domain: { type: String, default: '' },
   yearsExperience: { type: Number },
   bio: { type: String, default: '' },
+  skills: [{ type: String }],
+  certifications: [{ type: String }],
   portfolio: [
     {
       title: { type: String, required: true, trim: true },

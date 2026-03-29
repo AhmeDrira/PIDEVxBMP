@@ -45,6 +45,12 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   }, []);
 
   useEffect(() => {
+    const handler = () => setActiveView('messages');
+    window.addEventListener('goto-messages-call', handler);
+    return () => window.removeEventListener('goto-messages-call', handler);
+  }, []);
+
+  useEffect(() => {
     const getCartKey = () => {
       try {
         const u = localStorage.getItem('user');

@@ -15,6 +15,7 @@ import {
   FolderPlus,
   Image as ImageIcon,
   Plus,
+  Star,
   Trash2,
   Upload,
   Video,
@@ -58,7 +59,12 @@ const emptyForm = {
   completedDate: '',
 };
 
-export default function ArtisanPortfolio() {
+interface ArtisanPortfolioProps {
+  onViewReviews?: () => void;
+  onViewGallery?: (itemId: string) => void;
+}
+
+export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: ArtisanPortfolioProps = {}) {
   const [subLocked] = useState(() => !isSubscriptionActive());
   const [showSubPopup, setShowSubPopup] = useState(subLocked);
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
@@ -397,7 +403,10 @@ export default function ArtisanPortfolio() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Your Portfolio Projects</h1>
           <p className="text-lg text-muted-foreground">Show your best completed work with strong visual proof.</p>
         </div>
-        <Button className="h-11 px-6 rounded-xl bg-primary text-white hover:bg-primary/90" onClick={() => setViewMode('create')}>
+        <Button className="h-11 px-6 rounded-xl bg-primary text-white hover:bg-primary/90" onClick={() => {
+          if (subLocked) { setShowSubPopup(true); return; }
+          setViewMode('create');
+        }}>
           <FolderPlus size={18} className="mr-2" /> Add New Project
         </Button>
       </div>
@@ -410,7 +419,10 @@ export default function ArtisanPortfolio() {
         <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg text-center">
           <p className="text-lg font-semibold text-foreground mb-2">No portfolio project yet</p>
           <p className="text-muted-foreground mb-6">Add your first project to improve visibility for experts.</p>
-          <Button className="h-11 px-6 rounded-xl bg-primary text-white hover:bg-primary/90" onClick={() => setViewMode('create')}>
+          <Button className="h-11 px-6 rounded-xl bg-primary text-white hover:bg-primary/90" onClick={() => {
+            if (subLocked) { setShowSubPopup(true); return; }
+            setViewMode('create');
+          }}>
             <Plus size={18} className="mr-2" /> Create First Portfolio Project
           </Button>
         </Card>
@@ -474,9 +486,7 @@ export default function ArtisanPortfolio() {
                        <Button
                         variant="outline"
                         className="w-full rounded-lg"
-                        onClick={() => {
-                          window.location.assign(`/portfolio/gallery/${item._id}`);
-                        }}
+                        onClick={() => onViewGallery?.(item._id)}
                       >
                         <View size={16} className="mr-2" /> View Gallery
                       </Button>

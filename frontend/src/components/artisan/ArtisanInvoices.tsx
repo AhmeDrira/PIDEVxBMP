@@ -39,7 +39,8 @@ export default function ArtisanInvoices() {
     amount: '',
     description: '',
     issueDate: '',
-    dueDate: ''
+    dueDate: '',
+    upfrontPercent: '50',
   });
 
   // États de validation
@@ -300,7 +301,7 @@ export default function ArtisanInvoices() {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert('Invoice generated successfully!');
-      setFormData({ project: '', clientName: '', amount: '', description: '', issueDate: '', dueDate: '' });
+      setFormData({ project: '', clientName: '', amount: '', description: '', issueDate: '', dueDate: '', upfrontPercent: '50' });
       setErrors({});
       setTouched({});
       setView('list');
@@ -420,16 +421,26 @@ export default function ArtisanInvoices() {
         return;
       }
 
-      const cartItems = materials.map((mat: any) => ({
-        _id: mat._id,
-        name: mat.name,
-        price: mat.price || 0,
-        quantity: 1,
-        image: mat.image || '',
-        stock: mat.stock || 999,
-        category: mat.category || 'material',
-        manufacturer: mat.manufacturer || {},
-      }));
+      // Group duplicate materials by _id and sum quantities
+      const grouped: Record<string, any> = {};
+      for (const mat of materials) {
+        const id = String(mat._id);
+        if (grouped[id]) {
+          grouped[id].quantity += mat.quantity || 1;
+        } else {
+          grouped[id] = {
+            _id: mat._id,
+            name: mat.name,
+            price: mat.price || 0,
+            quantity: mat.quantity || 1,
+            image: mat.image || '',
+            stock: mat.stock || 999,
+            category: mat.category || 'material',
+            manufacturer: mat.manufacturer || {},
+          };
+        }
+      }
+      const cartItems = Object.values(grouped);
 
       setMaterialsCart(cartItems);
       setView('materials-checkout');
@@ -698,6 +709,41 @@ export default function ArtisanInvoices() {
               {touched.amount && errors.amount && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.amount}</p>}
             </div>
 
+            {/* Payment Plan — Upfront % */}
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">
+                Upfront Payment % <span style={{ color: '#6b7280', fontWeight: 400 }}>(tranche 1)</span>
+              </Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={formData.upfrontPercent}
+                  onChange={(e) => setFormData({ ...formData, upfrontPercent: e.target.value })}
+                  placeholder="50"
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary w-32"
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+                {formData.amount && Number(formData.amount) > 0 && (() => {
+                  const pct = Math.min(99, Math.max(1, Number(formData.upfrontPercent) || 50));
+                  const total = Number(formData.amount);
+                  const upfront = ((total * pct) / 100).toFixed(2);
+                  const completion = (total - Number(upfront)).toFixed(2);
+                  return (
+                    <div className="flex items-center gap-3 text-sm">
+                      <span style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: 8, padding: '4px 10px', fontWeight: 600 }}>
+                        Upfront: {upfront} TND ({pct}%)
+                      </span>
+                      <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 8, padding: '4px 10px', fontWeight: 600 }}>
+                        Completion: {completion} TND ({100 - pct}%)
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description" className="text-base font-semibold">
@@ -834,6 +880,29 @@ export default function ArtisanInvoices() {
       }
     };
 
+    const handleUnmarkTranche = async (phase: 'upfront' | 'completion') => {
+      try {
+        setIsPaymentLoading(true);
+        const token = getToken();
+        if (!token) return;
+        const res = await axios.patch(
+          `${API_URL}/invoices/${selectedInvoice._id}/unmark-tranche-paid`,
+          { phase },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const updated = res.data?.invoice;
+        if (updated) {
+          setSelectedInvoice(updated);
+          setInvoices(prev => prev.map(inv => inv._id === updated._id ? updated : inv));
+        }
+        toast.success(res.data?.message || 'Tranche mark cancelled');
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || 'Failed to cancel tranche mark');
+      } finally {
+        setIsPaymentLoading(false);
+      }
+    };
+
     const firstPct = getFirstTranchePercent(selectedInvoice);
     const secondPct = getSecondTranchePercent(selectedInvoice);
 
@@ -847,8 +916,7 @@ export default function ArtisanInvoices() {
           {materialsPaid ? (
             <button
               disabled
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold cursor-not-allowed shadow-sm"
-              style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1.5px solid #a7f3d0' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 12, padding: '12px 22px', fontSize: 14, fontWeight: 700, cursor: 'not-allowed', backgroundColor: '#ecfdf5', color: '#065f46', border: '2px solid #a7f3d0' }}
             >
               <Check size={16} />
               Materials Purchased
@@ -857,10 +925,9 @@ export default function ArtisanInvoices() {
             <button
               onClick={handlePayMaterialsClick}
               disabled={isPayMaterialLoading}
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold hover:shadow-md active:scale-[0.97] transition-all duration-150 disabled:opacity-60 shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: 'white' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 12, padding: '10px 22px', fontSize: 14, fontWeight: 700, background: '#F59E0B', color: 'white', border: 'none', cursor: isPayMaterialLoading ? 'not-allowed' : 'pointer', opacity: isPayMaterialLoading ? 0.6 : 1, transition: 'all 0.15s' }}
             >
-              <ShoppingBag size={16} />
+              <ShoppingBag size={17} />
               {isPayMaterialLoading ? 'Loading...' : 'Buy Materials'}
             </button>
           )}
@@ -877,7 +944,7 @@ export default function ArtisanInvoices() {
                 style={{
                   fontSize: 28,
                   fontWeight: 800,
-                  color: progress >= 100 ? '#10b981' : '#7c3aed',
+                  color: progress >= 100 ? '#10b981' : '#1e40af',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -894,7 +961,7 @@ export default function ArtisanInvoices() {
                   borderRadius: 999,
                   background: progress >= 100
                     ? 'linear-gradient(90deg, #10b981, #059669)'
-                    : 'linear-gradient(90deg, #7c3aed, #a78bfa)',
+                    : 'linear-gradient(90deg, #1e40af, #3b82f6)',
                   transition: 'width 0.7s ease-out',
                 }}
               />
@@ -923,7 +990,7 @@ export default function ArtisanInvoices() {
                   <div style={{
                     width: 36, height: 36, borderRadius: 10,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: upfrontPaid ? '#10b981' : '#7c3aed',
+                    background: upfrontPaid ? '#10b981' : '#1e40af',
                     color: '#fff', fontSize: 14, fontWeight: 700,
                   }}>
                     {upfrontPaid ? <Check size={18} /> : '1'}
@@ -935,8 +1002,8 @@ export default function ArtisanInvoices() {
                 </div>
                 <span style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
-                  backgroundColor: upfrontPaid ? '#d1fae5' : '#f5f3ff',
-                  color: upfrontPaid ? '#065f46' : '#7c3aed',
+                  backgroundColor: upfrontPaid ? '#d1fae5' : '#eff6ff',
+                  color: upfrontPaid ? '#065f46' : '#1e40af',
                 }}>
                   {upfrontPaid ? 'Received' : 'Pending'}
                 </span>
@@ -952,27 +1019,43 @@ export default function ArtisanInvoices() {
 
               {/* Action / status */}
               {upfrontPaid ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5' }}>
-                  <Check size={16} style={{ color: '#059669' }} />
-                  <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
-                    {selectedInvoice.paymentPlan?.firstTranchePaidAt
-                      ? `Received ${formatDate(selectedInvoice.paymentPlan.firstTranchePaidAt)}`
-                      : 'Payment received'}
-                  </span>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5', marginBottom: 10 }}>
+                    <Check size={16} style={{ color: '#059669' }} />
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
+                      {selectedInvoice.paymentPlan?.firstTranchePaidAt
+                        ? `Received ${formatDate(selectedInvoice.paymentPlan.firstTranchePaidAt)}`
+                        : 'Payment received'}
+                    </span>
+                  </div>
+                  {!completionPaid && (
+                    <button
+                      onClick={() => handleUnmarkTranche('upfront')}
+                      disabled={isPaymentLoading}
+                      style={{
+                        width: '100%', padding: '10px 0', borderRadius: 12, border: '1.5px solid #fca5a5',
+                        background: '#fff5f5', color: '#dc2626', fontSize: 13, fontWeight: 600,
+                        cursor: 'pointer', opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
+                      }}
+                    >
+                      Cancel Reception
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
                   onClick={() => handleMarkTranche('upfront')}
                   disabled={isPaymentLoading}
                   style={{
-                    width: '100%', padding: '12px 0', borderRadius: 12, border: 'none', cursor: 'pointer',
-                    background: '#7c3aed', color: '#fff', fontSize: 14, fontWeight: 700,
+                    width: '100%', height: 36, borderRadius: 10, border: 'none', cursor: 'pointer',
+                    background: '#1e40af', color: '#fff', fontSize: 13, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                     opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
                   }}
                 >
                   {isPaymentLoading
                     ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving...</>
-                    : <><Check size={15} className="inline mr-1.5 align-middle" />Mark as Received</>
+                    : <><Check size={15} />Mark as Received</>
                   }
                 </button>
               )}
@@ -988,7 +1071,7 @@ export default function ArtisanInvoices() {
                   <div style={{
                     width: 36, height: 36, borderRadius: 10,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: completionPaid ? '#10b981' : !upfrontPaid ? '#d1d5db' : '#7c3aed',
+                    background: completionPaid ? '#10b981' : !upfrontPaid ? '#d1d5db' : '#1e40af',
                     color: !upfrontPaid && !completionPaid ? '#6b7280' : '#fff',
                     fontSize: 14, fontWeight: 700,
                   }}>
@@ -1001,8 +1084,8 @@ export default function ArtisanInvoices() {
                 </div>
                 <span style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
-                  backgroundColor: completionPaid ? '#d1fae5' : !upfrontPaid ? '#f3f4f6' : '#f5f3ff',
-                  color: completionPaid ? '#065f46' : !upfrontPaid ? '#9ca3af' : '#7c3aed',
+                  backgroundColor: completionPaid ? '#d1fae5' : !upfrontPaid ? '#f3f4f6' : '#eff6ff',
+                  color: completionPaid ? '#065f46' : !upfrontPaid ? '#9ca3af' : '#1e40af',
                 }}>
                   {completionPaid ? 'Received' : !upfrontPaid ? 'Locked' : 'Ready'}
                 </span>
@@ -1016,13 +1099,26 @@ export default function ArtisanInvoices() {
               </p>
 
               {completionPaid ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5' }}>
-                  <Check size={16} style={{ color: '#059669' }} />
-                  <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
-                    {selectedInvoice.paymentPlan?.secondTranchePaidAt
-                      ? `Received ${formatDate(selectedInvoice.paymentPlan.secondTranchePaidAt)}`
-                      : 'Payment received'}
-                  </span>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5', marginBottom: 10 }}>
+                    <Check size={16} style={{ color: '#059669' }} />
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
+                      {selectedInvoice.paymentPlan?.secondTranchePaidAt
+                        ? `Received ${formatDate(selectedInvoice.paymentPlan.secondTranchePaidAt)}`
+                        : 'Payment received'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleUnmarkTranche('completion')}
+                    disabled={isPaymentLoading}
+                    style={{
+                      width: '100%', padding: '10px 0', borderRadius: 12, border: '1.5px solid #fca5a5',
+                      background: '#fff5f5', color: '#dc2626', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
+                    }}
+                  >
+                    Cancel Reception
+                  </button>
                 </div>
               ) : !upfrontPaid ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}>
@@ -1035,14 +1131,15 @@ export default function ArtisanInvoices() {
                     onClick={() => handleMarkTranche('completion')}
                     disabled={isPaymentLoading}
                     style={{
-                      width: '100%', padding: '12px 0', borderRadius: 12, border: 'none', cursor: 'pointer',
-                      background: '#7c3aed', color: '#fff', fontSize: 14, fontWeight: 700,
+                      width: '100%', height: 36, borderRadius: 10, border: 'none', cursor: 'pointer',
+                      background: '#1e40af', color: '#fff', fontSize: 13, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
                     }}
                   >
                     {isPaymentLoading
                       ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving...</>
-                      : <><Check size={15} className="inline mr-1.5 align-middle" />Mark as Received</>
+                      : <><Check size={15} />Mark as Received</>
                     }
                   </button>
                   {selectedInvoice.paymentPlan?.secondTrancheDueDate && (
@@ -1120,13 +1217,6 @@ export default function ArtisanInvoices() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Invoices</h1>
-          <p className="text-lg text-muted-foreground">Manage project invoices and payments</p>
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid md:grid-cols-3 gap-6">
         <StatsCard label="Total Revenue" value={`${totalRevenue.toLocaleString()} TND`} icon={<Check size={28} />} color="#10B981" trend="Paid" trendUp={true} />

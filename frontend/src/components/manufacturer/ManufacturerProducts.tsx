@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, Eye, CheckCircle, HardHat, FileText, FileDown, Tag, Layers } from 'lucide-react';
+import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, CheckCircle, HardHat, FileText, FileDown, Tag, Layers, ExternalLink, BarChart2, Hash, Info, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 
@@ -145,10 +145,41 @@ export default function ManufacturerProducts() {
     }
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [priceRange, setPriceRange] = useState([0, 10000]);
+  const [maxPrice, setMaxPrice] = useState(10000);
+
+  useEffect(() => {
+    if (products.length > 0) {
+      const highest = Math.max(...products.map(p => Number(p.price) || 0));
+      const cap = Math.ceil(highest / 100) * 100 || 10000;
+      setMaxPrice(cap);
+      setPriceRange([0, cap]);
+    }
+  }, [products]);
+
+  const categories = ['all', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+    const matchesStatus = selectedStatus === 'all' || (p.status || 'active') === selectedStatus;
+    const matchesStock = !inStockOnly || p.stock > 0;
+    const price = Number(p.price) || 0;
+    const matchesPrice = price >= priceRange[0] && price <= priceRange[1];
+    return matchesSearch && matchesCategory && matchesStatus && matchesStock && matchesPrice;
+  });
+
+  const activeFilterCount = [
+    selectedCategory !== 'all',
+    selectedStatus !== 'all',
+    inStockOnly,
+    priceRange[1] < maxPrice,
+  ].filter(Boolean).length;
 
   const inputBorderClass = "border-slate-300 focus:border-primary focus:ring-primary";
 
@@ -227,10 +258,10 @@ export default function ManufacturerProducts() {
             </div>
 
             <div className="flex gap-4 pt-6 border-t border-slate-100">
-              <Button type="submit" disabled={isSubmitting} className="h-12 px-10 bg-primary text-white rounded-xl shadow-md hover:bg-primary/90 transition-all text-base font-semibold">
+              <Button type="submit" disabled={isSubmitting} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 bg-primary text-white rounded-xl shadow-md hover:bg-primary/90 transition-all text-base font-semibold">
                 {isSubmitting ? 'Publishing...' : 'Publish Material'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setView('list')} className="h-12 px-10 rounded-xl border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-semibold">Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setView('list')} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 rounded-xl border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-semibold">Cancel</Button>
             </div>
           </form>
         </Card>
@@ -243,62 +274,137 @@ export default function ManufacturerProducts() {
     const product = products.find(p => p._id === selectedProductId);
     if (!product) return null;
     const imgUrl = getImageUrl(product.documentUrl);
-    const pdfUrl = product.techSheetUrl ? `${SERVER_URL}/${product.techSheetUrl.replace(/\\/g, '/')}` : null;
+    const rawPdf = String(product.techSheetUrl || '');
+    const pdfUrl = rawPdf
+      ? (rawPdf.startsWith('http') ? rawPdf : `${SERVER_URL}${rawPdf.startsWith('/') ? '' : '/'}${rawPdf.replace(/\\/g, '/')}`)
+      : null;
 
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2 border-slate-200"><ArrowRight size={20} className="mr-2 rotate-180 text-slate-500" /> Back to Inventory</Button>
-        <Card className="p-8 bg-white rounded-2xl shadow-lg border border-slate-100">
-          <div className="flex flex-col md:flex-row gap-10">
-            <div className="w-full md:w-2/5 aspect-square bg-slate-50 rounded-3xl flex items-center justify-center overflow-hidden border-2 border-slate-100 shadow-inner">
-              {imgUrl ? <img src={imgUrl} className="w-full h-full object-cover" alt={product.name} /> : <Package size={80} className="text-slate-200" />}
-            </div>
-            <div className="flex-1 space-y-6">
-              <div className='flex justify-between items-center'>
-                {/* NOUVEAU BADGE DÉTAILS COHÉRENT */}
-                <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${getStatusColor(product.status)}`}>
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Back */}
+        <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2 border-slate-200 h-10 px-5 font-semibold text-slate-600 hover:bg-slate-50">
+          <ArrowRight size={18} className="mr-2 rotate-180 text-slate-400" /> Back to Inventory
+        </Button>
+
+        {/* Hero Banner */}
+        <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-xl">
+          <div className="flex flex-col md:flex-row">
+            {/* Image */}
+            <div className="w-full md:w-56 bg-black/20 relative overflow-hidden flex-shrink-0" style={{ minHeight: 200, maxHeight: 220 }}>
+              {imgUrl
+                ? <img src={imgUrl} className="w-full h-full object-cover opacity-90" alt={product.name} style={{ minHeight: 200, maxHeight: 220 }} />
+                : <div className="w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}><Package size={56} className="text-slate-600" /></div>
+              }
+              {/* Status overlay */}
+              <div className="absolute top-4 left-4">
+                <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border backdrop-blur-sm ${getStatusColor(product.status)}`}>
                   <span className="w-2 h-2 rounded-full bg-current"></span>
                   {product.status || 'active'}
                 </span>
-                <p className="text-sm text-slate-400 font-mono">Ref: {product._id.slice(-6).toUpperCase()}</p>
               </div>
-              <h2 className="text-4xl font-extrabold text-slate-950 tracking-tight">{product.name}</h2>
-              <p className="inline-flex items-center text-primary font-semibold px-4 py-1.5 bg-primary/5 rounded-full text-sm border border-primary/10">
-                <Tag size={16} className="mr-2" /> {product.category}
-              </p>
-              
-              <div className="grid grid-cols-2 gap-5 pt-4">
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Unit Price</p>
-                  <p className="text-3xl font-black text-primary">{Number(product.price).toFixed(3)} TND</p>
-                </div>
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Current Stock</p>
-                  <p className="text-3xl font-black text-slate-950">{product.stock} <span className='text-xl font-bold text-slate-600'>Units</span></p>
-                </div>
-              </div>
-              
-              {pdfUrl && (
-                <Button 
-                    className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow font-semibold"
-                    onClick={() => window.open(pdfUrl, '_blank')}
-                >
-                    <FileText size={20} className="mr-2.5" /> View Technical Specifications (PDF)
-                </Button>
-              )}
+            </div>
 
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 mt-6 shadow-inner">
-                <p className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider flex items-center"><Layers size={16} className='mr-2 text-primary'/> Technical Details & Description</p>
-                <p className="text-slate-700 leading-relaxed whitespace-pre-line">{product.description || 'No detailed description provided for this material.'}</p>
+            {/* Header info */}
+            <div className="flex-1 p-8 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold border border-primary/30">
+                    <Tag size={12} /> {product.category}
+                  </span>
+                  <span className="text-slate-500 text-xs font-mono flex items-center gap-1">
+                    <Hash size={11} className="text-slate-500" />{product._id.slice(-8).toUpperCase()}
+                  </span>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4">{product.name}</h1>
+                {product.description && (
+                  <p className="text-slate-400 text-sm leading-relaxed line-clamp-3">{product.description}</p>
+                )}
               </div>
-              
-              <div className="flex gap-3 pt-6 border-t border-slate-100">
-                <Button onClick={() => handleEditClick(product)} className="flex-1 h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-semibold"><Edit size={18} className="mr-2" /> Edit Material</Button>
-                <Button onClick={() => confirmDelete(product)} variant="outline" className="h-12 px-5 rounded-xl border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"><Trash2 size={18} /></Button>
+              <div className="flex gap-3 mt-6">
+                <Button onClick={() => handleEditClick(product)} className="h-11 px-6 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-semibold shadow-md">
+                  <Edit size={16} className="mr-2" /> Edit Material
+                </Button>
+                <Button onClick={() => confirmDelete(product)} className="h-11 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold">
+                  <Trash2 size={16} />
+                </Button>
               </div>
             </div>
           </div>
-        </Card>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <Card className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <BarChart2 size={20} className="text-primary" />
+              </div>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Unit Price</p>
+            </div>
+            <p className="text-3xl font-black text-primary">{Number(product.price).toFixed(3)}</p>
+            <p className="text-sm text-slate-400 font-medium mt-0.5">Tunisian Dinar</p>
+          </Card>
+
+          <Card className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${product.stock > 10 ? 'bg-emerald-50' : product.stock > 0 ? 'bg-amber-50' : 'bg-red-50'}`}>
+                <Package size={20} className={product.stock > 10 ? 'text-emerald-500' : product.stock > 0 ? 'text-amber-500' : 'text-red-500'} />
+              </div>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Stock</p>
+            </div>
+            <p className={`text-3xl font-black ${product.stock > 10 ? 'text-slate-900' : product.stock > 0 ? 'text-amber-600' : 'text-red-600'}`}>{product.stock}</p>
+            <p className="text-sm text-slate-400 font-medium mt-0.5">Units available</p>
+          </Card>
+
+          <Card className="col-span-2 md:col-span-1 p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <Layers size={20} className="text-slate-500" />
+              </div>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Category</p>
+            </div>
+            <p className="text-xl font-black text-slate-900">{product.category}</p>
+            <p className="text-sm text-slate-400 font-medium mt-0.5">Material type</p>
+          </Card>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Description */}
+          <Card className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                <Info size={16} className="text-slate-500" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-base">Technical Description</h3>
+            </div>
+            <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-line">
+              {product.description || 'No detailed description provided for this material.'}
+            </p>
+          </Card>
+
+          {/* PDF / Technical Sheet */}
+          <Card className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${pdfUrl ? 'bg-blue-100' : 'bg-slate-200'}`}>
+                <FileText size={16} className={pdfUrl ? 'text-blue-600' : 'text-slate-400'} />
+              </div>
+              <h3 className="font-bold text-slate-900 text-base">Technical Sheet</h3>
+            </div>
+            {pdfUrl ? (
+              <div className="space-y-3">
+                <p className="text-sm text-blue-700">A technical PDF is attached to this product.</p>
+                <Button
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow"
+                  onClick={() => window.open(pdfUrl, '_blank')}
+                >
+                  <ExternalLink size={16} className="mr-2" /> Open Technical Sheet
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">No technical sheet uploaded for this product.</p>
+            )}
+          </Card>
+        </div>
       </div>
     );
   }
@@ -308,7 +414,6 @@ export default function ManufacturerProducts() {
     <div className="space-y-8">
       <div className="flex justify-between items-center gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-slate-950 tracking-tight">Material Inventory</h1>
           <p className="text-lg text-slate-600 mt-1">Manage and track your construction materials stock</p>
         </div>
         <Button onClick={() => { setFormData({name:'', category:'Maçonnerie', price:'', stock:'', description:''}); setView('add'); setSelectedFile(null); setSelectedPdf(null); }} className="bg-primary text-white rounded-xl h-12 px-6 shadow-lg hover:bg-primary/90 transition-all font-semibold whitespace-nowrap">
@@ -317,12 +422,87 @@ export default function ManufacturerProducts() {
       </div>
       
       <Card className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search materials by name, category or reference..." className="pl-12 h-12 rounded-xl border-slate-200 focus:border-primary focus:ring-primary text-base" />
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search materials by name or category..." className="pl-12 h-12 rounded-xl border-slate-200 focus:border-primary focus:ring-primary text-base" />
+          </div>
+          <Button
+            variant={showFilters ? 'default' : 'outline'}
+            className={`h-12 px-5 rounded-xl border-2 transition-all whitespace-nowrap relative ${showFilters ? 'bg-primary text-white shadow-md' : 'hover:bg-slate-50'}`}
+            onClick={() => setShowFilters(v => !v)}
+          >
+            <SlidersHorizontal size={18} className="mr-2" /> Filters
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+            )}
+          </Button>
         </div>
       </Card>
 
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Filter Sidebar */}
+        {showFilters && (
+          <div className="lg:w-72 flex-shrink-0">
+            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8 border-t-4 border-t-primary">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <SlidersHorizontal size={18} className="text-primary" /> Filters
+                </h3>
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedCategory('all'); setSelectedStatus('all'); setInStockOnly(false); setPriceRange([0, maxPrice]); }} className="text-slate-400 hover:text-primary text-xs">
+                  Clear All
+                </Button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Category */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Category</Label>
+                  <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-primary focus:bg-white outline-none cursor-pointer text-sm">
+                    {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</Label>
+                  <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-primary focus:bg-white outline-none cursor-pointer text-sm">
+                    <option value="all">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="low-stock">Low Stock</option>
+                    <option value="out-of-stock">Out of Stock</option>
+                  </select>
+                </div>
+
+                {/* Price Range */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">
+                    <span>Max Price</span>
+                    <span className="text-primary font-bold">{priceRange[1]} TND</span>
+                  </Label>
+                  <input type="range" min={0} max={maxPrice} value={priceRange[1]} onChange={e => setPriceRange([0, Number(e.target.value)])} className="w-full accent-primary" />
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span>0</span><span>{maxPrice} TND</span>
+                  </div>
+                </div>
+
+                {/* In Stock Only */}
+                <div className="pt-4 border-t border-slate-100">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${inStockOnly ? 'bg-primary border-primary' : 'border-slate-300 group-hover:border-primary'}`}>
+                      {inStockOnly && <CheckCircle size={14} className="text-white" />}
+                    </div>
+                    <input type="checkbox" checked={inStockOnly} onChange={e => setInStockOnly(e.target.checked)} className="hidden" />
+                    <span className="text-sm font-semibold text-slate-700 select-none">In Stock Only</span>
+                  </label>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Product Grid */}
+        <div className="flex-1">
       {isLoading ? (
         <div className="text-center py-20 text-slate-500 flex flex-col items-center gap-3">
             <Package size={40} className='animate-pulse text-slate-300'/>
@@ -333,9 +513,9 @@ export default function ManufacturerProducts() {
             <Package size={50} className='text-slate-300'/>
             <div>
                 <h3 className='text-xl font-bold text-slate-800'>No materials found</h3>
-                <p className='text-slate-600 mt-1'>{searchQuery ? 'Try adjusting your search query.' : 'Start by adding your first material to the inventory.'}</p>
+                <p className='text-slate-600 mt-1'>{searchQuery || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Start by adding your first material to the inventory.'}</p>
             </div>
-            {!searchQuery && <Button onClick={() => setView('add')} className="bg-primary text-white rounded-lg mt-2"><Plus size={18} className='mr-1.5'/> Add First Material</Button>}
+            {!searchQuery && activeFilterCount === 0 && <Button onClick={() => setView('add')} className="bg-primary text-white rounded-lg mt-2"><Plus size={18} className='mr-1.5'/> Add First Material</Button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -413,6 +593,8 @@ export default function ManufacturerProducts() {
           ))}
         </div>
       )}
+        </div> {/* end flex-1 */}
+      </div> {/* end flex row */}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && productToDelete && (

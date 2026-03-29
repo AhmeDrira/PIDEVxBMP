@@ -372,6 +372,7 @@ export default function ArtisanQuotes() {
               description: `Invoice generated from quote ${targetQuote.quoteNumber}.\n\n${targetQuote.description || ''}`,
               issueDate,
               dueDate: invoiceDueDate,
+              upfrontPercent: Number(targetQuote.upfrontPercent) || 50,
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -1074,7 +1075,6 @@ export default function ArtisanQuotes() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Quotes</h1>
           <p className="text-lg text-muted-foreground">Manage project quotes and estimates</p>
         </div>
         <Button onClick={() => guard(() => setView('create'))} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">

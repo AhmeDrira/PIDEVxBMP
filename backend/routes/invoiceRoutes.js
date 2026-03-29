@@ -8,6 +8,7 @@ const {
 	createInvoicePaymentSession,
 	confirmInvoicePaymentSession,
 	markTranchePaid,
+	unmarkTranchePaid,
 	downloadInvoicePdf,
 	deleteInvoice,
 } = require('../controllers/invoiceController');
@@ -21,6 +22,7 @@ router.get('/', protect, getInvoices);
 router.get('/:id/pdf', protect, downloadInvoicePdf);
 router.put('/:id/status', protect, updateInvoiceStatus);
 router.patch('/:id/mark-tranche-paid', protect, markTranchePaid);
+router.patch('/:id/unmark-tranche-paid', protect, unmarkTranchePaid);
 router.delete('/:id', protect, deleteInvoice);
 
 module.exports = router;

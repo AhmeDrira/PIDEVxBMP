@@ -1,42 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Card } from '../ui/card';
 import { Input } from '../ui/input';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../ui/table';
 import {
-  BarChart3,
-  CalendarRange,
-  CreditCard,
-  Filter,
-  History,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  ShieldEllipsis,
-  ShoppingBag,
-  Trash2,
-  UserCog,
-  Wrench,
+  BarChart3, CalendarRange, CreditCard, Filter, History, RefreshCw, Search,
+  ShieldCheck, ShieldEllipsis, ShoppingBag, Trash2, UserCog, Wrench,
+  Users, Activity, TrendingUp, Zap, ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import actionLogService, { ActionLogItem } from '../../services/actionLogService';
 import authService from '../../services/authService';
 
-const roleColors: Record<string, string> = {
-  artisan: 'bg-amber-500/15 text-amber-200 border-amber-400/40',
-  expert: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/40',
-  manufacturer: 'bg-violet-500/15 text-violet-200 border-violet-400/40',
-  admin: 'bg-rose-500/15 text-rose-200 border-rose-400/40',
-  system: 'bg-slate-500/15 text-slate-200 border-slate-400/40',
+const roleConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+  artisan:      { label: 'Artisan',   color: '#d97706', bg: '#fef3c7', dot: '#f59e0b' },
+  expert:       { label: 'Expert',    color: '#059669', bg: '#d1fae5', dot: '#10b981' },
+  manufacturer: { label: 'Fabricant', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
+  admin:        { label: 'Admin',     color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
+  system:       { label: 'Système',   color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' },
 };
 
 const actionLabels = [
@@ -45,15 +27,15 @@ const actionLabels = [
   { label: 'Devis généré', value: 'artisan.quote.create' },
   { label: 'Facture générée', value: 'artisan.invoice.create' },
   { label: 'Facture supprimée', value: 'artisan.invoice.delete' },
-  { label: 'Paiement tranche 1 facture', value: 'artisan.invoice.payment.upfront' },
-  { label: 'Paiement tranche 2 facture', value: 'artisan.invoice.payment.completion' },
+  { label: 'Paiement tranche 1', value: 'artisan.invoice.payment.upfront' },
+  { label: 'Paiement tranche 2', value: 'artisan.invoice.payment.completion' },
   { label: 'Matériel ajouté', value: 'manufacturer.product.create' },
   { label: 'Matériel modifié', value: 'manufacturer.product.update' },
   { label: 'Matériel supprimé', value: 'manufacturer.product.delete' },
   { label: 'Achat marketplace', value: 'marketplace.checkout' },
   { label: 'Achat marketplace (Stripe)', value: 'marketplace.checkout.stripe' },
   { label: 'Sous-admin créé', value: 'admin.subadmin.create' },
-  { label: 'Mot de passe sous-admin réinitialisé', value: 'admin.subadmin.password.reset' },
+  { label: 'Mot de passe réinitialisé', value: 'admin.subadmin.password.reset' },
   { label: 'Fabricant approuvé', value: 'admin.manufacturer.approve' },
   { label: 'Fabricant rejeté', value: 'admin.manufacturer.reject' },
   { label: 'Utilisateur suspendu', value: 'admin.user.suspend' },
@@ -61,35 +43,27 @@ const actionLabels = [
   { label: 'Utilisateur supprimé', value: 'admin.user.delete' },
 ];
 
-type BasicUserRow = {
-  _id: string;
-  role: string;
-  adminType?: string;
-};
+type BasicUserRow = { _id: string; role: string; adminType?: string };
+
+const card: React.CSSProperties = { background: '#ffffff', border: '2px solid #e2e8f0', borderRadius: 16 };
+const selectBase: React.CSSProperties = { width: '100%', height: 44, padding: '0 12px', borderRadius: 12, border: '2px solid #e2e8f0', background: '#f8fafc', color: '#1e293b', fontSize: 14, outline: 'none', cursor: 'pointer' };
 
 export default function AdminActionLogs() {
   const [logs, setLogs] = useState<ActionLogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
   const [accountStats, setAccountStats] = useState({ total: 0, users: 0, subAdmins: 0 });
   const [accountStatsLoading, setAccountStatsLoading] = useState(false);
   const [logSummary, setLogSummary] = useState({
-    total: 0,
-    paymentEvents: 0,
-    marketplaceEvents: 0,
-    invoiceInstallmentEvents: 0,
-    manufacturerProductEvents: 0,
-    adminSecurityEvents: 0,
+    total: 0, paymentEvents: 0, marketplaceEvents: 0, invoiceInstallmentEvents: 0,
+    manufacturerProductEvents: 0, adminSecurityEvents: 0,
     byRole: {} as Record<string, number>,
     topActions: [] as Array<{ actionKey: string; actionLabel: string; count: number }>,
   });
-
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [actorRole, setActorRole] = useState('');
@@ -100,215 +74,172 @@ export default function AdminActionLogs() {
   const loadLogs = async (targetPage = page) => {
     setLoading(true);
     try {
-      const response = await actionLogService.list({
-        page: targetPage,
-        limit,
-        search,
-        actorRole,
-        actionKey,
-        from: fromDate || undefined,
-        to: toDate || undefined,
-      });
+      const response = await actionLogService.list({ page: targetPage, limit, search, actorRole, actionKey, from: fromDate || undefined, to: toDate || undefined });
       setLogs(response.logs);
       setTotalPages(response.pagination.pages);
       setTotalItems(response.pagination.total);
-      if (response.summary) {
-        setLogSummary(response.summary);
-      }
+      if (response.summary) setLogSummary(response.summary);
       setSelectedIds([]);
     } catch (error: any) {
-      const message = error?.response?.data?.message || 'Impossible de charger les logs.';
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
+      toast.error(error?.response?.data?.message || 'Impossible de charger les logs.');
+    } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    loadLogs(page);
-  }, [page]);
-
-  useEffect(() => {
-    setPage(1);
-    loadLogs(1);
-  }, [search, actorRole, actionKey, fromDate, toDate]);
+  useEffect(() => { loadLogs(page); }, [page]);
+  useEffect(() => { setPage(1); loadLogs(1); }, [search, actorRole, actionKey, fromDate, toDate]);
 
   const loadAccountStats = async () => {
     setAccountStatsLoading(true);
     try {
       const users = (await authService.listUsers()) as BasicUserRow[];
       const total = Array.isArray(users) ? users.length : 0;
-      const nonAdminUsers = Array.isArray(users)
-        ? users.filter((u) => ['artisan', 'expert', 'manufacturer'].includes(String(u.role).toLowerCase()))
-        : [];
-      const subAdmins = Array.isArray(users)
-        ? users.filter(
-            (u) => String(u.role).toLowerCase() === 'admin' && String(u.adminType || '').toLowerCase() === 'sub'
-          )
-        : [];
-
-      setAccountStats({
-        total,
-        users: nonAdminUsers.length,
-        subAdmins: subAdmins.length,
-      });
+      const nonAdminUsers = Array.isArray(users) ? users.filter((u) => ['artisan', 'expert', 'manufacturer'].includes(String(u.role).toLowerCase())) : [];
+      const subAdmins = Array.isArray(users) ? users.filter((u) => String(u.role).toLowerCase() === 'admin' && String(u.adminType || '').toLowerCase() === 'sub') : [];
+      setAccountStats({ total, users: nonAdminUsers.length, subAdmins: subAdmins.length });
     } catch (error: any) {
-      const message = error?.response?.data?.message || "Impossible de charger les statistiques d'utilisateurs.";
-      toast.error(message);
+      toast.error(error?.response?.data?.message || 'Impossible de charger les statistiques.');
       setAccountStats({ total: 0, users: 0, subAdmins: 0 });
-    } finally {
-      setAccountStatsLoading(false);
-    }
+    } finally { setAccountStatsLoading(false); }
   };
 
-  useEffect(() => {
-    loadAccountStats();
-  }, []);
+  useEffect(() => { loadAccountStats(); }, []);
 
   const isAllSelected = logs.length > 0 && selectedIds.length === logs.length;
-
-  const toggleSelectAll = (checked: boolean | 'indeterminate') => {
-    if (checked === true) {
-      setSelectedIds(logs.map((log) => log._id));
-      return;
-    }
-    setSelectedIds([]);
-  };
-
-  const toggleRowSelection = (id: string, checked: boolean | 'indeterminate') => {
-    if (checked === true) {
-      setSelectedIds((prev) => [...prev, id]);
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((value) => value !== id));
-  };
+  const toggleSelectAll = (checked: boolean | 'indeterminate') => setSelectedIds(checked === true ? logs.map((l) => l._id) : []);
+  const toggleRowSelection = (id: string, checked: boolean | 'indeterminate') =>
+    setSelectedIds((prev) => checked === true ? [...prev, id] : prev.filter((v) => v !== id));
 
   const deleteOne = async (id: string) => {
-    try {
-      await actionLogService.deleteById(id);
-      toast.success('Log supprimé.');
-      loadLogs(page);
-    } catch (error: any) {
-      const message = error?.response?.data?.message || 'Impossible de supprimer le log.';
-      toast.error(message);
-    }
+    try { await actionLogService.deleteById(id); toast.success('Log supprimé.'); loadLogs(page); }
+    catch (error: any) { toast.error(error?.response?.data?.message || 'Impossible de supprimer le log.'); }
   };
-
   const deleteSelected = async () => {
-    if (!selectedIds.length) {
-      toast.error('Sélectionnez au moins un log.');
-      return;
-    }
-    try {
-      await actionLogService.bulkDelete(selectedIds);
-      toast.success('Logs sélectionnés supprimés.');
-      loadLogs(page);
-    } catch (error: any) {
-      const message = error?.response?.data?.message || 'Impossible de supprimer la sélection.';
-      toast.error(message);
-    }
+    if (!selectedIds.length) { toast.error('Sélectionnez au moins un log.'); return; }
+    try { await actionLogService.bulkDelete(selectedIds); toast.success('Logs sélectionnés supprimés.'); loadLogs(page); }
+    catch (error: any) { toast.error(error?.response?.data?.message || 'Impossible de supprimer la sélection.'); }
   };
 
-  const formatMoney = (value: unknown) => {
-    const n = Number(value);
-    return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : null;
-  };
+  const formatMoney = (value: unknown) => { const n = Number(value); return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : null; };
 
   const renderMetadataDetails = (log: ActionLogItem) => {
     const metadata = (log.metadata || {}) as Record<string, unknown>;
     const chips: string[] = [];
-
     const itemCount = Number(metadata.itemCount || 0);
     if (Number.isFinite(itemCount) && itemCount > 0) chips.push(`${itemCount} item(s)`);
-
     const amount = formatMoney(metadata.totalAmount ?? metadata.amount);
     if (amount) chips.push(`${amount} ${(metadata.currency || 'USD') as string}`);
-
-    const phase = String(metadata.phase || '').trim();
-    if (phase) chips.push(`phase: ${phase}`);
-
+    const phase = String(metadata.phase || '').trim(); if (phase) chips.push(`phase: ${phase}`);
     const stripeSessionId = String(metadata.stripeSessionId || metadata.sessionId || '').trim();
-    if (stripeSessionId) chips.push(`session: ${stripeSessionId.slice(0, 12)}...`);
-
-    const invoiceNumber = String(metadata.invoiceNumber || '').trim();
-    if (invoiceNumber) chips.push(`invoice: ${invoiceNumber}`);
-
-    const quoteNumber = String(metadata.quoteNumber || '').trim();
-    if (quoteNumber) chips.push(`quote: ${quoteNumber}`);
-
-    const productName = String(metadata.name || '').trim();
-    if (productName) chips.push(`material: ${productName}`);
-
+    if (stripeSessionId) chips.push(`session: ${stripeSessionId.slice(0, 12)}…`);
+    const invoiceNumber = String(metadata.invoiceNumber || '').trim(); if (invoiceNumber) chips.push(`invoice: ${invoiceNumber}`);
+    const quoteNumber = String(metadata.quoteNumber || '').trim(); if (quoteNumber) chips.push(`quote: ${quoteNumber}`);
+    const productName = String(metadata.name || '').trim(); if (productName) chips.push(`matériel: ${productName}`);
     if (!chips.length) return null;
-
     return (
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-2 flex flex-wrap gap-1">
         {chips.map((chip, idx) => (
-          <span key={`${log._id}-chip-${idx}`} className="text-[11px] px-2 py-1 rounded-md bg-blue-900/55 text-cyan-100 border border-blue-700/70">
-            {chip}
-          </span>
+          <span key={`${log._id}-chip-${idx}`} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>{chip}</span>
         ))}
       </div>
     );
   };
 
+  const activeFilterCount = [search, actorRole, actionKey, fromDate, toDate].filter(Boolean).length;
+
+  const statCards = [
+    { label: 'Paiements',      value: logSummary.paymentEvents,            icon: CreditCard,     accent: '#2563eb', lightBg: '#eff6ff' },
+    { label: 'Marketplace',    value: logSummary.marketplaceEvents,         icon: ShoppingBag,    accent: '#7c3aed', lightBg: '#f5f3ff' },
+    { label: 'Tranches',       value: logSummary.invoiceInstallmentEvents,  icon: BarChart3,      accent: '#d97706', lightBg: '#fffbeb' },
+    { label: 'Produits',       value: logSummary.manufacturerProductEvents, icon: Wrench,         accent: '#059669', lightBg: '#f0fdf4' },
+    { label: 'Sécurité admin', value: logSummary.adminSecurityEvents,       icon: ShieldEllipsis, accent: '#dc2626', lightBg: '#fff1f2' },
+  ];
+
   return (
-    <div className="space-y-7 text-slate-100">
-      <div className="relative overflow-hidden rounded-3xl p-7 border border-blue-800 bg-gradient-to-br from-[#071427] via-[#0a2f59] to-[#0e4f7a] shadow-[0_20px_55px_rgba(1,8,22,0.55)]">
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="absolute -bottom-20 -left-16 w-72 h-72 rounded-full bg-blue-400/25 blur-3xl" />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <h1 className="text-3xl lg:text-4xl font-black text-cyan-100 tracking-tight flex items-center gap-3">
-              <History className="text-cyan-300" size={34} />
-              Logs & Historiques
-            </h1>
-            <p className="text-blue-100 mt-3 text-base lg:text-lg max-w-2xl leading-relaxed font-medium">
-              Suivi centralisé des actions + audit des accès (super admin).
-            </p>
+    <div className="space-y-6">
+
+      {/* ── HEADER ── */}
+      <div style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #0ea5e9 100%)', borderRadius: 20, padding: '28px 32px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -50, right: -50, width: 250, height: 250, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -60, left: -30, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <History size={26} style={{ color: '#fff' }} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>Logs & Historiques</h1>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>Suivi centralisé des actions et audit des accès</p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-[320px]">
-            <Card className="p-4 border border-cyan-400/40 bg-[#061a33] shadow-none">
-              <p className="text-xs uppercase tracking-wider text-cyan-200">Total comptes</p>
-              <p className="text-3xl font-black text-cyan-100 mt-1">{accountStatsLoading ? '…' : accountStats.total}</p>
-            </Card>
-            <Card className="p-4 border border-cyan-400/40 bg-[#061a33] shadow-none">
-              <p className="text-xs uppercase tracking-wider text-cyan-200">Utilisateurs</p>
-              <p className="text-3xl font-black text-cyan-100 mt-1">{accountStatsLoading ? '…' : accountStats.users}</p>
-            </Card>
-            <Card className="p-4 border border-cyan-400/40 bg-[#061a33] shadow-none">
-              <p className="text-xs uppercase tracking-wider text-cyan-200">Sous-admins</p>
-              <p className="text-3xl font-black text-cyan-100 mt-1">{accountStatsLoading ? '…' : accountStats.subAdmins}</p>
-            </Card>
+          <div className="flex gap-3">
+            {[
+              { label: 'Total comptes', value: accountStats.total,     icon: Users },
+              { label: 'Utilisateurs',  value: accountStats.users,     icon: Activity },
+              { label: 'Sous-admins',   value: accountStats.subAdmins, icon: ShieldCheck },
+            ].map((s) => (
+              <div key={s.label} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 14, padding: '12px 18px', minWidth: 110, backdropFilter: 'blur(8px)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <s.icon size={13} style={{ color: 'rgba(255,255,255,0.7)' }} />
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</span>
+                </div>
+                <p style={{ fontSize: 28, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{accountStatsLoading ? '…' : s.value}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <Card className="p-6 rounded-3xl border border-blue-900 shadow-[0_12px_30px_rgba(2,10,28,0.45)] bg-[#071a31]">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {/* ── STAT CARDS ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+        {statCards.map((s) => (
+          <div key={s.label} style={{ ...card, padding: '18px 20px', borderTop: `3px solid ${s.accent}` }}>
+            <div className="flex items-center justify-between mb-3">
+              <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>{s.label}</span>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: s.lightBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <s.icon size={15} style={{ color: s.accent }} />
+              </div>
+            </div>
+            <p style={{ fontSize: 30, fontWeight: 900, color: '#0f172a', lineHeight: 1 }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── FILTERS ── */}
+      <div style={{ ...card, padding: 20 }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Filter size={15} style={{ color: '#2563eb' }} />
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filtres</span>
+          {activeFilterCount > 0 && (
+            <span style={{ fontSize: 11, background: '#2563eb', color: '#fff', borderRadius: 999, padding: '1px 8px', fontWeight: 800 }}>
+              {activeFilterCount} actif{activeFilterCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+          {/* Search */}
           <div className="lg:col-span-4">
-            <div className="h-11 w-full rounded-xl border border-blue-700 bg-[#0b2748] px-3 flex items-center gap-2">
-              <Search className="text-cyan-300 shrink-0" size={17} />
+            <div style={{ height: 44, background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
+              <Search size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />
               <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Rechercher: nom, action, cible…"
-                className="h-full border-0 bg-transparent text-cyan-50 placeholder:text-blue-200/70 focus-visible:ring-0 focus-visible:ring-offset-0"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setSearch(searchInput.trim());
-                }
-              }}
-            />
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') setSearch(searchInput.trim()); }}
+                placeholder="Nom, action, cible…"
+                style={{ border: 'none', background: 'transparent', color: '#1e293b', outline: 'none', boxShadow: 'none', height: '100%', fontSize: 14 }}
+                className="focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-400"
+              />
+              {searchInput && (
+                <button onClick={() => { setSearchInput(''); setSearch(''); }} style={{ color: '#94a3b8', cursor: 'pointer', background: 'none', border: 'none' }}>
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </div>
 
+          {/* Role */}
           <div className="lg:col-span-2">
-            <select
-              value={actorRole}
-              onChange={(e) => setActorRole(e.target.value)}
-              className="w-full h-11 px-4 rounded-xl border border-blue-700 bg-[#0b2748] text-cyan-50"
-            >
+            <select value={actorRole} onChange={(e) => setActorRole(e.target.value)} style={selectBase}>
               <option value="">Tous les rôles</option>
               <option value="artisan">Artisan</option>
               <option value="expert">Expert</option>
@@ -317,289 +248,238 @@ export default function AdminActionLogs() {
             </select>
           </div>
 
+          {/* Action */}
           <div className="lg:col-span-3">
-            <select
-              value={actionKey}
-              onChange={(e) => setActionKey(e.target.value)}
-              className="w-full h-11 px-4 rounded-xl border border-blue-700 bg-[#0b2748] text-cyan-50"
-            >
-              {actionLabels.map((item) => (
-                <option key={item.label} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
+            <select value={actionKey} onChange={(e) => setActionKey(e.target.value)} style={selectBase}>
+              {actionLabels.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </div>
 
+          {/* Buttons */}
           <div className="lg:col-span-3 flex gap-2">
-            <Button
-              className="h-11 px-5 rounded-xl text-cyan-50 bg-blue-600 hover:bg-blue-500 shadow"
+            <button
               onClick={() => setSearch(searchInput.trim())}
+              style={{ height: 44, padding: '0 18px', borderRadius: 12, background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              <Filter size={16} className="mr-2" />
-              Appliquer
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 px-5 rounded-xl border border-blue-700 text-cyan-100 bg-[#0b2748] hover:bg-[#13365f]"
-              onClick={() => {
-                setSearch('');
-                setSearchInput('');
-                setActorRole('');
-                setActionKey('');
-                setFromDate('');
-                setToDate('');
-              }}
+              <Filter size={14} /> Appliquer
+            </button>
+            <button
+              onClick={() => { setSearch(''); setSearchInput(''); setActorRole(''); setActionKey(''); setFromDate(''); setToDate(''); }}
+              style={{ height: 44, padding: '0 14px', borderRadius: 12, background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '2px solid #e2e8f0', cursor: 'pointer' }}
             >
-              <RefreshCw size={16} className="mr-2" />
-              Réinitialiser
-            </Button>
+              <RefreshCw size={14} /> Reset
+            </button>
           </div>
 
-          <div className="lg:col-span-6">
-            <div className="flex items-center gap-2 text-cyan-100">
-              <CalendarRange size={16} className="text-cyan-300" />
-              <p className="text-sm font-semibold">Période (intervalle)</p>
+          {/* Date range */}
+          <div className="lg:col-span-7">
+            <div className="flex items-center gap-3 flex-wrap">
+              <CalendarRange size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Période :</span>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>Du</span>
+              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+                style={{ height: 40, background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: 10, color: '#1e293b', fontSize: 13 }}
+                className="focus-visible:ring-0" />
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>Au</span>
+              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
+                style={{ height: 40, background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: 10, color: '#1e293b', fontSize: 13 }}
+                className="focus-visible:ring-0" />
             </div>
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-blue-200 w-10">Du</span>
-                <Input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="h-11 rounded-xl border border-blue-700 bg-[#0b2748] text-cyan-50"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-blue-200 w-10">Au</span>
-                <Input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="h-11 rounded-xl border border-blue-700 bg-[#0b2748] text-cyan-50"
-                />
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-blue-200/85">
-              Filtre les actions créées entre ces 2 dates (inclus). Laissez vide pour ne pas filtrer.
-            </p>
           </div>
 
-          <div className="lg:col-span-6 flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              className="h-11 rounded-xl border border-rose-500/60 text-rose-100 bg-rose-950/40 hover:bg-rose-900/50"
+          {/* Bulk actions */}
+          <div className="lg:col-span-5 flex items-center justify-end gap-2">
+            <button
               disabled={!selectedIds.length}
               onClick={deleteSelected}
+              style={{ height: 40, padding: '0 16px', borderRadius: 10, background: selectedIds.length ? '#fff1f2' : '#f8fafc', color: selectedIds.length ? '#dc2626' : '#94a3b8', border: `2px solid ${selectedIds.length ? '#fecaca' : '#e2e8f0'}`, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: selectedIds.length ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
             >
-              <Trash2 size={16} className="mr-2" />
-              Supprimer sélection ({selectedIds.length})
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 rounded-xl border border-indigo-500/60 text-indigo-100 bg-indigo-950/40 hover:bg-indigo-900/50"
-              onClick={() => {
-                loadAccountStats();
-                loadLogs(page);
-              }}
+              <Trash2 size={14} /> Supprimer ({selectedIds.length})
+            </button>
+            <button
+              onClick={() => { loadAccountStats(); loadLogs(page); }}
+              style={{ height: 40, padding: '0 16px', borderRadius: 10, background: '#eff6ff', color: '#2563eb', border: '2px solid #bfdbfe', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
             >
-              <RefreshCw size={16} className="mr-2" />
-              Actualiser
-            </Button>
+              <RefreshCw size={14} /> Actualiser
+            </button>
           </div>
         </div>
-      </Card>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-        <Card className="p-4 border border-blue-800 bg-[#071a31] shadow-none">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-wider text-blue-200">Paiements</p>
-            <CreditCard size={16} className="text-cyan-300" />
-          </div>
-          <p className="text-2xl font-black text-cyan-100 mt-2">{logSummary.paymentEvents}</p>
-        </Card>
-        <Card className="p-4 border border-blue-800 bg-[#071a31] shadow-none">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-wider text-blue-200">Marketplace</p>
-            <ShoppingBag size={16} className="text-cyan-300" />
-          </div>
-          <p className="text-2xl font-black text-cyan-100 mt-2">{logSummary.marketplaceEvents}</p>
-        </Card>
-        <Card className="p-4 border border-blue-800 bg-[#071a31] shadow-none">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-wider text-blue-200">Tranches facture</p>
-            <BarChart3 size={16} className="text-cyan-300" />
-          </div>
-          <p className="text-2xl font-black text-cyan-100 mt-2">{logSummary.invoiceInstallmentEvents}</p>
-        </Card>
-        <Card className="p-4 border border-blue-800 bg-[#071a31] shadow-none">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-wider text-blue-200">Actions produit</p>
-            <Wrench size={16} className="text-cyan-300" />
-          </div>
-          <p className="text-2xl font-black text-cyan-100 mt-2">{logSummary.manufacturerProductEvents}</p>
-        </Card>
-        <Card className="p-4 border border-blue-800 bg-[#071a31] shadow-none">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-wider text-blue-200">Sécurité admin</p>
-            <ShieldEllipsis size={16} className="text-cyan-300" />
-          </div>
-          <p className="text-2xl font-black text-cyan-100 mt-2">{logSummary.adminSecurityEvents}</p>
-        </Card>
       </div>
 
-      <Card className="p-4 rounded-2xl border border-blue-900 bg-[#071a31] shadow-none">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-blue-200">Top actions (filtre courant)</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {logSummary.topActions.length ? (
-                logSummary.topActions.map((item) => (
-                  <button
-                    key={item.actionKey}
-                    type="button"
-                    onClick={() => setActionKey(item.actionKey)}
-                    className="text-left px-3 py-1.5 rounded-lg border border-blue-700 bg-[#0b2748] hover:bg-[#13365f]"
-                  >
-                    <div className="text-xs text-cyan-100 font-semibold">{item.actionLabel}</div>
-                    <div className="text-[11px] text-blue-200">{item.count} occurrence(s)</div>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-blue-200">Aucune action trouvée sur le filtre courant.</p>
-              )}
+      {/* ── TOP ACTIONS + RÉPARTITION ── */}
+      {(logSummary.topActions.length > 0 || Object.keys(logSummary.byRole).length > 0) && (
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div style={{ ...card, padding: 20 }}>
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp size={14} style={{ color: '#2563eb' }} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Top actions</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {logSummary.topActions.length ? logSummary.topActions.map((item) => (
+                <button key={item.actionKey} onClick={() => setActionKey(item.actionKey)}
+                  style={{ padding: '7px 13px', borderRadius: 9, background: '#f8fafc', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, color: '#1e293b', fontWeight: 600 }}>{item.actionLabel}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{item.count} occurrence{item.count > 1 ? 's' : ''}</div>
+                </button>
+              )) : <p style={{ fontSize: 13, color: '#94a3b8' }}>Aucune action sur le filtre courant.</p>}
             </div>
           </div>
-          <div className="text-sm text-blue-200">
-            Répartition rôles: artisan {logSummary.byRole.artisan || 0} | expert {logSummary.byRole.expert || 0} | fabricant {logSummary.byRole.manufacturer || 0} | admin {logSummary.byRole.admin || 0}
+
+          <div style={{ ...card, padding: 20 }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Zap size={14} style={{ color: '#2563eb' }} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Répartition par rôle</span>
+            </div>
+            <div className="space-y-3">
+              {(['artisan', 'expert', 'manufacturer', 'admin'] as const).map((role) => {
+                const count = logSummary.byRole[role] || 0;
+                const cfg = roleConfig[role];
+                const max = Math.max(...['artisan','expert','manufacturer','admin'].map(r => logSummary.byRole[r] || 0), 1);
+                return (
+                  <div key={role} className="flex items-center gap-3">
+                    <span style={{ fontSize: 12, color: cfg.color, fontWeight: 700, minWidth: 72 }}>{cfg.label}</span>
+                    <div style={{ flex: 1, height: 7, background: '#f1f5f9', borderRadius: 99 }}>
+                      <div style={{ height: '100%', borderRadius: 99, background: cfg.dot, width: `${(count / max) * 100}%`, transition: 'width 0.5s' }} />
+                    </div>
+                    <span style={{ fontSize: 12, color: '#64748b', minWidth: 20, textAlign: 'right', fontWeight: 600 }}>{count}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </Card>
+      )}
 
-      <Card className="rounded-3xl border border-blue-900 shadow-[0_12px_30px_rgba(2,10,28,0.45)] overflow-hidden bg-[#071a31]">
-        <div className="p-6 border-b border-blue-900 bg-gradient-to-r from-[#0a2b51] to-[#0f4372] flex items-center justify-between">
-          <h2 className="text-3xl font-black text-cyan-100">Historique des actions</h2>
-          <div className="flex items-center gap-2 text-sm text-cyan-100/90 font-semibold">
-            <ShieldCheck size={16} className="text-cyan-300" />
-            {totalItems} logs au total
+      {/* ── TABLE ── */}
+      <div style={{ ...card, overflow: 'hidden' }}>
+        {/* Table header bar */}
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: 'linear-gradient(90deg, #f8fafc, #eff6ff)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="flex items-center gap-2">
+            <History size={17} style={{ color: '#2563eb' }} />
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Historique des actions</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={14} style={{ color: '#2563eb' }} />
+            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{totalItems} log{totalItems > 1 ? 's' : ''} au total</span>
           </div>
         </div>
 
-        <Table className="text-[15px]">
-          <TableHeader className="bg-[#0d2f56]">
-            <TableRow>
-              <TableHead className="w-10 text-cyan-100 font-bold uppercase tracking-wide text-xs">
+        <Table>
+          <TableHeader>
+            <TableRow style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <TableHead style={{ width: 40 }}>
                 <Checkbox checked={isAllSelected} onCheckedChange={toggleSelectAll} />
               </TableHead>
-              <TableHead className="text-cyan-100 font-bold uppercase tracking-wide text-xs">Acteur</TableHead>
-              <TableHead className="text-cyan-100 font-bold uppercase tracking-wide text-xs">Rôle</TableHead>
-              <TableHead className="text-cyan-100 font-bold uppercase tracking-wide text-xs">Action</TableHead>
-              <TableHead className="text-cyan-100 font-bold uppercase tracking-wide text-xs">Cible</TableHead>
-              <TableHead className="text-cyan-100 font-bold uppercase tracking-wide text-xs">Date</TableHead>
-              <TableHead className="text-cyan-100 font-bold uppercase tracking-wide text-xs">Détails</TableHead>
-              <TableHead className="text-right text-cyan-100 font-bold uppercase tracking-wide text-xs">Supp.</TableHead>
+              {['Acteur', 'Rôle', 'Action', 'Cible', 'Date', 'Détails', ''].map((h) => (
+                <TableHead key={h} style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-blue-200 font-medium bg-[#071a31]">
-                  Chargement des logs…
+                <TableCell colSpan={8} style={{ height: 120, textAlign: 'center', background: '#fff' }}>
+                  <div className="flex items-center justify-center gap-3">
+                    <div style={{ width: 20, height: 20, border: '2px solid #2563eb', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ color: '#94a3b8', fontSize: 14 }}>Chargement des logs…</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : logs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-28 text-center text-blue-200 font-medium bg-[#071a31]">
-                  Aucun log trouvé avec ces filtres.
+                <TableCell colSpan={8} style={{ height: 140, textAlign: 'center', background: '#fff' }}>
+                  <History size={36} style={{ color: '#e2e8f0', margin: '0 auto 10px' }} />
+                  <p style={{ color: '#94a3b8', fontSize: 14 }}>Aucun log trouvé avec ces filtres.</p>
                 </TableCell>
               </TableRow>
             ) : (
-              logs.map((log) => (
-                <TableRow key={log._id} className="bg-[#071a31] border-blue-950 hover:bg-[#0a2342]">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.includes(log._id)}
-                      onCheckedChange={(checked: boolean | 'indeterminate') => toggleRowSelection(log._id, checked)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-bold text-cyan-50">{log.actorName || '-'}</div>
-                    {log.actorAdminType && (
-                      <div className="text-xs text-blue-200 flex items-center gap-1 mt-1 font-medium">
-                        <UserCog size={12} />
-                        {log.actorAdminType === 'sub' ? 'sous-admin' : 'super admin'}
+              logs.map((log, idx) => {
+                const isSelected = selectedIds.includes(log._id);
+                const roleCfg = roleConfig[log.actorRole] || roleConfig.system;
+                return (
+                  <TableRow key={log._id} style={{ background: isSelected ? '#eff6ff' : idx % 2 === 0 ? '#fff' : '#fafafa', borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
+                    <TableCell>
+                      <Checkbox checked={isSelected} onCheckedChange={(c: boolean | 'indeterminate') => toggleRowSelection(log._id, c)} />
+                    </TableCell>
+                    <TableCell>
+                      <div style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>{log.actorName || '—'}</div>
+                      {log.actorAdminType && (
+                        <div style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                          <UserCog size={11} /> {log.actorAdminType === 'sub' ? 'sous-admin' : 'super admin'}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: roleCfg.bg, color: roleCfg.color, border: `1px solid ${roleCfg.dot}40`, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: roleCfg.dot, display: 'inline-block' }} />
+                        {roleCfg.label}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>{log.actionLabel}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, fontFamily: 'monospace' }}>{log.actionKey}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{log.targetName || '—'}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{log.targetRole || log.entityType}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                        {new Date(log.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={`border ${roleColors[log.actorRole] || roleColors.system}`}>
-                      {log.actorRole}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-bold text-cyan-50">{log.actionLabel}</div>
-                    <div className="text-xs text-blue-200">{log.actionKey}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm font-semibold text-cyan-50">{log.targetName || '-'}</div>
-                    <div className="text-xs text-blue-200">{log.targetRole || log.entityType}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-cyan-50 font-semibold">
-                      {new Date(log.createdAt).toLocaleDateString()}
-                    </div>
-                    <div className="text-xs text-blue-200">
-                      {new Date(log.createdAt).toLocaleTimeString()}
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-[360px]">
-                    <p className="text-sm text-blue-100 leading-5">
-                      {log.description || 'Aucun détail supplémentaire'}
-                    </p>
-                    {renderMetadataDetails(log)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-lg border border-red-400/50 bg-red-950/50 hover:bg-red-900/70"
-                      onClick={() => deleteOne(log._id)}
-                    >
-                      <Trash2 size={14} className="text-red-200" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                        {new Date(log.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </TableCell>
+                    <TableCell style={{ maxWidth: 320 }}>
+                      <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{log.description || 'Aucun détail supplémentaire'}</p>
+                      {renderMetadataDetails(log)}
+                    </TableCell>
+                    <TableCell style={{ textAlign: 'right' }}>
+                      <button
+                        onClick={() => deleteOne(log._id)}
+                        style={{ width: 32, height: 32, borderRadius: 8, background: '#fff1f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#fee2e2')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = '#fff1f2')}
+                      >
+                        <Trash2 size={13} style={{ color: '#dc2626' }} />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
 
-        <div className="p-4 border-t border-blue-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-[#0a2b51]">
-          <p className="text-sm text-cyan-100 font-medium">
-            Page {page} / {totalPages} ({totalItems} lignes)
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="rounded-lg border border-blue-700 text-cyan-100 bg-[#0b2748] hover:bg-[#13365f]"
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-            >
-              Précédent
-            </Button>
-            <Button
-              variant="outline"
-              className="rounded-lg border border-blue-700 text-cyan-100 bg-[#0b2748] hover:bg-[#13365f]"
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-            >
-              Suivant
-            </Button>
+        {/* Pagination */}
+        <div style={{ padding: '14px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 13, color: '#64748b' }}>
+            Page <strong style={{ color: '#1e293b' }}>{page}</strong> / <strong style={{ color: '#1e293b' }}>{totalPages}</strong>
+            <span style={{ marginLeft: 8, color: '#94a3b8' }}>({totalItems} lignes)</span>
+          </span>
+          <div className="flex items-center gap-2">
+            <button disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              style={{ height: 36, padding: '0 14px', borderRadius: 10, background: '#fff', color: page <= 1 ? '#cbd5e1' : '#475569', border: '2px solid #e2e8f0', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}>
+              <ChevronLeft size={15} /> Précédent
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const pageNum = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+              if (pageNum < 1 || pageNum > totalPages) return null;
+              return (
+                <button key={pageNum} onClick={() => setPage(pageNum)}
+                  style={{ width: 36, height: 36, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid', background: pageNum === page ? '#2563eb' : '#fff', color: pageNum === page ? '#fff' : '#64748b', borderColor: pageNum === page ? '#2563eb' : '#e2e8f0', borderWidth: 2 }}>
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button disabled={page >= totalPages || loading} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              style={{ height: 36, padding: '0 14px', borderRadius: 10, background: '#fff', color: page >= totalPages ? '#cbd5e1' : '#475569', border: '2px solid #e2e8f0', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, cursor: page >= totalPages ? 'not-allowed' : 'pointer' }}>
+              Suivant <ChevronRight size={15} />
+            </button>
           </div>
         </div>
-      </Card>
-
+      </div>
     </div>
   );
 }

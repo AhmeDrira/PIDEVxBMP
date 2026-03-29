@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
-import { Search, ShoppingCart, Package, Check, ArrowRight, X, SlidersHorizontal, Eye, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, Package, Check, ArrowRight, X, SlidersHorizontal, Eye, Star, ChevronLeft, ChevronRight, FileText, ExternalLink } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -729,11 +729,38 @@ export default function ArtisanMarketplace() {
         </Button>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-            <div className="aspect-video rounded-xl overflow-hidden mb-4 bg-gray-100">
-              <ImageWithFallback src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
-            </div>
-          </Card>
+          <div className="space-y-4">
+            <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+              <div className="aspect-video bg-gray-100">
+                <ImageWithFallback src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+              </div>
+            </Card>
+
+            {selectedProduct.techSheetUrl && (() => {
+              const raw = String(selectedProduct.techSheetUrl || '');
+              const SERVER = API_URL.replace('/api', '');
+              const pdfUrl = raw.startsWith('http') ? raw : `${SERVER}${raw.startsWith('/') ? '' : '/'}${raw}`;
+              return (
+                <Card className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <FileText size={24} className="text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-blue-900 text-sm">Technical Sheet Available</p>
+                      <p className="text-blue-600 text-xs mt-0.5">PDF document from manufacturer</p>
+                    </div>
+                    <Button
+                      className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold flex-shrink-0"
+                      onClick={() => window.open(pdfUrl, '_blank')}
+                    >
+                      <ExternalLink size={15} className="mr-1.5" /> Open
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })()}
+          </div>
 
           <div className="space-y-6">
             <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
@@ -925,7 +952,7 @@ export default function ArtisanMarketplace() {
     return (
       <div className="max-w-2xl mx-auto">
         <Card className="p-12 text-center bg-white rounded-2xl border-0 shadow-lg">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-accent/10 mb-6">
+          <div className="flex items-center justify-center w-24 h-24 rounded-full bg-accent/10 mb-6 mx-auto">
             <Check size={48} className="text-accent" />
           </div>
           <h2 className="text-4xl font-bold text-foreground mb-4">Order Placed Successfully!</h2>

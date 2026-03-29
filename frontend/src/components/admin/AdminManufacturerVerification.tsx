@@ -71,11 +71,6 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Manufacturer Verification</h1>
-        <p className="text-lg text-muted-foreground">Review and approve manufacturer applications</p>
-      </div>
-
       <div className="grid md:grid-cols-3 gap-6">
         <StatsCard
           label="Pending Reviews"

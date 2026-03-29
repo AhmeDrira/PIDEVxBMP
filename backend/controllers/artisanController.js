@@ -1,5 +1,7 @@
 const { Artisan } = require('../models/User');
 const Project = require('../models/Project');
+const Review = require('../models/Review');
+const Notification = require('../models/Notification');
 const fs = require('fs');
 const path = require('path');
 
@@ -45,7 +47,50 @@ const removePortfolioMediaFiles = (media = []) => {
 exports.getAllArtisans = async (req, res) => {
   try {
     const artisans = await Artisan.find({ status: 'active' }).select('-password');
-    return res.status(200).json(artisans);
+
+    // Fetch review stats and completed project counts for all artisans at once
+    const artisanIds = artisans.map(a => a._id);
+
+    const [reviewStats, projectStats] = await Promise.all([
+      Review.aggregate([
+        { $match: { artisan: { $in: artisanIds } } },
+        {
+          $group: {
+            _id: '$artisan',
+            reviewCount: { $sum: 1 },
+            avgRating: { $avg: '$rating' },
+          },
+        },
+      ]),
+      Project.aggregate([
+        { $match: { artisan: { $in: artisanIds }, status: 'completed' } },
+        { $group: { _id: '$artisan', count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    // Build lookup maps
+    const reviewMap = {};
+    reviewStats.forEach(r => {
+      reviewMap[String(r._id)] = {
+        reviewCount: r.reviewCount,
+        rating: Math.round(r.avgRating * 10) / 10,
+      };
+    });
+
+    const projectMap = {};
+    projectStats.forEach(p => {
+      projectMap[String(p._id)] = p.count;
+    });
+
+    const enriched = artisans.map(a => ({
+      ...a.toObject(),
+      rating: reviewMap[String(a._id)]?.rating ?? 0,
+      reviewCount: reviewMap[String(a._id)]?.reviewCount ?? 0,
+      completedProjects: projectMap[String(a._id)] ?? 0,
+      portfolioCount: (a.portfolio || []).length,
+    }));
+
+    return res.status(200).json(enriched);
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -59,7 +104,95 @@ exports.getArtisanById = async (req, res) => {
       return res.status(404).json({ message: 'Artisan not found' });
     }
 
-    return res.status(200).json(artisan);
+    const [completedProjects, reviews] = await Promise.all([
+      Project.countDocuments({ artisan: artisan._id, status: 'completed' }),
+      Review.find({ artisan: artisan._id }),
+    ]);
+
+    const reviewCount = reviews.length;
+    const rating = reviewCount > 0
+      ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount) * 10) / 10
+      : 0;
+    const portfolioCount = (artisan.portfolio || []).length;
+
+    return res.status(200).json({
+      ...artisan.toObject(),
+      completedProjects,
+      reviewCount,
+      rating,
+      portfolioCount,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.getArtisanReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ artisan: req.params.id })
+      .populate('expert', 'firstName lastName profilePhoto')
+      .sort({ createdAt: -1 });
+    return res.status(200).json(reviews);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.addArtisanReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    const artisan = await Artisan.findById(req.params.id);
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan not found' });
+    }
+
+    if (String(req.user._id) === String(artisan._id)) {
+      return res.status(400).json({ message: 'You cannot review yourself' });
+    }
+
+    const isNew = !(await Review.findOne({ artisan: req.params.id, expert: req.user._id }));
+
+    const review = await Review.findOneAndUpdate(
+      { artisan: req.params.id, expert: req.user._id },
+      { rating, comment: comment || '' },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const populated = await review.populate('expert', 'firstName lastName profilePhoto');
+
+    // Create notification for the artisan
+    const expertName = `${populated.expert.firstName} ${populated.expert.lastName}`;
+    const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+    await Notification.create({
+      type: 'new_review',
+      title: isNew ? 'New Review Received' : 'Review Updated',
+      message: `${expertName} ${isNew ? 'left' : 'updated'} a ${rating}-star review on your profile. ${stars}${comment ? ` — "${comment}"` : ''}`,
+      recipient: artisan._id,
+      relatedId: req.user._id,
+      relatedModel: 'User',
+    });
+
+    return res.status(201).json(populated);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.getPublicPortfolioItem = async (req, res) => {
+  try {
+    const artisan = await Artisan.findById(req.params.id).select('portfolio');
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan not found' });
+    }
+    const item = artisan.portfolio.id(req.params.itemId);
+    if (!item) {
+      return res.status(404).json({ message: 'Portfolio item not found' });
+    }
+    return res.status(200).json(item);
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }

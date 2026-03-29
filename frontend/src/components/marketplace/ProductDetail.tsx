@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowRight, ShoppingCart, Check } from 'lucide-react';
+import { ArrowRight, ShoppingCart, Check, FileText, ExternalLink, Package } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import axios from 'axios';
 
 interface ProductDetailProps {
   productId?: string;
@@ -11,73 +12,58 @@ interface ProductDetailProps {
   onAddToCart?: (product: any) => void;
 }
 
+const SERVER_URL = 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+function getImageUrl(path: string) {
+  if (!path) return '';
+  const clean = path.replace(/\\/g, '/').replace(/^\/+/, '');
+  return clean.startsWith('http') ? clean : `${SERVER_URL}/${clean}`;
+}
+
 export default function ProductDetail({ productId, onBack, onAddToCart }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock product data - in real app this would come from API/props
-  const product = {
-    id: productId || '1',
-    name: 'Premium Cement - 50kg',
-    category: 'Building Materials',
-    price: 45,
-    manufacturer: 'BuildMaster Ltd',
-    stock: 150,
-    images: [
-      'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=800&h=600&fit=crop',
-    ],
-    rating: 4.5,
-    reviewCount: 128,
-    description: 'High-quality premium cement suitable for all types of construction work. Our cement offers excellent binding properties and durability, meeting international quality standards. Perfect for residential and commercial projects.',
-    specifications: {
-      'Weight': '50kg per bag',
-      'Composition': 'Portland Cement',
-      'Strength': '42.5 MPa',
-      'Setting Time': '30-600 minutes',
-      'Storage Life': '3 months',
-      'Origin': 'Tunisia'
-    },
-    features: [
-      'High compressive strength',
-      'Excellent workability',
-      'Quick setting time',
-      'Weather resistant',
-      'Cost-effective solution'
-    ]
-  };
+  useEffect(() => {
+    if (!productId) { setLoading(false); return; }
+    const token = localStorage.getItem('token') || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').token; } catch { return ''; } })();
+    axios.get(`${API_URL}/products/${productId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+      .then(res => setProduct(res.data))
+      .catch(() => setProduct(null))
+      .finally(() => setLoading(false));
+  }, [productId]);
 
-  const relatedProducts = [
-    {
-      id: 2,
-      name: 'Steel Rebar 12mm',
-      price: 120,
-      image: 'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=400&h=300&fit=crop',
-      rating: 4.8
-    },
-    {
-      id: 3,
-      name: 'Ceramic Floor Tiles',
-      price: 35,
-      image: 'https://images.unsplash.com/photo-1615875474908-f403087c0052?w=400&h=300&fit=crop',
-      rating: 4.6
-    },
-    {
-      id: 4,
-      name: 'Paint - White 20L',
-      price: 85,
-      image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=300&fit=crop',
-      rating: 4.7
-    },
-    {
-      id: 5,
-      name: 'Electrical Wire 2.5mm',
-      price: 95,
-      image: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=400&h=300&fit=crop',
-      rating: 4.9
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="space-y-6">
+        {onBack && <Button variant="outline" onClick={onBack} className="rounded-xl border-2"><ArrowRight size={20} className="mr-2 rotate-180" /> Back</Button>}
+        <Card className="p-12 text-center rounded-2xl border-0 shadow-lg">
+          <Package size={48} className="text-gray-300 mx-auto mb-4" />
+          <p className="text-muted-foreground">Product not found.</p>
+        </Card>
+      </div>
+    );
+  }
+
+  const imgUrl = getImageUrl(product.documentUrl);
+  const pdfUrl = product.techSheetUrl ? getImageUrl(product.techSheetUrl) : null;
+  const images = imgUrl ? [imgUrl] : [];
+  const manufacturerName = product.manufacturer
+    ? `${product.manufacturer.firstName || ''} ${product.manufacturer.lastName || ''}`.trim()
+    : product.manufacturerName || 'Manufacturer';
 
   const handleAddToCart = () => {
     if (onAddToCart) {
@@ -89,11 +75,7 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
     <div className="space-y-8">
       {/* Back Button */}
       {onBack && (
-        <Button 
-          variant="outline" 
-          onClick={onBack} 
-          className="rounded-xl border-2"
-        >
+        <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
           <ArrowRight size={20} className="mr-2 rotate-180" />
           Back to Products
         </Button>
@@ -101,37 +83,42 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
 
       {/* Main Product Section */}
       <div className="grid lg:grid-cols-2 gap-8">
-        {/* Image Gallery */}
+        {/* Image */}
         <div className="space-y-4">
           <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
-            <div className="aspect-video bg-gray-100">
-              <ImageWithFallback
-                src={product.images[selectedImage]}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </Card>
-          
-          {/* Thumbnail Gallery */}
-          <div className="grid grid-cols-4 gap-3">
-            {product.images.map((img, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedImage(idx)}
-                aria-label={`Select product image ${idx + 1}`}
-                className={`aspect-video rounded-xl overflow-hidden border-2 transition-all ${
-                  selectedImage === idx ? 'border-primary shadow-md' : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
+            <div className="aspect-video bg-gray-100 flex items-center justify-center">
+              {images.length > 0 ? (
                 <ImageWithFallback
-                  src={img}
-                  alt={`${product.name} view ${idx + 1}`}
+                  src={images[selectedImage]}
+                  alt={product.name}
                   className="w-full h-full object-cover"
                 />
-              </button>
-            ))}
-          </div>
+              ) : (
+                <Package size={64} className="text-gray-300" />
+              )}
+            </div>
+          </Card>
+
+          {/* PDF Technical Sheet */}
+          {pdfUrl && (
+            <Card className="p-5 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <FileText size={24} className="text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-blue-900 text-sm">Technical Sheet Available</p>
+                  <p className="text-blue-600 text-xs mt-0.5">PDF document attached by manufacturer</p>
+                </div>
+                <Button
+                  className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold flex-shrink-0"
+                  onClick={() => window.open(pdfUrl, '_blank')}
+                >
+                  <ExternalLink size={15} className="mr-1.5" /> Open
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Product Info */}
@@ -140,22 +127,14 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
             <Badge className="mb-4 bg-primary/10 text-primary border-0 px-3 py-1 text-sm">
               {product.category}
             </Badge>
-            
-            <h1 className="text-3xl font-bold text-foreground mb-3">{product.name}</h1>
-            
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <span className="text-secondary text-2xl">★</span>
-                <span className="text-xl font-semibold text-foreground">{product.rating}</span>
-              </div>
-              <span className="text-muted-foreground">({product.reviewCount} reviews)</span>
-            </div>
 
-            <p className="text-lg text-muted-foreground mb-4">{product.manufacturer}</p>
+            <h1 className="text-3xl font-bold text-foreground mb-3">{product.name}</h1>
+
+            <p className="text-lg text-muted-foreground mb-4">{manufacturerName}</p>
 
             <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-primary/5 to-primary/10 mb-6">
               <span className="text-lg font-medium text-muted-foreground">Price:</span>
-              <span className="text-4xl font-bold text-primary">{product.price} TND</span>
+              <span className="text-4xl font-bold text-primary">{Number(product.price).toFixed(3)} TND</span>
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 mb-6">
@@ -174,29 +153,17 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
               </div>
             </div>
 
-            <p className="text-muted-foreground mb-6 leading-relaxed">{product.description}</p>
+            {product.description && (
+              <p className="text-muted-foreground mb-6 leading-relaxed">{product.description}</p>
+            )}
 
             {/* Quantity Selector */}
             <div className="flex items-center gap-4 mb-6">
               <span className="text-base font-medium text-foreground">Quantity:</span>
               <div className="flex items-center gap-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 rounded-xl border-2"
-                >
-                  -
-                </Button>
+                <Button size="sm" variant="outline" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-xl border-2">-</Button>
                 <span className="w-16 text-center font-bold text-xl">{quantity}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  className="w-10 h-10 rounded-xl border-2"
-                >
-                  +
-                </Button>
+                <Button size="sm" variant="outline" onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} className="w-10 h-10 rounded-xl border-2">+</Button>
               </div>
             </div>
 
@@ -206,69 +173,9 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
               disabled={product.stock === 0}
             >
               <ShoppingCart size={20} className="mr-2" />
-              Add to Cart - {(product.price * quantity).toFixed(2)} TND
+              Add to Cart — {(Number(product.price) * quantity).toFixed(3)} TND
             </Button>
           </Card>
-        </div>
-      </div>
-
-      {/* Technical Specifications */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-        <h2 className="text-2xl font-bold text-foreground mb-6">Technical Specifications</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          {Object.entries(product.specifications).map(([key, value]) => (
-            <div key={key} className="flex items-center justify-between p-4 rounded-xl bg-gray-50">
-              <span className="font-medium text-muted-foreground">{key}:</span>
-              <span className="font-semibold text-foreground">{value}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Key Features */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-        <h2 className="text-2xl font-bold text-foreground mb-6">Key Features</h2>
-        <ul className="grid md:grid-cols-2 gap-4">
-          {product.features.map((feature, idx) => (
-            <li key={idx} className="flex items-center gap-3 p-4 rounded-xl bg-accent/5">
-              <Check size={20} className="text-accent flex-shrink-0" />
-              <span className="text-foreground">{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
-
-      {/* Related Products */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground mb-6">Related Products</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {relatedProducts.map((relProd) => (
-            <Card 
-              key={relProd.id}
-              className="group bg-white rounded-2xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden cursor-pointer"
-            >
-              <div className="aspect-video relative overflow-hidden bg-gray-100">
-                <ImageWithFallback
-                  src={relProd.image}
-                  alt={relProd.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                />
-              </div>
-              <div className="p-5 space-y-3">
-                <h3 className="font-bold text-foreground line-clamp-2">{relProd.name}</h3>
-                <div className="flex items-center gap-1">
-                  <span className="text-secondary text-lg">★</span>
-                  <span className="text-sm font-semibold text-foreground">{relProd.rating}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold text-primary">{relProd.price} TND</span>
-                  <Button size="sm" variant="outline" className="rounded-lg">
-                    View
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
         </div>
       </div>
     </div>

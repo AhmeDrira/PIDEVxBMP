@@ -1267,27 +1267,31 @@ async function updateProfile(req, res) {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const { 
-      firstName, 
-      lastName, 
+    const {
+      firstName,
+      lastName,
+      phone,
       profilePhoto,
-      location, 
-      domain, 
-      bio, 
-      specialization, 
+      location,
+      domain,
+      bio,
+      specialization,
       experience,
       yearsExperience,
       credentials,
       institution,
       companyName,
       description,
-      certificationNumber
+      certificationNumber,
+      skills,
+      certifications,
     } = req.body;
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (profilePhoto !== undefined) user.profilePhoto = profilePhoto;
-    
+    if (phone !== undefined) user.phone = phone || undefined;
+
     // Role specific fields
     if (location !== undefined) user.location = location;
     if (domain !== undefined) user.domain = domain;
@@ -1300,6 +1304,8 @@ async function updateProfile(req, res) {
     if (companyName !== undefined) user.companyName = companyName;
     if (description !== undefined) user.description = description;
     if (certificationNumber !== undefined) user.certificationNumber = certificationNumber;
+    if (Array.isArray(skills)) user.skills = skills;
+    if (Array.isArray(certifications)) user.certifications = certifications;
 
     const updatedUser = await user.save({ validateBeforeSave: false });
 
@@ -1317,11 +1323,14 @@ async function updateProfile(req, res) {
       bio: updatedUser.bio,
       specialization: updatedUser.specialization,
       experience: updatedUser.yearsExperience,
+      yearsExperience: updatedUser.yearsExperience,
       credentials: updatedUser.credentials,
       institution: updatedUser.institution,
       companyName: updatedUser.companyName,
       description: updatedUser.description,
-      certificationNumber: updatedUser.certificationNumber
+      certificationNumber: updatedUser.certificationNumber,
+      skills: updatedUser.skills || [],
+      certifications: updatedUser.certifications || [],
     });
   } catch (error) {
     console.error(error);

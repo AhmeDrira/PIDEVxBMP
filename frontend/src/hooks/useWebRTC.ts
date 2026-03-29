@@ -44,7 +44,7 @@ export function useWebRTC(socket: Socket | null, conversationId: string | null) 
       peerConnection.current.close();
     }
     const pc = new RTCPeerConnection(configuration);
-    
+
     pc.onicecandidate = (event) => {
       if (event.candidate && socket && conversationId) {
         socket.emit('call:ice-candidate', {

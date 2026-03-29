@@ -20,7 +20,7 @@ const resolveChromeExecutablePath = () => {
 // @route   POST /api/quotes
 const createQuote = async (req, res) => {
   try {
-    const { project, clientName, laborHand, materialsAmount, description, validUntil, paymentTerms } = req.body;
+    const { project, clientName, laborHand, materialsAmount, description, validUntil, paymentTerms, upfrontPercent } = req.body;
 
     if (!project || !clientName || !description || !validUntil) {
       return res.status(400).json({ message: 'Please add all required fields' });
@@ -48,6 +48,11 @@ const createQuote = async (req, res) => {
     const randomCode = Math.floor(1000 + Math.random() * 9000);
     const quoteNumber = `QT-${currentYear}-${randomCode}`;
 
+    const parsedUpfrontPercent = Number(upfrontPercent);
+    const safeUpfrontPercent = Number.isFinite(parsedUpfrontPercent) && parsedUpfrontPercent >= 0 && parsedUpfrontPercent <= 100
+      ? parsedUpfrontPercent
+      : 50;
+
     const quote = await Quote.create({
       quoteNumber,
       project,
@@ -58,7 +63,8 @@ const createQuote = async (req, res) => {
       amount,
       description,
       validUntil,
-      paymentTerms
+      paymentTerms,
+      upfrontPercent: safeUpfrontPercent,
     });
 
     await logAction(req, {

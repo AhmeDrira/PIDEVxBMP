@@ -168,52 +168,6 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
         </div>
       </Card>
 
-      {/* Recent Projects */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Your Active Projects</h2>
-            <p className="text-muted-foreground mt-1">Projects you are currently involved in</p>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={() => onNavigate('projects')}
-            className="rounded-xl border-2 hover:border-primary hover:text-primary"
-          >
-            View All
-            <ArrowRight size={16} className="ml-2" />
-          </Button>
-        </div>
-        {loading ? (
-          <div className="flex justify-center py-8"><Loader2 size={32} className="animate-spin text-primary" /></div>
-        ) : projects.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">No projects yet. Browse artisans to get started!</p>
-        ) : (
-          <div className="space-y-4">
-            {projects.slice(0, 3).map((project: any) => (
-              <div
-                key={project._id}
-                className="p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-foreground mb-2">{project.title || project.name || 'Untitled Project'}</h3>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <Badge className="bg-primary/10 text-primary px-3 py-1 text-xs font-semibold border-0">
-                        {project.status || 'Active'}
-                      </Badge>
-                      <span>Created: <strong className="text-foreground">{new Date(project.createdAt).toLocaleDateString()}</strong></span>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="rounded-xl border-2">
-                    View
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
 
       {/* Recent Conversations */}
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">

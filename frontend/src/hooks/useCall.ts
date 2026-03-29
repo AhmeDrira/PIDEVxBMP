@@ -25,7 +25,7 @@ const initialState: CallState = {
 
 export function useCall(socket: Socket | null, currentUserId: string | null) {
   const [callState, setCallState] = useState<CallState>(initialState);
-  
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (callState.status === 'in-call' && callState.startTime) {

@@ -29,6 +29,7 @@ interface DashboardLayoutProps {
   onEditProfile: () => void;
   editProfileLabel?: string;
   onUpdatePassword?: () => void;
+  onViewReviews?: () => void;
   /** Optional custom notification bell component (e.g. for admin) */
   bellComponent?: React.ReactNode;
 }
@@ -47,6 +48,7 @@ export default function DashboardLayout({
   onEditProfile,
   editProfileLabel,
   onUpdatePassword,
+  onViewReviews,
   bellComponent,
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -81,13 +83,10 @@ export default function DashboardLayout({
     fetchUnreadCount();
 
     if (socket) {
-      socket.on('message:new', fetchUnreadCount);
-      socket.on('receive_message', fetchUnreadCount);
-      socket.on('conversation:updated', fetchUnreadCount);
+      const onNewMessage = () => setUnreadCount((prev) => prev + 1);
+      socket.on('message:new', onNewMessage);
       return () => {
-        socket.off('message:new', fetchUnreadCount);
-        socket.off('receive_message', fetchUnreadCount);
-        socket.off('conversation:updated', fetchUnreadCount);
+        socket.off('message:new', onNewMessage);
       };
     }
   }, [userRole, socket]);
@@ -201,7 +200,7 @@ export default function DashboardLayout({
             >
               <MessageCircle size={20} className="text-muted-foreground transition-colors hover:text-primary" />
               {unreadCount > 0 && (
-                <span style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', minWidth: 18, height: 18, padding: '0 4px', fontSize: 10, fontWeight: 700, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', boxSizing: 'content-box' }}>
+                <span style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', minWidth: 18, height: 18, padding: '0 4px', fontSize: 10, fontWeight: 700, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', boxSizing: 'border-box' }}>
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -308,7 +307,7 @@ export default function DashboardLayout({
               >
                 <MessageCircle size={20} className="text-muted-foreground hover:text-primary transition-colors" />
                 {unreadCount > 0 && (
-                  <span style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', minWidth: 20, height: 20, padding: '0 5px', fontSize: 11, fontWeight: 700, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', boxSizing: 'content-box' }}>
+                  <span style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', minWidth: 20, height: 20, padding: '0 5px', fontSize: 11, fontWeight: 700, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', boxSizing: 'border-box' }}>
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
@@ -328,6 +327,7 @@ export default function DashboardLayout({
               onEditProfile={onEditProfile}
               editProfileLabel={editProfileLabel}
               onUpdatePassword={onUpdatePassword}
+              onViewReviews={onViewReviews}
               onLogout={onLogout}
             />
           </div>
