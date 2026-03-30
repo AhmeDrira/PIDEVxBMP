@@ -64,7 +64,7 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
   const menuItems =[
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'products', label: 'My Products', icon: <Package size={20} /> },
-    { id: 'orders', label: 'Orders', icon: <ShoppingBag size={20} />, badge: unreadOrdersCount },
+    { id: 'orders', label: 'Orders', icon: <ShoppingBag size={20} /> },
   ];
 
   const handleMenuItemClick = async (id: string) => {

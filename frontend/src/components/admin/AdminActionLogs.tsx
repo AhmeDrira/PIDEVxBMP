@@ -14,33 +14,33 @@ import actionLogService, { ActionLogItem } from '../../services/actionLogService
 import authService from '../../services/authService';
 
 const roleConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  artisan:      { label: 'Artisan',   color: '#d97706', bg: '#fef3c7', dot: '#f59e0b' },
-  expert:       { label: 'Expert',    color: '#059669', bg: '#d1fae5', dot: '#10b981' },
-  manufacturer: { label: 'Fabricant', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
-  admin:        { label: 'Admin',     color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
-  system:       { label: 'Système',   color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' },
+  artisan:      { label: 'Artisan',      color: '#d97706', bg: '#fef3c7', dot: '#f59e0b' },
+  expert:       { label: 'Expert',       color: '#059669', bg: '#d1fae5', dot: '#10b981' },
+  manufacturer: { label: 'Manufacturer', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
+  admin:        { label: 'Admin',        color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
+  system:       { label: 'System',       color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' },
 };
 
 const actionLabels = [
-  { label: 'Toutes les actions', value: '' },
-  { label: 'Projet créé', value: 'artisan.project.create' },
-  { label: 'Devis généré', value: 'artisan.quote.create' },
-  { label: 'Facture générée', value: 'artisan.invoice.create' },
-  { label: 'Facture supprimée', value: 'artisan.invoice.delete' },
-  { label: 'Paiement tranche 1', value: 'artisan.invoice.payment.upfront' },
-  { label: 'Paiement tranche 2', value: 'artisan.invoice.payment.completion' },
-  { label: 'Matériel ajouté', value: 'manufacturer.product.create' },
-  { label: 'Matériel modifié', value: 'manufacturer.product.update' },
-  { label: 'Matériel supprimé', value: 'manufacturer.product.delete' },
-  { label: 'Achat marketplace', value: 'marketplace.checkout' },
-  { label: 'Achat marketplace (Stripe)', value: 'marketplace.checkout.stripe' },
-  { label: 'Sous-admin créé', value: 'admin.subadmin.create' },
-  { label: 'Mot de passe réinitialisé', value: 'admin.subadmin.password.reset' },
-  { label: 'Fabricant approuvé', value: 'admin.manufacturer.approve' },
-  { label: 'Fabricant rejeté', value: 'admin.manufacturer.reject' },
-  { label: 'Utilisateur suspendu', value: 'admin.user.suspend' },
-  { label: 'Utilisateur activé', value: 'admin.user.activate' },
-  { label: 'Utilisateur supprimé', value: 'admin.user.delete' },
+  { label: 'All actions',                   value: '' },
+  { label: 'Project created',               value: 'artisan.project.create' },
+  { label: 'Quote generated',               value: 'artisan.quote.create' },
+  { label: 'Invoice generated',             value: 'artisan.invoice.create' },
+  { label: 'Invoice deleted',               value: 'artisan.invoice.delete' },
+  { label: 'Payment – upfront installment', value: 'artisan.invoice.payment.upfront' },
+  { label: 'Payment – completion installment', value: 'artisan.invoice.payment.completion' },
+  { label: 'Product added',                 value: 'manufacturer.product.create' },
+  { label: 'Product updated',               value: 'manufacturer.product.update' },
+  { label: 'Product deleted',               value: 'manufacturer.product.delete' },
+  { label: 'Marketplace purchase',          value: 'marketplace.checkout' },
+  { label: 'Marketplace purchase (Stripe)', value: 'marketplace.checkout.stripe' },
+  { label: 'Sub-admin created',             value: 'admin.subadmin.create' },
+  { label: 'Password reset',                value: 'admin.subadmin.password.reset' },
+  { label: 'Manufacturer approved',         value: 'admin.manufacturer.approve' },
+  { label: 'Manufacturer rejected',         value: 'admin.manufacturer.reject' },
+  { label: 'User suspended',                value: 'admin.user.suspend' },
+  { label: 'User activated',                value: 'admin.user.activate' },
+  { label: 'User deleted',                  value: 'admin.user.delete' },
 ];
 
 type BasicUserRow = { _id: string; role: string; adminType?: string };
@@ -81,7 +81,7 @@ export default function AdminActionLogs() {
       if (response.summary) setLogSummary(response.summary);
       setSelectedIds([]);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Impossible de charger les logs.');
+      toast.error(error?.response?.data?.message || 'Failed to load logs.');
     } finally { setLoading(false); }
   };
 
@@ -97,7 +97,7 @@ export default function AdminActionLogs() {
       const subAdmins = Array.isArray(users) ? users.filter((u) => String(u.role).toLowerCase() === 'admin' && String(u.adminType || '').toLowerCase() === 'sub') : [];
       setAccountStats({ total, users: nonAdminUsers.length, subAdmins: subAdmins.length });
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Impossible de charger les statistiques.');
+      toast.error(error?.response?.data?.message || 'Failed to load statistics.');
       setAccountStats({ total: 0, users: 0, subAdmins: 0 });
     } finally { setAccountStatsLoading(false); }
   };
@@ -110,13 +110,13 @@ export default function AdminActionLogs() {
     setSelectedIds((prev) => checked === true ? [...prev, id] : prev.filter((v) => v !== id));
 
   const deleteOne = async (id: string) => {
-    try { await actionLogService.deleteById(id); toast.success('Log supprimé.'); loadLogs(page); }
-    catch (error: any) { toast.error(error?.response?.data?.message || 'Impossible de supprimer le log.'); }
+    try { await actionLogService.deleteById(id); toast.success('Log deleted.'); loadLogs(page); }
+    catch (error: any) { toast.error(error?.response?.data?.message || 'Failed to delete log.'); }
   };
   const deleteSelected = async () => {
-    if (!selectedIds.length) { toast.error('Sélectionnez au moins un log.'); return; }
-    try { await actionLogService.bulkDelete(selectedIds); toast.success('Logs sélectionnés supprimés.'); loadLogs(page); }
-    catch (error: any) { toast.error(error?.response?.data?.message || 'Impossible de supprimer la sélection.'); }
+    if (!selectedIds.length) { toast.error('Select at least one log.'); return; }
+    try { await actionLogService.bulkDelete(selectedIds); toast.success('Selected logs deleted.'); loadLogs(page); }
+    catch (error: any) { toast.error(error?.response?.data?.message || 'Failed to delete selection.'); }
   };
 
   const formatMoney = (value: unknown) => { const n = Number(value); return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : null; };
@@ -133,7 +133,7 @@ export default function AdminActionLogs() {
     if (stripeSessionId) chips.push(`session: ${stripeSessionId.slice(0, 12)}…`);
     const invoiceNumber = String(metadata.invoiceNumber || '').trim(); if (invoiceNumber) chips.push(`invoice: ${invoiceNumber}`);
     const quoteNumber = String(metadata.quoteNumber || '').trim(); if (quoteNumber) chips.push(`quote: ${quoteNumber}`);
-    const productName = String(metadata.name || '').trim(); if (productName) chips.push(`matériel: ${productName}`);
+    const productName = String(metadata.name || '').trim(); if (productName) chips.push(`product: ${productName}`);
     if (!chips.length) return null;
     return (
       <div className="mt-2 flex flex-wrap gap-1">
@@ -147,11 +147,11 @@ export default function AdminActionLogs() {
   const activeFilterCount = [search, actorRole, actionKey, fromDate, toDate].filter(Boolean).length;
 
   const statCards = [
-    { label: 'Paiements',      value: logSummary.paymentEvents,            icon: CreditCard,     accent: '#2563eb', lightBg: '#eff6ff' },
-    { label: 'Marketplace',    value: logSummary.marketplaceEvents,         icon: ShoppingBag,    accent: '#7c3aed', lightBg: '#f5f3ff' },
-    { label: 'Tranches',       value: logSummary.invoiceInstallmentEvents,  icon: BarChart3,      accent: '#d97706', lightBg: '#fffbeb' },
-    { label: 'Produits',       value: logSummary.manufacturerProductEvents, icon: Wrench,         accent: '#059669', lightBg: '#f0fdf4' },
-    { label: 'Sécurité admin', value: logSummary.adminSecurityEvents,       icon: ShieldEllipsis, accent: '#dc2626', lightBg: '#fff1f2' },
+    { label: 'Payments',         value: logSummary.paymentEvents,            icon: CreditCard,     accent: '#2563eb', lightBg: '#eff6ff' },
+    { label: 'Marketplace',      value: logSummary.marketplaceEvents,         icon: ShoppingBag,    accent: '#7c3aed', lightBg: '#f5f3ff' },
+    { label: 'Installments',     value: logSummary.invoiceInstallmentEvents,  icon: BarChart3,      accent: '#d97706', lightBg: '#fffbeb' },
+    { label: 'Products',         value: logSummary.manufacturerProductEvents, icon: Wrench,         accent: '#059669', lightBg: '#f0fdf4' },
+    { label: 'Admin Security',   value: logSummary.adminSecurityEvents,       icon: ShieldEllipsis, accent: '#dc2626', lightBg: '#fff1f2' },
   ];
 
   return (
@@ -167,15 +167,15 @@ export default function AdminActionLogs() {
               <History size={26} style={{ color: '#fff' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>Logs & Historiques</h1>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>Suivi centralisé des actions et audit des accès</p>
+              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>Logs & History</h1>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>Centralized action tracking and access audit</p>
             </div>
           </div>
           <div className="flex gap-3">
             {[
-              { label: 'Total comptes', value: accountStats.total,     icon: Users },
-              { label: 'Utilisateurs',  value: accountStats.users,     icon: Activity },
-              { label: 'Sous-admins',   value: accountStats.subAdmins, icon: ShieldCheck },
+              { label: 'Total accounts', value: accountStats.total,     icon: Users },
+              { label: 'Users',          value: accountStats.users,     icon: Activity },
+              { label: 'Sub-admins',     value: accountStats.subAdmins, icon: ShieldCheck },
             ].map((s) => (
               <div key={s.label} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 14, padding: '12px 18px', minWidth: 110, backdropFilter: 'blur(8px)' }}>
                 <div className="flex items-center gap-2 mb-1">
@@ -208,10 +208,10 @@ export default function AdminActionLogs() {
       <div style={{ ...card, padding: 20 }}>
         <div className="flex items-center gap-2 mb-4">
           <Filter size={15} style={{ color: '#2563eb' }} />
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filtres</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filters</span>
           {activeFilterCount > 0 && (
             <span style={{ fontSize: 11, background: '#2563eb', color: '#fff', borderRadius: 999, padding: '1px 8px', fontWeight: 800 }}>
-              {activeFilterCount} actif{activeFilterCount > 1 ? 's' : ''}
+              {activeFilterCount} active
             </span>
           )}
         </div>
@@ -225,7 +225,7 @@ export default function AdminActionLogs() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') setSearch(searchInput.trim()); }}
-                placeholder="Nom, action, cible…"
+                placeholder="Name, action, target…"
                 style={{ border: 'none', background: 'transparent', color: '#1e293b', outline: 'none', boxShadow: 'none', height: '100%', fontSize: 14 }}
                 className="focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-400"
               />
@@ -240,11 +240,11 @@ export default function AdminActionLogs() {
           {/* Role */}
           <div className="lg:col-span-2">
             <select value={actorRole} onChange={(e) => setActorRole(e.target.value)} style={selectBase}>
-              <option value="">Tous les rôles</option>
+              <option value="">All roles</option>
               <option value="artisan">Artisan</option>
               <option value="expert">Expert</option>
-              <option value="manufacturer">Fabricant</option>
-              <option value="admin">Admin / Sous-admin</option>
+              <option value="manufacturer">Manufacturer</option>
+              <option value="admin">Admin / Sub-admin</option>
             </select>
           </div>
 
@@ -261,7 +261,7 @@ export default function AdminActionLogs() {
               onClick={() => setSearch(searchInput.trim())}
               style={{ height: 44, padding: '0 18px', borderRadius: 12, background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              <Filter size={14} /> Appliquer
+              <Filter size={14} /> Apply
             </button>
             <button
               onClick={() => { setSearch(''); setSearchInput(''); setActorRole(''); setActionKey(''); setFromDate(''); setToDate(''); }}
@@ -275,12 +275,12 @@ export default function AdminActionLogs() {
           <div className="lg:col-span-7">
             <div className="flex items-center gap-3 flex-wrap">
               <CalendarRange size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Période :</span>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>Du</span>
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Period:</span>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>From</span>
               <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
                 style={{ height: 40, background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: 10, color: '#1e293b', fontSize: 13 }}
                 className="focus-visible:ring-0" />
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>Au</span>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>To</span>
               <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
                 style={{ height: 40, background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: 10, color: '#1e293b', fontSize: 13 }}
                 className="focus-visible:ring-0" />
@@ -294,19 +294,19 @@ export default function AdminActionLogs() {
               onClick={deleteSelected}
               style={{ height: 40, padding: '0 16px', borderRadius: 10, background: selectedIds.length ? '#fff1f2' : '#f8fafc', color: selectedIds.length ? '#dc2626' : '#94a3b8', border: `2px solid ${selectedIds.length ? '#fecaca' : '#e2e8f0'}`, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: selectedIds.length ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
             >
-              <Trash2 size={14} /> Supprimer ({selectedIds.length})
+              <Trash2 size={14} /> Delete ({selectedIds.length})
             </button>
             <button
               onClick={() => { loadAccountStats(); loadLogs(page); }}
               style={{ height: 40, padding: '0 16px', borderRadius: 10, background: '#eff6ff', color: '#2563eb', border: '2px solid #bfdbfe', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
             >
-              <RefreshCw size={14} /> Actualiser
+              <RefreshCw size={14} /> Refresh
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── TOP ACTIONS + RÉPARTITION ── */}
+      {/* ── TOP ACTIONS + BREAKDOWN ── */}
       {(logSummary.topActions.length > 0 || Object.keys(logSummary.byRole).length > 0) && (
         <div className="grid lg:grid-cols-2 gap-4">
           <div style={{ ...card, padding: 20 }}>
@@ -321,14 +321,14 @@ export default function AdminActionLogs() {
                   <div style={{ fontSize: 12, color: '#1e293b', fontWeight: 600 }}>{item.actionLabel}</div>
                   <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{item.count} occurrence{item.count > 1 ? 's' : ''}</div>
                 </button>
-              )) : <p style={{ fontSize: 13, color: '#94a3b8' }}>Aucune action sur le filtre courant.</p>}
+              )) : <p style={{ fontSize: 13, color: '#94a3b8' }}>No actions for the current filter.</p>}
             </div>
           </div>
 
           <div style={{ ...card, padding: 20 }}>
             <div className="flex items-center gap-2 mb-4">
               <Zap size={14} style={{ color: '#2563eb' }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Répartition par rôle</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Breakdown by role</span>
             </div>
             <div className="space-y-3">
               {(['artisan', 'expert', 'manufacturer', 'admin'] as const).map((role) => {
@@ -337,7 +337,7 @@ export default function AdminActionLogs() {
                 const max = Math.max(...['artisan','expert','manufacturer','admin'].map(r => logSummary.byRole[r] || 0), 1);
                 return (
                   <div key={role} className="flex items-center gap-3">
-                    <span style={{ fontSize: 12, color: cfg.color, fontWeight: 700, minWidth: 72 }}>{cfg.label}</span>
+                    <span style={{ fontSize: 12, color: cfg.color, fontWeight: 700, minWidth: 80 }}>{cfg.label}</span>
                     <div style={{ flex: 1, height: 7, background: '#f1f5f9', borderRadius: 99 }}>
                       <div style={{ height: '100%', borderRadius: 99, background: cfg.dot, width: `${(count / max) * 100}%`, transition: 'width 0.5s' }} />
                     </div>
@@ -356,11 +356,11 @@ export default function AdminActionLogs() {
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: 'linear-gradient(90deg, #f8fafc, #eff6ff)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="flex items-center gap-2">
             <History size={17} style={{ color: '#2563eb' }} />
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Historique des actions</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Action History</h2>
           </div>
           <div className="flex items-center gap-2">
             <ShieldCheck size={14} style={{ color: '#2563eb' }} />
-            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{totalItems} log{totalItems > 1 ? 's' : ''} au total</span>
+            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{totalItems} log{totalItems > 1 ? 's' : ''} total</span>
           </div>
         </div>
 
@@ -370,7 +370,7 @@ export default function AdminActionLogs() {
               <TableHead style={{ width: 40 }}>
                 <Checkbox checked={isAllSelected} onCheckedChange={toggleSelectAll} />
               </TableHead>
-              {['Acteur', 'Rôle', 'Action', 'Cible', 'Date', 'Détails', ''].map((h) => (
+              {['Actor', 'Role', 'Action', 'Target', 'Date', 'Details', ''].map((h) => (
                 <TableHead key={h} style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</TableHead>
               ))}
             </TableRow>
@@ -381,7 +381,7 @@ export default function AdminActionLogs() {
                 <TableCell colSpan={8} style={{ height: 120, textAlign: 'center', background: '#fff' }}>
                   <div className="flex items-center justify-center gap-3">
                     <div style={{ width: 20, height: 20, border: '2px solid #2563eb', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                    <span style={{ color: '#94a3b8', fontSize: 14 }}>Chargement des logs…</span>
+                    <span style={{ color: '#94a3b8', fontSize: 14 }}>Loading logs…</span>
                   </div>
                 </TableCell>
               </TableRow>
@@ -389,7 +389,7 @@ export default function AdminActionLogs() {
               <TableRow>
                 <TableCell colSpan={8} style={{ height: 140, textAlign: 'center', background: '#fff' }}>
                   <History size={36} style={{ color: '#e2e8f0', margin: '0 auto 10px' }} />
-                  <p style={{ color: '#94a3b8', fontSize: 14 }}>Aucun log trouvé avec ces filtres.</p>
+                  <p style={{ color: '#94a3b8', fontSize: 14 }}>No logs found with these filters.</p>
                 </TableCell>
               </TableRow>
             ) : (
@@ -405,7 +405,7 @@ export default function AdminActionLogs() {
                       <div style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>{log.actorName || '—'}</div>
                       {log.actorAdminType && (
                         <div style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                          <UserCog size={11} /> {log.actorAdminType === 'sub' ? 'sous-admin' : 'super admin'}
+                          <UserCog size={11} /> {log.actorAdminType === 'sub' ? 'sub-admin' : 'super admin'}
                         </div>
                       )}
                     </TableCell>
@@ -425,14 +425,14 @@ export default function AdminActionLogs() {
                     </TableCell>
                     <TableCell>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap' }}>
-                        {new Date(log.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {new Date(log.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                        {new Date(log.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(log.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </TableCell>
                     <TableCell style={{ maxWidth: 320 }}>
-                      <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{log.description || 'Aucun détail supplémentaire'}</p>
+                      <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{log.description || 'No additional details'}</p>
                       {renderMetadataDetails(log)}
                     </TableCell>
                     <TableCell style={{ textAlign: 'right' }}>
@@ -456,12 +456,12 @@ export default function AdminActionLogs() {
         <div style={{ padding: '14px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <span style={{ fontSize: 13, color: '#64748b' }}>
             Page <strong style={{ color: '#1e293b' }}>{page}</strong> / <strong style={{ color: '#1e293b' }}>{totalPages}</strong>
-            <span style={{ marginLeft: 8, color: '#94a3b8' }}>({totalItems} lignes)</span>
+            <span style={{ marginLeft: 8, color: '#94a3b8' }}>({totalItems} rows)</span>
           </span>
           <div className="flex items-center gap-2">
             <button disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(p - 1, 1))}
               style={{ height: 36, padding: '0 14px', borderRadius: 10, background: '#fff', color: page <= 1 ? '#cbd5e1' : '#475569', border: '2px solid #e2e8f0', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}>
-              <ChevronLeft size={15} /> Précédent
+              <ChevronLeft size={15} /> Previous
             </button>
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               const pageNum = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
@@ -475,7 +475,7 @@ export default function AdminActionLogs() {
             })}
             <button disabled={page >= totalPages || loading} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
               style={{ height: 36, padding: '0 14px', borderRadius: 10, background: '#fff', color: page >= totalPages ? '#cbd5e1' : '#475569', border: '2px solid #e2e8f0', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, cursor: page >= totalPages ? 'not-allowed' : 'pointer' }}>
-              Suivant <ChevronRight size={15} />
+              Next <ChevronRight size={15} />
             </button>
           </div>
         </div>

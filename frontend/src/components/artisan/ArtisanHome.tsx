@@ -29,6 +29,7 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
+import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
 
 interface ArtisanHomeProps {
   onNavigate: (view: string, projectId?: string) => void;
@@ -598,6 +599,8 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           {error}
         </Card>
       )}
+
+      <ProfileCompletionBanner user={userData} onNavigate={onNavigate} profileView="profile" />
 
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">

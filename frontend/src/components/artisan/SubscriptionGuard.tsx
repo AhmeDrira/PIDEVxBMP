@@ -119,10 +119,22 @@ export function SubscriptionPopup({ onClose }: { onClose: () => void }) {
  *   <button onClick={() => guard(doSomething)}>Action</button>
  *   {PopupElement}
  */
+const getUserRole = (): string => {
+  try {
+    const u = localStorage.getItem('user');
+    return u ? JSON.parse(u)?.role || '' : '';
+  } catch { return ''; }
+};
+
 export function useSubscriptionGuard() {
   const [showPopup, setShowPopup] = useState(false);
 
   const guard = useCallback((action: () => void) => {
+    // Experts don't need a subscription
+    if (getUserRole() === 'expert') {
+      action();
+      return;
+    }
     if (!isSubscriptionActive()) {
       setShowPopup(true);
       return;

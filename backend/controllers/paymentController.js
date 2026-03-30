@@ -434,6 +434,7 @@ const getProductPayments = async (req, res) => {
     }
 
     const payments = await ProductPayment.find({ user: req.user._id })
+      .populate('items.manufacturerId', 'firstName lastName companyName profilePhoto')
       .sort({ paymentDate: -1 });
 
     return res.status(200).json(payments);
