@@ -3,6 +3,7 @@ import { Card } from '../ui/card';
 import { Users, FolderKanban, ShoppingBag, TrendingUp } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import axios from 'axios';
+import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
 
 type StatsResponse = {
   totalUsers: number;
@@ -24,7 +25,7 @@ const roleColors: Record<string, string> = {
   user: '#6B7280',
 };
 
-export default function AdminAnalytics() {
+export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: string) => void } = {}) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +76,8 @@ export default function AdminAnalytics() {
 
   return (
     <div className="space-y-6">
+      <ProfileCompletionBanner onNavigate={onNavigate} profileView="profile" />
+
       {loading && (
         <Card className="p-6 bg-white">Loading analytics...</Card>
       )}

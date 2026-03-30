@@ -9,12 +9,13 @@ import {
   Loader2, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import axios from 'axios';
+import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
 
 interface ManufacturerHomeProps {
   onNavigate: (view: string) => void;
 }
 
-export default function ManufacturerAnalytics() {
+export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomeProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({ totalRevenue: 0, totalOrders: 0, avgOrderValue: 0, activeProducts: 0 });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
@@ -118,6 +119,8 @@ export default function ManufacturerAnalytics() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <ProfileCompletionBanner onNavigate={onNavigate} profileView="profile" />
+
       {/* Page Header */}
       <div>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: 0 }}>Dashboard</h1>

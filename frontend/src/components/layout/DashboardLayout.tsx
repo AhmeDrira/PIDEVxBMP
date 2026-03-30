@@ -5,6 +5,9 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import ProfileDropdown from '../common/ProfileDropdown';
 import Logo from '../common/Logo';
+import Footer from '../common/Footer';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import DarkModeToggle from '../common/DarkModeToggle';
 import axios from 'axios';
 import { useSocket } from '../../context/SocketContext';
 
@@ -211,6 +214,8 @@ export default function DashboardLayout({
               <Bell size={20} className="text-muted-foreground" />
             </button>
           )}
+          <DarkModeToggle />
+          <LanguageSwitcher />
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-lg hover:bg-gray-100"
@@ -318,6 +323,8 @@ export default function DashboardLayout({
                 <Bell size={20} className="text-muted-foreground" />
               </button>
             )}
+            <DarkModeToggle />
+            <LanguageSwitcher />
             <div className="h-10 w-px bg-gray-200" />
             <ProfileDropdown
               userName={userName}
@@ -334,9 +341,14 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-6 lg:p-8 mt-16 lg:mt-0 mb-20 lg:mb-0">
+        <main className="p-6 lg:p-8 mt-16 lg:mt-0">
           {children}
         </main>
+
+        {/* Footer */}
+        <div className="pb-20 lg:pb-0">
+          <Footer />
+        </div>
 
         {/* Mobile Bottom Navigation */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">

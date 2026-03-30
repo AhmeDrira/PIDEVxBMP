@@ -1,33 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Users, BookOpen, MessageSquare, Eye, ThumbsUp, ArrowRight, Loader2, Wallet } from 'lucide-react';
+import {
+  Users, BookOpen, MessageSquare, Wallet, ArrowRight, Loader2,
+  Star, ShoppingBag, TrendingUp, Award, Eye, Package, ChevronRight,
+} from 'lucide-react';
 import StatsCard from '../common/StatsCard';
-import { Badge } from '../ui/badge';
+import ViewArtisanProfile from './ViewArtisanProfile';
+import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
 import axios from 'axios';
 
 interface ExpertHomeProps {
   onNavigate: (view: string) => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const getToken = () => {
+  const direct = localStorage.getItem('token');
+  if (direct) return direct;
+  try {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored).token : null;
+  } catch { return null; }
+};
+
+function StarRating({ rating }: { rating: number }) {
+  const filled = Math.round(rating);
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star
+          key={s}
+          size={13}
+          style={{
+            fill: s <= filled ? '#f59e0b' : '#e5e7eb',
+            color: s <= filled ? '#f59e0b' : '#e5e7eb',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
   const userStorage = localStorage.getItem('user');
   const user = userStorage ? JSON.parse(userStorage) : null;
   const firstName = user?.firstName || 'Expert';
-  const lastName = user?.lastName || '';
 
   const [conversations, setConversations] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [artisans, setArtisans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const getToken = () => {
-    const direct = localStorage.getItem('token');
-    if (direct) return direct;
-    const stored = localStorage.getItem('user');
-    if (stored) return JSON.parse(stored).token;
-    return null;
-  };
+  const [viewingArtisanId, setViewingArtisanId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,16 +62,18 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
         const token = getToken();
         if (!token) return;
         const config = { headers: { Authorization: `Bearer ${token}` } };
-        const [resConv, resProj, resPay] = await Promise.all([
-          axios.get('/api/conversations', config).catch(() => ({ data: [] })),
-          axios.get('/api/projects', config).catch(() => ({ data: [] })),
-          axios.get('/api/payments/product-payments', config).catch(() => ({ data: [] })),
+        const [resConv, resProj, resPay, resArtisans] = await Promise.all([
+          axios.get(`${API_URL}/conversations`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/projects`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/payments/product-payments`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/artisans`).catch(() => ({ data: [] })),
         ]);
         setConversations(Array.isArray(resConv.data) ? resConv.data : []);
         setProjects(Array.isArray(resProj.data) ? resProj.data : []);
         setPayments(Array.isArray(resPay.data) ? resPay.data : []);
+        setArtisans(Array.isArray(resArtisans.data) ? resArtisans.data : []);
       } catch {
-        // silently fail — show zeros
+        // silently fail
       } finally {
         setLoading(false);
       }
@@ -53,37 +81,46 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
     fetchData();
   }, []);
 
-  const activeConversations = conversations.length;
-  const activeProjects = projects.length;
-  const totalPayments = payments.length;
-
+  // ─── Stats ───────────────────────────────────────────────────────────────
   const stats = [
-    { 
-      label: 'Active Projects',
-      value: loading ? '…' : String(activeProjects),
-      icon: <BookOpen size={28} />, 
-      color: '#1E40AF',
-    },
-    { 
-      label: 'Active Conversations', 
-      value: loading ? '…' : String(activeConversations),
-      icon: <MessageSquare size={28} />, 
-      color: '#8B5CF6',
-    },
-    { 
-      label: 'Artisan Connections', 
-      value: loading ? '…' : String(activeConversations),
-      icon: <Users size={28} />, 
-      color: '#10B981',
-    },
-    { 
-      label: 'Product Purchases', 
-      value: loading ? '…' : String(totalPayments),
-      icon: <Wallet size={28} />, 
-      color: '#F59E0B',
-    },
+    { label: 'Active Projects', value: loading ? '…' : String(projects.length), icon: <BookOpen size={28} />, color: '#1E40AF' },
+    { label: 'Conversations', value: loading ? '…' : String(conversations.length), icon: <MessageSquare size={28} />, color: '#8B5CF6' },
+    { label: 'Artisan Network', value: loading ? '…' : String(conversations.length), icon: <Users size={28} />, color: '#10B981' },
+    { label: 'Purchases', value: loading ? '…' : String(payments.length), icon: <Wallet size={28} />, color: '#F59E0B' },
   ];
 
+  // ─── Top Manufacturers ───────────────────────────────────────────────────
+  const topManufacturers = (() => {
+    const map = new Map<string, { id: string; name: string; initials: string; orders: number; totalAmount: number; totalItems: number }>();
+    for (const payment of payments) {
+      for (const item of payment.items || []) {
+        const mfr = item.manufacturerId;
+        if (!mfr) continue;
+        const id = typeof mfr === 'object' ? mfr._id : String(mfr);
+        const nameRaw = typeof mfr === 'object'
+          ? (mfr.companyName || `${mfr.firstName || ''} ${mfr.lastName || ''}`.trim() || 'Manufacturer')
+          : 'Manufacturer';
+        const initials = nameRaw.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'M';
+        const existing = map.get(id) || { id, name: nameRaw, initials, orders: 0, totalAmount: 0, totalItems: 0 };
+        existing.orders += 1;
+        existing.totalAmount += (item.price || 0) * (item.quantity || 1);
+        existing.totalItems += item.quantity || 1;
+        map.set(id, existing);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.orders - a.orders).slice(0, 4);
+  })();
+
+  // ─── Top Artisans ────────────────────────────────────────────────────────
+  const topArtisans = [...artisans]
+    .sort((a, b) => {
+      const ratingDiff = (b.rating || 0) - (a.rating || 0);
+      if (ratingDiff !== 0) return ratingDiff;
+      return (b.reviewCount || 0) - (a.reviewCount || 0);
+    })
+    .slice(0, 5);
+
+  // ─── Recent Conversations ────────────────────────────────────────────────
   const recentConnections = conversations.slice(0, 3).map((conv: any) => {
     const other = conv.participants?.find((p: any) => p._id !== user?._id);
     return {
@@ -93,81 +130,226 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
     };
   });
 
-  const quickActions = [
-    { 
-      label: 'Write Article', 
-      icon: <BookOpen size={24} />, 
-      action: () => onNavigate('library'), 
-      color: '#1E40AF',
-      description: 'Share your knowledge with the community'
-    },
-    { 
-      label: 'Browse Artisans', 
-      icon: <Users size={24} />, 
-      action: () => onNavigate('directory'), 
-      color: '#10B981',
-      description: 'Connect with construction professionals'
-    },
-    { 
-      label: 'Send Message', 
-      icon: <MessageSquare size={24} />, 
-      action: () => onNavigate('messages'), 
-      color: '#F59E0B',
-      description: 'Communicate with your network'
-    },
-    { 
-      label: 'View Payments', 
-      icon: <Wallet size={24} />, 
-      action: () => onNavigate('payments'), 
-      color: '#8B5CF6',
-      description: 'Track your material purchases'
-    },
-  ];
+  const PALETTE = ['#1E40AF', '#7C3AED', '#059669', '#D97706', '#DC2626'];
+
+  // ─── View artisan profile ────────────────────────────────────────────────
+  if (viewingArtisanId) {
+    return (
+      <ViewArtisanProfile
+        artisanId={viewingArtisanId}
+        onBack={() => setViewingArtisanId(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-8">
-      {/* Stats Grid */}
+      <ProfileCompletionBanner onNavigate={onNavigate} profileView="profile" />
+
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <StatsCard key={index} {...stat} />
-        ))}
+        {stats.map((stat, i) => <StatsCard key={i} {...stat} />)}
       </div>
 
-      {/* Quick Actions */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Quick Actions</h2>
-            <p className="text-muted-foreground mt-1">Common tasks and shortcuts</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {quickActions.map((action, index) => (
-            <button
-              key={index}
-              onClick={action.action}
-              className="group p-6 rounded-2xl border-2 border-gray-200 hover:border-transparent hover:shadow-xl transition-all duration-300 text-left"
-              style={{
-                background: `linear-gradient(135deg, ${action.color}05 0%, ${action.color}10 100%)`
-              }}
-            >
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 shadow-md group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: action.color }}
-              >
-                <span className="text-white">{action.icon}</span>
-              </div>
-              <h3 className="font-semibold text-foreground text-lg mb-2">{action.label}</h3>
-              <p className="text-sm text-muted-foreground mb-3">{action.description}</p>
-              <div className="flex items-center text-sm font-medium" style={{ color: action.color }}>
-                Get Started
-                <ArrowRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </button>
-          ))}
-        </div>
-      </Card>
+      {/* Top row: Manufacturers + Top Artisans */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
+        {/* ── Top Manufacturers ── */}
+        <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+          {/* White header */}
+          <div className="px-6 pt-5 pb-4 bg-white" style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl" style={{ background: '#eff6ff' }}>
+                  <Package size={20} style={{ color: '#1e40af' }} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Top Manufacturers</h2>
+                  <p className="text-xs mt-0.5 text-gray-400">Your most loyal suppliers</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50">
+                <TrendingUp size={13} style={{ color: '#1e40af' }} />
+                <span className="text-xs font-semibold" style={{ color: '#1e40af' }}>By orders</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5">
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 size={28} className="animate-spin text-blue-500" /></div>
+            ) : topManufacturers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <ShoppingBag size={36} className="text-gray-200" />
+                <p className="text-sm text-gray-400 font-medium">No purchases yet</p>
+                <Button size="sm" variant="outline" className="mt-1 rounded-xl text-xs" onClick={() => onNavigate('marketplace')}>
+                  Browse Marketplace
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {topManufacturers.map((mfr, index) => {
+                  const medalEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
+                  return (
+                    <div
+                      key={mfr.id}
+                      className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-transparent transition-all group bg-white"
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#e5e7eb'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}
+                    >
+                      {/* Rank */}
+                      <div className="shrink-0 w-8 text-center">
+                        {medalEmoji
+                          ? <span className="text-xl leading-none">{medalEmoji}</span>
+                          : <span className="text-sm font-bold text-gray-400">#{index + 1}</span>
+                        }
+                      </div>
+
+                      {/* Avatar circle */}
+                      <div
+                        className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md shrink-0 border-2 border-white"
+                        style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
+                      >
+                        {mfr.initials}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-800 truncate text-sm">{mfr.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#eff6ff', color: '#1e40af' }}>
+                            {mfr.orders} order{mfr.orders !== 1 ? 's' : ''}
+                          </span>
+                          <span className="text-xs text-gray-400">{mfr.totalItems} items</span>
+                        </div>
+                      </div>
+
+                      {/* Amount */}
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-extrabold" style={{ color: '#1e40af' }}>{mfr.totalAmount.toFixed(0)}</p>
+                        <p className="text-xs text-gray-400 font-medium">TND spent</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* ── Top Artisans ── */}
+        <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+          {/* White header */}
+          <div className="px-6 pt-5 pb-4 bg-white" style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl" style={{ background: '#fffbeb' }}>
+                  <Award size={20} style={{ color: '#d97706' }} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Top Artisans</h2>
+                  <p className="text-xs mt-0.5 text-gray-400">Highest rated professionals</p>
+                </div>
+              </div>
+              <button
+                onClick={() => onNavigate('directory')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 bg-gray-50 hover:border-amber-300 transition-colors"
+                style={{ color: '#6b7280' }}
+              >
+                View all <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5">
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 size={28} className="animate-spin" style={{ color: '#f59e0b' }} /></div>
+            ) : topArtisans.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <Users size={36} className="text-gray-200" />
+                <p className="text-sm text-gray-400 font-medium">No artisans found</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {topArtisans.map((artisan, index) => {
+                  const artisanId = artisan._id || artisan.id;
+                  const name = `${artisan.firstName || ''} ${artisan.lastName || ''}`.trim() || 'Artisan';
+                  const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'A';
+                  const rating = artisan.rating || 0;
+                  const reviews = artisan.reviewCount || 0;
+                  const domain = artisan.domain || artisan.specialty || '';
+                  const completed = artisan.completedProjects || 0;
+                  const rankColors = ['#f59e0b', '#6b7280', '#b45309', '#1e40af', '#059669'];
+
+                  return (
+                    <button
+                      key={artisanId}
+                      onClick={() => setViewingArtisanId(artisanId)}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-transparent hover:border-gray-200 hover:shadow-md transition-all group text-left bg-white"
+                    >
+                      {/* Rank circle */}
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm"
+                        style={{ backgroundColor: rankColors[index] || '#9ca3af' }}
+                      >
+                        {index === 0 ? '★' : index + 1}
+                      </div>
+
+                      {/* Avatar — fixed 44×44 px, strictly clipped */}
+                      <div
+                        className="shrink-0 border-2 border-gray-100"
+                        style={{
+                          width: 44, height: 44, borderRadius: '50%',
+                          overflow: 'hidden', position: 'relative',
+                          backgroundColor: PALETTE[index % PALETTE.length],
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#fff', fontSize: 14, fontWeight: 700,
+                        }}
+                      >
+                        {artisan.profilePhoto
+                          ? <img src={artisan.profilePhoto} alt={name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : initials
+                        }
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-800 text-sm truncate group-hover:text-blue-700 transition-colors leading-tight">
+                          {name}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <StarRating rating={rating} />
+                          <span className="text-xs font-bold" style={{ color: '#d97706' }}>{rating.toFixed(1)}</span>
+                          <span className="text-xs text-gray-400">· {reviews} review{reviews !== 1 ? 's' : ''}</span>
+                        </div>
+                        {domain && (
+                          <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#eff6ff', color: '#1e40af' }}>
+                            {domain}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Right */}
+                      <div className="shrink-0 flex flex-col items-end gap-1">
+                        {completed > 0 && (
+                          <div className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#f0fdf4', color: '#15803d' }}>
+                            {completed} done
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <Eye size={12} style={{ color: '#1e40af' }} />
+                          <span className="text-xs font-semibold" style={{ color: '#1e40af' }}>Profile</span>
+                          <ChevronRight size={12} style={{ color: '#1e40af' }} />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
 
       {/* Recent Conversations */}
       <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
@@ -176,13 +358,12 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
             <h2 className="text-2xl font-bold text-foreground">Recent Conversations</h2>
             <p className="text-muted-foreground mt-1">Your artisan network</p>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => onNavigate('messages')}
             className="rounded-xl border-2 hover:border-primary hover:text-primary"
           >
-            View All
-            <ArrowRight size={16} className="ml-2" />
+            View All <ArrowRight size={16} className="ml-2" />
           </Button>
         </div>
         {loading ? (

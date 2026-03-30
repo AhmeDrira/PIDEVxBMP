@@ -55,7 +55,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     },
     {
       id: 'logs',
-      label: 'Logs (Historiques)',
+      label: 'Logs',
       icon: <History size={20} />,
       visible: isSuperAdmin || isSubAdmin,
     },
@@ -91,7 +91,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const renderContent = () => {
     switch (activeView) {
       case 'home':
-        return <AdminAnalytics />;
+        return <AdminAnalytics onNavigate={setActiveView} />;
       case 'users':
         return (
           <AdminUserManagement
@@ -118,7 +118,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <PermissionNotice message="Only admins can access action logs." />
         );
       case 'analytics':
-        return <AdminAnalytics />;
+        return <AdminAnalytics onNavigate={setActiveView} />;
       case 'update-password':
         return isSubAdmin ? <UpdatePasswordPage /> : <PermissionNotice message="This action is only available to sub-admins." />;
       case 'profile':
