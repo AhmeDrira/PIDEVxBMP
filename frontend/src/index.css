@@ -2965,6 +2965,17 @@ img {
   height: auto;
 }
 
+/* Dark-mode button visibility fix: keep primary-styled clickable buttons readable.
+   Excludes sidebar navigation buttons, which have their own dedicated styling. */
+.dark button[class*="bg-primary"]:not(.sidebar-nav-button) {
+  background-color: var(--secondary) !important;
+  color: var(--secondary-foreground) !important;
+}
+
+.dark button[class*="hover:bg-primary/90"]:not(.sidebar-nav-button):hover {
+  background-color: color-mix(in oklab, var(--secondary) 90%, black) !important;
+}
+
 * {
   box-sizing: border-box;
 }

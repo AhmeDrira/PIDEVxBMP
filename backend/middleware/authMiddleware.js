@@ -5,6 +5,7 @@ const superAdminPermissions = {
   canVerifyManufacturers: true,
   canManageKnowledge: true,
   canSuspendUsers: true,
+  canManageReports: true,
   canDeleteUsers: true,
 };
 

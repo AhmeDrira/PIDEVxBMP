@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, BookOpen, Users, MessageSquare, ShoppingCart } from 'lucide-react';
+import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList } from 'lucide-react';
 import ExpertHome from '../expert/ExpertHome';
 import ExpertKnowledgeLibrary from '../expert/ExpertKnowledgeLibrary';
 import ExpertArtisanDirectory from '../expert/ExpertArtisanDirectory';
@@ -10,6 +10,7 @@ import ExpertProfile from '../expert/ExpertProfile';
 import MyOrders from '../common/MyOrders';
 import NotificationBell from '../common/NotificationBell';
 import { ShoppingBag } from 'lucide-react';
+import MyReports from '../common/MyReports';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -113,6 +114,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
     { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
     { id: 'orders', label: 'My Orders', icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: 'My Reports', icon: <ClipboardList size={20} /> },
   ];
 
   const renderContent = () => {
@@ -129,6 +131,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         return <ExpertMarketplace />;
       case 'orders':
         return <MyOrders />;
+      case 'reports':
+        return <MyReports role="expert" userId={String(currentUser?._id || currentUser?.id || 'expert')} />;
       case 'profile':
         return <ExpertProfile />;
       default:

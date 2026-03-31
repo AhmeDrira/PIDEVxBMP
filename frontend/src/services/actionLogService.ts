@@ -33,6 +33,7 @@ export interface ActionLogResponse {
     invoiceInstallmentEvents: number;
     manufacturerProductEvents: number;
     adminSecurityEvents: number;
+    reportEvents: number;
     byRole: Record<string, number>;
     topActions: Array<{
       actionKey: string;

@@ -235,6 +235,10 @@ export default function ArtisanSubscription() {
     amount: 0
   };
 
+  const subscriptionStatusClass = currentPlan.status === 'Active'
+    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-100 dark:text-emerald-700 dark:border-emerald-200'
+    : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-100 dark:text-slate-700 dark:border-slate-200';
+
   return (
     <div className="relative">
       <div className={`space-y-8 animate-in fade-in duration-500 transition-all ${showCancelDialog ? 'blur-md pointer-events-none' : ''}`}>
@@ -244,7 +248,7 @@ export default function ArtisanSubscription() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-3xl font-bold text-foreground">Current Subscription</h2>
-                <Badge className="bg-accent/10 text-accent border-accent/20 border-2 px-4 py-1.5 text-sm font-semibold">
+                <Badge className={`${subscriptionStatusClass} border-2 px-4 py-1.5 text-sm font-semibold`}>
                   {currentPlan.status}
                 </Badge>
               </div>
@@ -284,8 +288,8 @@ export default function ArtisanSubscription() {
             <div className="flex gap-3">
               {currentPlan.status === 'Active' && (
                 <Button 
-                  variant="outline" 
-                  className="h-12 px-6 rounded-xl border-2 text-red-500 border-red-100 hover:bg-red-50 hover:border-red-200"
+                  variant="destructive" 
+                  className="h-12 px-6 rounded-xl border-2 !border-red-600 !bg-red-600 !text-white hover:!bg-red-700 disabled:!opacity-100 disabled:!bg-red-700/70 disabled:!text-white"
                   onClick={() => setShowCancelDialog(true)}
                   disabled={isCanceling}
                 >

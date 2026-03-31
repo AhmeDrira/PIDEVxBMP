@@ -143,7 +143,7 @@ export default function MyOrders() {
                         <div
                           className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500"
                           style={{
-                            backgroundColor: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#22c55e') : 'var(--muted)',
+                            backgroundColor: isReached ? (isCurrent ? '#2563eb' : '#22c55e') : 'var(--muted)',
                             color: isReached ? '#ffffff' : '#9ca3af',
                             boxShadow: isCurrent ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
                           }}
@@ -155,7 +155,7 @@ export default function MyOrders() {
                         </div>
                         <span
                           className="text-xs mt-2 font-medium"
-                          style={{ color: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#16a34a') : '#9ca3af' }}
+                          style={{ color: isReached ? (isCurrent ? '#2563eb' : '#16a34a') : '#9ca3af' }}
                         >
                           {stepConf?.label}
                         </span>

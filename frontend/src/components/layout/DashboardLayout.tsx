@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Menu, X, Bell, LogOut, MessageCircle } from 'lucide-react';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import ProfileDropdown from '../common/ProfileDropdown';
 import Logo from '../common/Logo';
@@ -126,21 +126,22 @@ export default function DashboardLayout({
               <button
                 key={item.id}
                 onClick={() => onMenuItemClick(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${
+                className={`sidebar-nav-button w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${
                   item.disabled
                     ? 'opacity-40 cursor-not-allowed'
                     : activeItem === item.id
-                    ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                    ? 'shadow-sm'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
+                style={activeItem === item.id ? { backgroundColor: 'var(--sidebar-primary)', color: 'var(--sidebar-primary-foreground)' } : undefined}
               >
-                <span className={activeItem === item.id ? 'text-white' : ''}>{item.icon}</span>
+                <span>{item.icon}</span>
                 <span className="font-medium">{item.label}</span>
                 {item.badge && item.badge > 0 && (
                   <div className="w-2 h-2 rounded-full bg-primary dark:bg-blue-500 animate-pulse ml-1" />
                 )}
                 {activeItem === item.id && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/70" />
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/80" />
                 )}
               </button>
             ))}
@@ -151,13 +152,10 @@ export default function DashboardLayout({
             <div className="p-4 rounded-2xl bg-muted">
               <div className="flex items-center gap-3 mb-4">
                 <Avatar className="w-12 h-12 ring-2 ring-border shadow-md overflow-hidden">
-                  {profilePhoto ? (
-                    <img src={profilePhoto} alt={userName} className="w-full h-full object-cover" />
-                  ) : (
-                    <AvatarFallback className="bg-primary dark:bg-blue-600 text-white text-lg font-semibold">
-                      {userName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  )}
+                  <AvatarImage src={profilePhoto || undefined} alt={userName} className="object-cover" />
+                  <AvatarFallback className="text-white text-lg font-semibold" style={{ backgroundColor: 'var(--sidebar-primary)' }}>
+                    {userName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground truncate">{userName}</p>
@@ -188,7 +186,7 @@ export default function DashboardLayout({
           aria-label="Go to home"
           disabled={!onLogoClick}
         >
-          <div className="w-8 h-8 rounded-lg bg-primary dark:bg-blue-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--sidebar-primary)' }}>
             <span className="text-white font-bold">B</span>
           </div>
           <h1 className="text-lg font-bold text-primary">BMP.tn</h1>
@@ -241,13 +239,10 @@ export default function DashboardLayout({
               <div className="p-4 rounded-2xl bg-muted mb-6">
                 <div className="flex items-center gap-3 mb-4">
                   <Avatar className="w-12 h-12 ring-2 ring-border shadow-md overflow-hidden">
-                    {profilePhoto ? (
-                      <img src={profilePhoto} alt={userName} className="w-full h-full object-cover" />
-                    ) : (
-                      <AvatarFallback className="bg-primary dark:bg-blue-600 text-white text-lg font-semibold">
-                        {userName.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    )}
+                    <AvatarImage src={profilePhoto || undefined} alt={userName} className="object-cover" />
+                    <AvatarFallback className="text-white text-lg font-semibold" style={{ backgroundColor: 'var(--sidebar-primary)' }}>
+                      {userName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-semibold text-foreground">{userName}</p>
@@ -266,13 +261,14 @@ export default function DashboardLayout({
                       onMenuItemClick(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${
+                    className={`sidebar-nav-button w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${
                       item.disabled
                         ? 'opacity-40 cursor-not-allowed'
                         : activeItem === item.id
-                          ? 'bg-primary dark:bg-blue-600 text-white shadow-lg shadow-primary/25'
+                          ? 'shadow-sm'
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
+                    style={activeItem === item.id ? { backgroundColor: 'var(--sidebar-primary)', color: 'var(--sidebar-primary-foreground)' } : undefined}
                   >
                     {item.icon}
                     <span className="font-medium">{item.label}</span>

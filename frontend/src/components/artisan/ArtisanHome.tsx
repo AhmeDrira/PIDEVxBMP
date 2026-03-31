@@ -646,7 +646,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           </div>
           <Button
             onClick={() => onNavigate('subscription')}
-            className="h-12 px-8 bg-primary !text-white dark:!bg-gray-800 dark:!text-gray-100 hover:bg-primary/90 dark:hover:!bg-gray-700 rounded-xl shadow-lg font-bold transition-all border-0 dark:border dark:border-gray-700"
+            className="h-12 px-8 bg-primary !text-white dark:!bg-secondary dark:!text-white hover:bg-primary/90 dark:hover:!bg-secondary/90 rounded-xl shadow-lg font-bold transition-all border-0"
           >
             Manage Billing
           </Button>

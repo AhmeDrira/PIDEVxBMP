@@ -47,6 +47,7 @@ const userSchema = new mongoose.Schema({
     canVerifyManufacturers: { type: Boolean, default: false },
     canManageKnowledge: { type: Boolean, default: false },
     canSuspendUsers: { type: Boolean, default: false },
+    canManageReports: { type: Boolean, default: false },
     canDeleteUsers: { type: Boolean, default: false },
   },
   isVerified: {

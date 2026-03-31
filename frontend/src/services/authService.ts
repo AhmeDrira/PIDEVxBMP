@@ -209,6 +209,7 @@ const authService = {
       canVerifyManufacturers: boolean;
       canManageKnowledge: boolean;
       canSuspendUsers: boolean;
+      canManageReports: boolean;
       canDeleteUsers: boolean;
     }
   ) => {

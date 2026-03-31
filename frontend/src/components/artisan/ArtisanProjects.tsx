@@ -1401,7 +1401,7 @@ export default function ArtisanProjects() {
                     <FileText size={16} className="mr-2" /> Create Quote
                   </Button>
                   <Button
-                    className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md"
+                    className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 rounded-xl shadow-md"
                     onClick={() => guard(() => {
                       // Generate Invoice action
                     })}

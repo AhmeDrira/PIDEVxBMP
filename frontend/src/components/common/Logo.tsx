@@ -8,7 +8,7 @@ interface LogoProps {
 
 export default function Logo({ variant = 'dark', size = 'md', className = '' }: LogoProps) {
   // Logo text is primary blue in both modes for the 'dark' variant
-  const textColor = variant === 'dark' ? 'text-primary' : 'text-white';
+  const textColor = variant === 'dark' ? 'text-primary dark:text-blue-300' : 'text-white';
 
   const sizes = {
     sm: {
@@ -36,7 +36,10 @@ export default function Logo({ variant = 'dark', size = 'md', className = '' }: 
   return (
     <div className={`flex items-center ${sizeConfig.container} ${className}`}>
       {/* Logo Image - Always Primary Blue */}
-      <div className={`${sizeConfig.logoHeight} aspect-square flex items-center justify-center bg-primary rounded-lg shadow-sm`}>
+      <div
+        className={`${sizeConfig.logoHeight} aspect-square flex items-center justify-center rounded-lg shadow-sm`}
+        style={{ backgroundColor: 'var(--sidebar-primary)' }}
+      >
         <svg 
           viewBox="0 0 100 100" 
           className="w-full h-full p-2"

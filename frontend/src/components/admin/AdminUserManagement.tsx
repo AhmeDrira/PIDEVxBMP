@@ -19,6 +19,7 @@ type PermissionSet = {
   canVerifyManufacturers: boolean;
   canManageKnowledge: boolean;
   canSuspendUsers: boolean;
+  canManageReports: boolean;
   canDeleteUsers: boolean;
 };
 
@@ -38,6 +39,7 @@ const emptyPermissions: PermissionSet = {
   canVerifyManufacturers: false,
   canManageKnowledge: false,
   canSuspendUsers: false,
+  canManageReports: false,
   canDeleteUsers: false,
 };
 
@@ -137,6 +139,7 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
       canVerifyManufacturers: Boolean(user.permissions?.canVerifyManufacturers),
       canManageKnowledge: Boolean(user.permissions?.canManageKnowledge),
       canSuspendUsers: Boolean(user.permissions?.canSuspendUsers),
+      canManageReports: Boolean(user.permissions?.canManageReports),
       canDeleteUsers: Boolean(user.permissions?.canDeleteUsers),
     });
     setPermissionsDialogOpen(true);
@@ -282,8 +285,8 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
         {!loading && filteredUsers.map((user) => (
           <Card key={user._id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="flex items-start gap-4 mb-4">
-              <Avatar className="w-14 h-14 ring-4 ring-white dark:ring-gray-700 shadow-lg">
-                <AvatarFallback className="bg-primary text-white font-bold text-lg">
+              <Avatar className="w-14 h-14 ring-4 ring-border dark:ring-slate-700 shadow-lg">
+                <AvatarFallback className="bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-100 font-bold text-lg">
                   {(displayName(user)[0] || 'U').toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -453,6 +456,21 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
                     <div>
                       <p className="font-semibold text-foreground">Suspend Users</p>
                       <p className="text-sm text-muted-foreground">Pause accounts that violate platform policy.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={editingPermissions.canManageReports}
+                      onCheckedChange={(val) => {
+                        setEditingPermissions((prev) => ({ ...prev, canManageReports: val === true }));
+                      }}
+                    />
+                    <div>
+                      <p className="font-semibold text-foreground">Manage Reports</p>
+                      <p className="text-sm text-muted-foreground">Review reports and set accepted/rejected status.</p>
                     </div>
                   </div>
                 </div>
