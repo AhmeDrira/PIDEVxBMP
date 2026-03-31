@@ -216,7 +216,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
   // ── Filter sidebar panel ──
   const filterPanel = (
-    <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8 border-t-4 border-t-primary w-full lg:w-80 flex-shrink-0 animate-in slide-in-from-left-3 fade-in duration-200">
+    <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg sticky top-8 border-t-4 border-t-primary w-full lg:w-80 flex-shrink-0 animate-in slide-in-from-left-3 fade-in duration-200">
       <div className="space-y-6">
         <div className="flex items-center justify-between border-b pb-4">
           <div className="flex items-center gap-2">
@@ -235,10 +235,10 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
             onClick={() => setSpecExpanded(prev => !prev)}
             className="w-full flex items-center justify-between mb-2 group"
           >
-            <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer group-hover:text-primary transition-colors">
+            <Label className="text-sm font-bold text-foreground uppercase tracking-wider cursor-pointer group-hover:text-primary transition-colors">
               Specialization
               {pendingFilters.specializations.length > 0 && (
-                <span className="ml-2 text-[10px] font-bold bg-primary text-white rounded-full px-1.5 py-0.5 normal-case tracking-normal">
+                <span className="ml-2 text-[10px] font-bold bg-primary dark:bg-blue-600 text-white rounded-full px-1.5 py-0.5 normal-case tracking-normal">
                   {pendingFilters.specializations.length}
                 </span>
               )}
@@ -252,12 +252,12 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
           {specExpanded && (
             <div className="space-y-1 pr-1 mt-2 animate-in slide-in-from-top-1 fade-in duration-150">
               {SPECIALIZATIONS.map(s => (
-                <label key={s} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg">
+                <label key={s} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded-lg">
                   <input
                     type="checkbox"
                     checked={pendingFilters.specializations.includes(s)}
                     onChange={() => toggleSpec(s)}
-                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-foreground">{s}</span>
                 </label>
@@ -273,10 +273,10 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
             onClick={() => setLocExpanded(prev => !prev)}
             className="w-full flex items-center justify-between mb-2 group"
           >
-            <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer group-hover:text-primary transition-colors">
+            <Label className="text-sm font-bold text-foreground uppercase tracking-wider cursor-pointer group-hover:text-primary transition-colors">
               Location
               {pendingFilters.locations.length > 0 && (
-                <span className="ml-2 text-[10px] font-bold bg-primary text-white rounded-full px-1.5 py-0.5 normal-case tracking-normal">
+                <span className="ml-2 text-[10px] font-bold bg-primary dark:bg-blue-600 text-white rounded-full px-1.5 py-0.5 normal-case tracking-normal">
                   {pendingFilters.locations.length}
                 </span>
               )}
@@ -290,12 +290,12 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
           {locExpanded && (
             <div className="space-y-1 pr-1 mt-2 animate-in slide-in-from-top-1 fade-in duration-150">
               {TUNISIA_LOCATIONS.map(l => (
-                <label key={l} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg">
+                <label key={l} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded-lg">
                   <input
                     type="checkbox"
                     checked={pendingFilters.locations.includes(l)}
                     onChange={() => toggleLoc(l)}
-                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-foreground">{l}</span>
                 </label>
@@ -306,11 +306,11 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
         {/* Rating */}
         <div>
-          <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 block">Minimum Rating</Label>
+          <Label className="text-sm font-bold text-foreground uppercase tracking-wider mb-3 block">Minimum Rating</Label>
           <select
             value={pendingFilters.minRating}
             onChange={e => setPendingFilters(prev => ({ ...prev, minRating: Number(e.target.value) }))}
-            className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary focus:bg-white transition-colors outline-none cursor-pointer text-sm"
+            className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card transition-colors outline-none cursor-pointer text-sm"
           >
             {RATING_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -318,7 +318,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
           </select>
         </div>
 
-        <div className="flex gap-3 pt-4 border-t-2 border-gray-100">
+        <div className="flex gap-3 pt-4 border-t-2 border-border">
           <Button onClick={handleClearFilters} variant="outline" className="flex-1 h-11 rounded-xl border-2">
             Reset
           </Button>
@@ -332,7 +332,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
   // ── Search toolbar ──
   const searchToolbar = (
-    <Card className="p-4 bg-white rounded-2xl border-0 shadow-lg w-full">
+    <Card className="p-4 bg-card rounded-2xl border border-border shadow-lg w-full">
       <div className="flex flex-col md:flex-row gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
@@ -340,7 +340,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
             placeholder="Search by name, skill, or location..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="pl-12 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+            className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
           />
         </div>
         <Button
@@ -351,7 +351,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
           <SlidersHorizontal size={18} className="mr-2" />
           {showFilters ? 'Hide Filters' : 'Show Filters'}
           {!showFilters && activeFilterCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 text-[10px] font-bold rounded-full bg-primary text-white flex items-center justify-center">
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 text-[10px] font-bold rounded-full bg-primary dark:bg-blue-600 text-white flex items-center justify-center">
               {activeFilterCount}
             </span>
           )}
@@ -408,7 +408,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
           <div className="grid md:grid-cols-2 gap-6">
             {filteredArtisans.map(artisan => (
-              <Card key={artisan.id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <Card key={artisan.id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                 <div className="flex items-start gap-4 mb-4">
                   <Avatar className="w-16 h-16 ring-4 ring-white shadow-lg">
                     <AvatarFallback className="bg-primary text-white font-bold text-xl">
@@ -454,7 +454,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
                       <Badge key={skill} className="bg-primary/10 text-primary px-3 py-1 text-xs font-semibold border-0">{skill}</Badge>
                     ))}
                     {artisan.skills.length > 3 && (
-                      <Badge className="bg-gray-100 text-gray-500 px-3 py-1 text-xs font-semibold border-0">+{artisan.skills.length - 3}</Badge>
+                      <Badge className="bg-muted text-muted-foreground px-3 py-1 text-xs font-semibold border-0">+{artisan.skills.length - 3}</Badge>
                     )}
                   </div>
                 )}
@@ -480,8 +480,8 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
           </div>
 
           {!loading && filteredArtisans.length === 0 && !error && (
-            <Card className="p-12 bg-white rounded-2xl border-0 shadow-lg text-center">
-              <p className="text-xl font-semibold text-gray-500">No artisans found</p>
+            <Card className="p-12 bg-card rounded-2xl border border-border shadow-lg text-center">
+              <p className="text-xl font-semibold text-muted-foreground">No artisans found</p>
               <p className="text-muted-foreground mt-1">Try adjusting your search or filters.</p>
             </Card>
           )}

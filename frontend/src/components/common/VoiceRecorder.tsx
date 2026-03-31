@@ -136,7 +136,7 @@ export default function VoiceRecorder({ onSend, onCancel, onStateChange, disable
 
   if (audioUrl) {
     return (
-      <div className="flex items-center gap-3 w-full animate-in fade-in bg-gray-50 p-2 rounded-xl border border-gray-200">
+      <div className="flex items-center gap-3 w-full animate-in fade-in bg-muted/50 p-2 rounded-xl border border-border">
         <audio src={audioUrl} controls className="h-10 w-full max-w-[200px]" />
         <Button type="button" variant="ghost" size="icon" onClick={handleCancelRecord} className="text-red-500 hover:text-red-700 hover:bg-red-50" title="Annuler">
           <Trash2 size={20} />

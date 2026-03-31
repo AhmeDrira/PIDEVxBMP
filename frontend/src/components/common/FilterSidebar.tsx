@@ -50,7 +50,7 @@ export default function FilterSidebar({
   };
 
   return (
-    <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8 border-t-4 border-t-primary max-h-[calc(100vh-6rem)] overflow-y-auto w-full max-w-full min-w-0">
+    <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg sticky top-8 border-t-4 border-t-primary max-h-[calc(100vh-6rem)] overflow-y-auto w-full max-w-full min-w-0">
       <div className="space-y-6">
         <div className="flex items-center justify-between border-b pb-4">
           <div className="flex items-center gap-2">
@@ -63,15 +63,15 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 block">Category</Label>
+          <Label className="text-sm font-bold text-foreground uppercase tracking-wider mb-3 block">Category</Label>
           <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
             {categories.map((category) => (
-              <label key={category} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg">
+              <label key={category} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded-lg">
                 <input
                   type="checkbox"
                   checked={filters.categories.includes(category)}
                   onChange={() => toggleCategory(category)}
-                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                  className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
                 />
                 <span className="text-sm text-foreground">{category}</span>
               </label>
@@ -80,7 +80,7 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 block">Date Range</Label>
+          <Label className="text-sm font-bold text-foreground uppercase tracking-wider mb-3 block">Date Range</Label>
           <select
             value={filters.dateRange}
             onChange={(e) =>
@@ -89,7 +89,7 @@ export default function FilterSidebar({
                 dateRange: e.target.value as KnowledgeFilters['dateRange'],
               }))
             }
-            className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary focus:bg-white transition-colors outline-none cursor-pointer"
+            className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card transition-colors outline-none cursor-pointer"
           >
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>
@@ -98,7 +98,7 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 block">Views</Label>
+          <Label className="text-sm font-bold text-foreground uppercase tracking-wider mb-3 block">Views</Label>
           <select
             value={filters.viewsSort}
             onChange={(e) =>
@@ -107,7 +107,7 @@ export default function FilterSidebar({
                 viewsSort: e.target.value as KnowledgeFilters['viewsSort'],
               }))
             }
-            className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary focus:bg-white transition-colors outline-none cursor-pointer"
+            className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card transition-colors outline-none cursor-pointer"
           >
             <option value="most_viewed">Les plus vus</option>
             <option value="least_viewed">Les moins vus</option>
@@ -115,7 +115,7 @@ export default function FilterSidebar({
           </select>
         </div>
 
-        <div className="flex gap-3 pt-4 border-t-2 border-gray-100">
+        <div className="flex gap-3 pt-4 border-t-2 border-border">
           <Button onClick={handleClear} variant="outline" className="flex-1 h-12 rounded-xl border-2">
             Réinitialiser
           </Button>

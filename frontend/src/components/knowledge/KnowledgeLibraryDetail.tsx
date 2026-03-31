@@ -110,7 +110,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
   if (loading || !article) {
     return (
       <div className="w-full min-h-screen">
-        <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
           <p className="text-muted-foreground">Loading article...</p>
         </Card>
       </div>
@@ -119,23 +119,23 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
 
   return (
     <div className="w-full min-h-screen overflow-hidden">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
+      <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
         Back to Library
       </Button>
 
       <div className="w-full flex flex-col lg:flex-row gap-6">
         <main className="flex-1 min-w-0">
-          <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg w-full">
+          <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg w-full">
             <Badge className="bg-primary/10 text-primary px-4 py-1.5 text-sm font-semibold border-0 mb-4">
               {article.category}
             </Badge>
 
             <h1 className="text-4xl font-bold text-foreground mb-6 leading-tight break-words">{article.title}</h1>
 
-            <div className="flex flex-wrap items-center gap-6 pb-6 mb-8 border-b-2 border-gray-100">
+            <div className="flex flex-wrap items-center gap-6 pb-6 mb-8 border-b-2 border-border">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-md">
+                <div className="w-12 h-12 rounded-full bg-primary dark:bg-blue-600 flex items-center justify-center shadow-md">
                   <span className="text-white font-semibold text-lg">{initials}</span>
                 </div>
                 <div>
@@ -165,7 +165,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
               dangerouslySetInnerHTML={{ __html: (article.content || '').replace(/\n/g, '<br />') }}
               style={{
                 lineHeight: '1.8',
-                color: '#374151',
+                color: 'var(--foreground)',
                 overflowWrap: 'break-word',
                 wordWrap: 'break-word',
                 wordBreak: 'break-word',
@@ -173,13 +173,13 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
             />
 
             {tags.length > 0 && (
-              <div className="pt-8 border-t-2 border-gray-100">
+              <div className="pt-8 border-t-2 border-border">
                 <h3 className="text-lg font-bold text-foreground mb-4">Tags</h3>
                 <div className="flex flex-wrap gap-2">
                   {tags.map((tag, index) => (
                     <Badge
                       key={`${tag}-${index}`}
-                      className="bg-gray-100 text-foreground px-4 py-2 text-sm border-0 hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors"
+                      className="bg-muted text-foreground px-4 py-2 text-sm border-0 hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors"
                     >
                       {tag}
                     </Badge>
@@ -192,7 +192,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
 
         <aside className="w-full lg:w-96 flex-shrink-0">
           <div className="space-y-6">
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
               <h3 className="text-xl font-bold text-foreground mb-4">Actions</h3>
               <div className="space-y-3">
                 <Button
@@ -201,7 +201,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
                   className={
                     hasLiked
                       ? 'w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl shadow-md'
-                      : 'w-full h-11 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md'
+                      : 'w-full h-11 text-white bg-primary dark:bg-blue-600 hover:bg-primary/90 rounded-xl shadow-md'
                   }
                 >
                   <ThumbsUp size={18} className="mr-2" />
@@ -215,13 +215,13 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
             </Card>
 
             {attachmentList.length > 0 && (
-              <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+              <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
                 <h3 className="text-xl font-bold text-foreground mb-4">Attachments</h3>
                 <div className="space-y-3">
                   {attachmentList.map((attachment, index) => (
                     <div
                       key={`${attachment.url || attachment.name}-${index}`}
-                      className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 hover:border-primary/20 transition-all cursor-pointer group"
+                      className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-border hover:border-primary/20 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <FileText size={24} className="text-primary" />

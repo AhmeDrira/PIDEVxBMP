@@ -44,7 +44,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
       case 'paid': return 'bg-accent/10 text-accent border-accent/20';
       case 'pending': return 'bg-secondary/10 text-secondary border-secondary/20';
       case 'overdue': return 'bg-destructive/10 text-destructive border-destructive/20';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -59,7 +59,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
 
   return (
     <div className="space-y-8">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
+      <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
         Back to Invoices
       </Button>
@@ -85,10 +85,10 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Invoice Header */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <div className="flex items-start justify-between mb-8">
               <div>
-                <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg">
+                <div className="w-16 h-16 rounded-2xl bg-primary dark:bg-blue-600 flex items-center justify-center mb-4 shadow-lg">
                   <Receipt size={32} className="text-white" />
                 </div>
                 <h2 className="text-2xl font-bold text-primary mb-1">BMP.tn</h2>
@@ -100,7 +100,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 pb-8 border-b-2 border-gray-100">
+            <div className="grid md:grid-cols-2 gap-8 pb-8 border-b-2 border-border">
               <div>
                 <h4 className="text-sm font-semibold text-muted-foreground mb-3">BILL TO</h4>
                 <div className="space-y-2">
@@ -134,11 +134,11 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
           </Card>
 
           {/* Invoice Items */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-6">Items</h2>
             <div className="space-y-3">
               {invoice.items.map((item, index) => (
-                <div key={index} className="p-5 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100">
+                <div key={index} className="p-5 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-border">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h4 className="font-bold text-foreground text-lg mb-2">{item.description}</h4>
@@ -156,7 +156,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
               ))}
             </div>
 
-            <div className="mt-8 pt-6 border-t-2 border-gray-100">
+            <div className="mt-8 pt-6 border-t-2 border-border">
               <div className="space-y-3 max-w-md ml-auto">
                 <div className="flex justify-between text-lg">
                   <span className="text-muted-foreground">Subtotal</span>
@@ -166,7 +166,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
                   <span className="text-muted-foreground">Tax (19%)</span>
                   <span className="font-semibold text-foreground">{invoice.tax.toLocaleString()} TND</span>
                 </div>
-                <div className="flex justify-between pt-4 border-t-2 border-gray-200">
+                <div className="flex justify-between pt-4 border-t-2 border-border">
                   <span className="text-2xl font-bold text-foreground">Total Amount</span>
                   <span className="text-3xl font-bold text-primary">{invoice.total.toLocaleString()} TND</span>
                 </div>
@@ -176,7 +176,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
 
           {/* Notes */}
           {invoice.notes && (
-            <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
               <h2 className="text-2xl font-bold text-foreground mb-4">Notes</h2>
               <div className="p-6 rounded-xl bg-accent/5 border-2 border-accent/20">
                 <p className="text-foreground leading-relaxed">{invoice.notes}</p>
@@ -188,7 +188,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Invoice Details */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-6">Invoice Details</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -218,7 +218,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
           </Card>
 
           {/* Payment Information */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-6">Payment Information</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -236,10 +236,10 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
           </Card>
 
           {/* Actions */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-4">Actions</h3>
             <div className="space-y-3">
-              <Button className="w-full h-11 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">
+              <Button className="w-full h-11 text-white bg-primary dark:bg-blue-600 hover:bg-primary/90 rounded-xl shadow-md">
                 <Download size={18} className="mr-2" />
                 Download PDF
               </Button>

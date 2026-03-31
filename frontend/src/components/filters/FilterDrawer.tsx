@@ -76,20 +76,20 @@ export default function FilterDrawer({
       />
 
       <div className="absolute left-0 top-0 h-full w-80 max-w-[90vw] animate-in slide-in-from-left-6 duration-200">
-        <Card className="h-full rounded-none md:rounded-r-2xl border-0 shadow-2xl bg-white p-6 flex flex-col border-t-4 border-t-primary">
+        <Card className="h-full rounded-none md:rounded-r-2xl border-0 shadow-2xl bg-card p-6 flex flex-col border-t-4 border-t-primary">
           <div className="flex items-center justify-between mb-6 border-b pb-4">
             <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
               <SlidersHorizontal size={20} className="text-primary" />
               Filters
             </h3>
-            <Button variant="ghost" size="sm" onClick={onClose} className="hover:bg-gray-100">
+            <Button variant="ghost" size="sm" onClick={onClose} className="hover:bg-muted">
               <X size={18} />
             </Button>
           </div>
 
           <div className="space-y-6 overflow-y-auto pr-1 flex-1">
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Category</Label>
+              <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Category</Label>
               <div className="space-y-2">
                 {categories.map((category) => {
                   const checked = filters.categories.includes(category);
@@ -97,7 +97,7 @@ export default function FilterDrawer({
                     <label key={category} className="flex items-center gap-3 cursor-pointer group">
                       <div
                         className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                          checked ? 'bg-primary border-primary' : 'border-gray-300 group-hover:border-primary'
+                          checked ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
                         }`}
                       >
                         {checked && <Check size={12} className="text-white" />}
@@ -121,7 +121,7 @@ export default function FilterDrawer({
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Date Range</Label>
+              <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Date Range</Label>
               <div className="space-y-2">
                 {dateOptions.map((option) => (
                   <label key={option.id} className="flex items-center gap-2 cursor-pointer">
@@ -157,7 +157,7 @@ export default function FilterDrawer({
                         },
                       })
                     }
-                    className="h-10 px-2 rounded-lg border-2 border-gray-200"
+                    className="h-10 px-2 rounded-lg border-2 border-border"
                   />
                   <input
                     type="date"
@@ -171,14 +171,14 @@ export default function FilterDrawer({
                         },
                       })
                     }
-                    className="h-10 px-2 rounded-lg border-2 border-gray-200"
+                    className="h-10 px-2 rounded-lg border-2 border-border"
                   />
                 </div>
               )}
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Read Time</Label>
+              <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Read Time</Label>
               <div className="space-y-2">
                 {readTimeOptions.map((option) => (
                   <label key={option.id} className="flex items-center gap-2 cursor-pointer">
@@ -200,7 +200,7 @@ export default function FilterDrawer({
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Views / Sorting</Label>
+              <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Views / Sorting</Label>
               <div className="space-y-2">
                 {sortOptions.map((option) => (
                   <label key={option.id} className="flex items-center gap-2 cursor-pointer">

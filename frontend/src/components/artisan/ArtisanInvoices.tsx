@@ -595,7 +595,7 @@ export default function ArtisanInvoices() {
       case 'paid': return 'bg-green-100 text-green-700 border-green-200';
       case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       case 'overdue': return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -644,7 +644,7 @@ export default function ArtisanInvoices() {
         <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
           <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
         </Button>
-        <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
           <h2 className="text-3xl font-bold text-foreground mb-8">Generate New Invoice</h2>
           <form className="space-y-6" onSubmit={handleCreateInvoice}>
             {/* Projet */}
@@ -660,7 +660,7 @@ export default function ArtisanInvoices() {
                   if (touched.project) setErrors(prev => ({ ...prev, project: validateField('project', e.target.value) }));
                 }}
                 onBlur={() => handleBlur('project')}
-                className={`w-full h-12 px-4 border-2 rounded-xl focus:border-primary focus:outline-none bg-white ${touched.project && errors.project ? 'border-red-500' : 'border-gray-200'}`}
+                className={`w-full h-12 px-4 border-2 rounded-xl focus:border-primary focus:outline-none bg-card ${touched.project && errors.project ? 'border-red-500' : 'border-border'}`}
               >
                 <option value="">Choose a project...</option>
                 {projects.map((proj) => (
@@ -684,7 +684,7 @@ export default function ArtisanInvoices() {
                 }}
                 onBlur={() => handleBlur('clientName')}
                 placeholder="Client name"
-                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.clientName && errors.clientName ? 'border-red-500' : 'border-gray-200'}`}
+                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.clientName && errors.clientName ? 'border-red-500' : 'border-border'}`}
               />
               {touched.clientName && errors.clientName && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.clientName}</p>}
             </div>
@@ -704,7 +704,7 @@ export default function ArtisanInvoices() {
                 }}
                 onBlur={() => handleBlur('amount')}
                 placeholder="0.00"
-                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.amount && errors.amount ? 'border-red-500' : 'border-gray-200'}`}
+                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.amount && errors.amount ? 'border-red-500' : 'border-border'}`}
               />
               {touched.amount && errors.amount && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.amount}</p>}
             </div>
@@ -712,7 +712,7 @@ export default function ArtisanInvoices() {
             {/* Payment Plan — Upfront % */}
             <div className="space-y-2">
               <Label className="text-base font-semibold">
-                Upfront Payment % <span style={{ color: '#6b7280', fontWeight: 400 }}>(tranche 1)</span>
+                Upfront Payment % <span style={{ color: 'var(--muted-foreground)', fontWeight: 400 }}>(tranche 1)</span>
               </Label>
               <div className="flex items-center gap-4">
                 <Input
@@ -722,7 +722,7 @@ export default function ArtisanInvoices() {
                   value={formData.upfrontPercent}
                   onChange={(e) => setFormData({ ...formData, upfrontPercent: e.target.value })}
                   placeholder="50"
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary w-32"
+                  className="h-12 rounded-xl border-2 border-border focus:border-primary w-32"
                 />
                 <span className="text-sm text-muted-foreground">%</span>
                 {formData.amount && Number(formData.amount) > 0 && (() => {
@@ -732,10 +732,10 @@ export default function ArtisanInvoices() {
                   const completion = (total - Number(upfront)).toFixed(2);
                   return (
                     <div className="flex items-center gap-3 text-sm">
-                      <span style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: 8, padding: '4px 10px', fontWeight: 600 }}>
+                      <span style={{ background: 'rgba(5,150,105,0.1)', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: 8, padding: '4px 10px', fontWeight: 600 }}>
                         Upfront: {upfront} TND ({pct}%)
                       </span>
-                      <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 8, padding: '4px 10px', fontWeight: 600 }}>
+                      <span style={{ background: 'rgba(37,99,235,0.1)', color: '#1d4ed8', border: '1px solid rgba(37,99,235,0.3)', borderRadius: 8, padding: '4px 10px', fontWeight: 600 }}>
                         Completion: {completion} TND ({100 - pct}%)
                       </span>
                     </div>
@@ -759,7 +759,7 @@ export default function ArtisanInvoices() {
                 onBlur={() => handleBlur('description')}
                 placeholder="List items..."
                 rows={4}
-                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-gray-200'}`}
+                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
               />
               {touched.description && errors.description && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>}
             </div>
@@ -785,7 +785,7 @@ export default function ArtisanInvoices() {
                     }
                   }}
                   onBlur={() => handleBlur('issueDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.issueDate && errors.issueDate ? 'border-red-500' : 'border-gray-200'}`}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.issueDate && errors.issueDate ? 'border-red-500' : 'border-border'}`}
                 />
                 {touched.issueDate && errors.issueDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.issueDate}</p>}
               </div>
@@ -804,7 +804,7 @@ export default function ArtisanInvoices() {
                     if (touched.dueDate) setErrors(prev => ({ ...prev, dueDate: validateField('dueDate', e.target.value) }));
                   }}
                   onBlur={() => handleBlur('dueDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.dueDate && errors.dueDate ? 'border-red-500' : 'border-gray-200'}`}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.dueDate && errors.dueDate ? 'border-red-500' : 'border-border'}`}
                 />
                 {touched.dueDate && errors.dueDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.dueDate}</p>}
               </div>
@@ -916,7 +916,7 @@ export default function ArtisanInvoices() {
           {materialsPaid ? (
             <button
               disabled
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 12, padding: '12px 22px', fontSize: 14, fontWeight: 700, cursor: 'not-allowed', backgroundColor: '#ecfdf5', color: '#065f46', border: '2px solid #a7f3d0' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 12, padding: '12px 22px', fontSize: 14, fontWeight: 700, cursor: 'not-allowed', backgroundColor: 'rgba(5,150,105,0.1)', color: '#065f46', border: '2px solid #a7f3d0' }}
             >
               <Check size={16} />
               Materials Purchased
@@ -934,12 +934,12 @@ export default function ArtisanInvoices() {
         </div>
 
         {/* ── Payment Progress Card ── */}
-        <div className="rounded-2xl overflow-hidden shadow-lg print:hidden" style={{ backgroundColor: '#ffffff' }}>
+        <div className="rounded-2xl overflow-hidden shadow-lg print:hidden bg-card">
 
           {/* ── Header with progress bar ── */}
           <div style={{ padding: '28px 32px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: 0 }}>Payment Progress</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Payment Progress</h3>
               <span
                 style={{
                   fontSize: 28,
@@ -953,7 +953,7 @@ export default function ArtisanInvoices() {
             </div>
 
             {/* Single smooth progress bar */}
-            <div style={{ height: 10, backgroundColor: '#f3f4f6', borderRadius: 999, overflow: 'hidden' }}>
+            <div style={{ height: 10, backgroundColor: 'var(--muted)', borderRadius: 999, overflow: 'hidden' }}>
               <div
                 style={{
                   height: '100%',
@@ -969,20 +969,20 @@ export default function ArtisanInvoices() {
 
             {/* Marker labels below bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>0%</span>
-              <span style={{ fontSize: 12, color: '#6b7280', position: 'relative', left: `${firstPct - 50}%` }}>{firstPct}%</span>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>100%</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>0%</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)', position: 'relative', left: `${firstPct - 50}%` }}>{firstPct}%</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>100%</span>
             </div>
           </div>
 
           {/* ── Tranche cards ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #f3f4f6' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--muted)' }}>
 
             {/* Tranche 1 */}
             <div style={{
               padding: '28px 32px',
-              borderRight: '1px solid #f3f4f6',
-              backgroundColor: upfrontPaid ? '#f0fdf4' : '#fff',
+              borderRight: '1px solid var(--muted)',
+              backgroundColor: upfrontPaid ? 'rgba(5,150,105,0.1)' : 'var(--card)',
             }}>
               {/* Top row: number + badge */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -996,13 +996,13 @@ export default function ArtisanInvoices() {
                     {upfrontPaid ? <Check size={18} /> : '1'}
                   </div>
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#1f2937', margin: 0 }}>Upfront</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Upfront</p>
                     <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>First payment</p>
                   </div>
                 </div>
                 <span style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
-                  backgroundColor: upfrontPaid ? '#d1fae5' : '#eff6ff',
+                  backgroundColor: upfrontPaid ? 'rgba(16,185,129,0.15)' : 'rgba(37,99,235,0.1)',
                   color: upfrontPaid ? '#065f46' : '#1e40af',
                 }}>
                   {upfrontPaid ? 'Received' : 'Pending'}
@@ -1010,17 +1010,17 @@ export default function ArtisanInvoices() {
               </div>
 
               {/* Amount */}
-              <p style={{ fontSize: 26, fontWeight: 800, color: '#1f2937', margin: '0 0 2px' }}>
+              <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--foreground)', margin: '0 0 2px' }}>
                 {upfrontAmount.toLocaleString('en', { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>TND</span>
               </p>
-              <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px' }}>
+              <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '0 0 20px' }}>
                 {firstPct}% of {selectedInvoice.amount?.toLocaleString()} TND
               </p>
 
               {/* Action / status */}
               {upfrontPaid ? (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'rgba(16,185,129,0.15)', marginBottom: 10 }}>
                     <Check size={16} style={{ color: '#059669' }} />
                     <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
                       {selectedInvoice.paymentPlan?.firstTranchePaidAt
@@ -1064,7 +1064,7 @@ export default function ArtisanInvoices() {
             {/* Tranche 2 */}
             <div style={{
               padding: '28px 32px',
-              backgroundColor: completionPaid ? '#f0fdf4' : !upfrontPaid ? '#fafafa' : '#fff',
+              backgroundColor: completionPaid ? 'rgba(5,150,105,0.1)' : 'var(--card)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1072,35 +1072,35 @@ export default function ArtisanInvoices() {
                     width: 36, height: 36, borderRadius: 10,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: completionPaid ? '#10b981' : !upfrontPaid ? '#d1d5db' : '#1e40af',
-                    color: !upfrontPaid && !completionPaid ? '#6b7280' : '#fff',
+                    color: !upfrontPaid && !completionPaid ? 'var(--muted-foreground)' : '#fff',
                     fontSize: 14, fontWeight: 700,
                   }}>
                     {completionPaid ? <Check size={18} /> : '2'}
                   </div>
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: !upfrontPaid && !completionPaid ? '#9ca3af' : '#1f2937', margin: 0 }}>Completion</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: !upfrontPaid && !completionPaid ? '#9ca3af' : 'var(--foreground)', margin: 0 }}>Completion</p>
                     <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>Final payment</p>
                   </div>
                 </div>
                 <span style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
-                  backgroundColor: completionPaid ? '#d1fae5' : !upfrontPaid ? '#f3f4f6' : '#eff6ff',
+                  backgroundColor: completionPaid ? 'rgba(16,185,129,0.15)' : !upfrontPaid ? 'var(--muted)' : 'rgba(37,99,235,0.1)',
                   color: completionPaid ? '#065f46' : !upfrontPaid ? '#9ca3af' : '#1e40af',
                 }}>
                   {completionPaid ? 'Received' : !upfrontPaid ? 'Locked' : 'Ready'}
                 </span>
               </div>
 
-              <p style={{ fontSize: 26, fontWeight: 800, color: !upfrontPaid && !completionPaid ? '#9ca3af' : '#1f2937', margin: '0 0 2px' }}>
+              <p style={{ fontSize: 26, fontWeight: 800, color: !upfrontPaid && !completionPaid ? '#9ca3af' : 'var(--foreground)', margin: '0 0 2px' }}>
                 {completionAmount.toLocaleString('en', { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>TND</span>
               </p>
-              <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px' }}>
+              <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '0 0 20px' }}>
                 {secondPct}% of {selectedInvoice.amount?.toLocaleString()} TND
               </p>
 
               {completionPaid ? (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#d1fae5', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'rgba(16,185,129,0.15)', marginBottom: 10 }}>
                     <Check size={16} style={{ color: '#059669' }} />
                     <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
                       {selectedInvoice.paymentPlan?.secondTranchePaidAt
@@ -1121,9 +1121,9 @@ export default function ArtisanInvoices() {
                   </button>
                 </div>
               ) : !upfrontPaid ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'var(--muted)', border: '1px solid var(--border)' }}>
                   <span style={{ fontSize: 16 }}>🔒</span>
-                  <span style={{ fontSize: 13, color: '#6b7280' }}>Pay first tranche to unlock</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>Pay first tranche to unlock</span>
                 </div>
               ) : (
                 <div>
@@ -1143,7 +1143,7 @@ export default function ArtisanInvoices() {
                     }
                   </button>
                   {selectedInvoice.paymentPlan?.secondTrancheDueDate && (
-                    <p style={{ fontSize: 12, fontWeight: 500, padding: '8px 12px', borderRadius: 8, marginTop: 12, backgroundColor: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' }}>
+                    <p style={{ fontSize: 12, fontWeight: 500, padding: '8px 12px', borderRadius: 8, marginTop: 12, backgroundColor: 'rgba(217,119,6,0.1)', color: 'rgba(245,158,11,0.9)', border: '1px solid rgba(245,158,11,0.3)' }}>
                       Due by {formatDate(selectedInvoice.paymentPlan.secondTrancheDueDate)}
                     </p>
                   )}
@@ -1154,7 +1154,7 @@ export default function ArtisanInvoices() {
         </div>
 
         {/* Carte de facture améliorée */}
-        <Card id="invoice-card" className="p-10 bg-white rounded-2xl border-0 shadow-lg print:shadow-none print:m-0 print:border">
+        <Card id="invoice-card" className="p-10 bg-card rounded-2xl border border-border shadow-lg print:shadow-none print:m-0 print:border">
           {/* En-tête */}
           <div className="flex justify-between items-start mb-10">
             <div>
@@ -1189,7 +1189,7 @@ export default function ArtisanInvoices() {
           </div>
 
           {/* Description */}
-          <div className="mb-8 bg-gray-50 p-6 rounded-xl border">
+          <div className="mb-8 bg-muted/50 p-6 rounded-xl border">
             <h4 className="font-bold text-foreground mb-4">Description of Work / Items:</h4>
             <p className="whitespace-pre-wrap text-muted-foreground">{selectedInvoice.description}</p>
           </div>
@@ -1224,9 +1224,9 @@ export default function ArtisanInvoices() {
         <StatsCard label="Overdue" value={`${overdueAmount.toLocaleString()} TND`} icon={<AlertCircle size={28} />} color="#EF4444" subtitle="Needs attention" />
       </div>
 
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-          <div className="flex-1 h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2">
+          <div className="flex-1 h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2">
             <Search className="text-muted-foreground shrink-0" size={18} />
             <Input
               placeholder="Search invoices..."
@@ -1236,7 +1236,7 @@ export default function ArtisanInvoices() {
             />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 lg:w-auto">
-            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+            <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
               <Filter className="text-muted-foreground shrink-0" size={16} />
               <select
                 value={statusFilter}
@@ -1250,7 +1250,7 @@ export default function ArtisanInvoices() {
                 <option value="overdue">Overdue</option>
               </select>
             </div>
-            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+            <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
               <select
                 value={dueFilter}
                 onChange={(e) => setDueFilter(e.target.value as 'all' | 'overdue' | 'upcoming')}
@@ -1271,13 +1271,13 @@ export default function ArtisanInvoices() {
         {isLoading ? (
           <div className="text-center py-10">Loading invoices...</div>
         ) : filteredInvoices.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-2xl shadow-lg border border-gray-100">
+          <div className="text-center py-10 bg-card rounded-2xl border border-border shadow-lg border border-border">
             <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-            <p className="text-xl font-semibold text-gray-500">No invoices found.</p>
+            <p className="text-xl font-semibold text-muted-foreground">No invoices found.</p>
           </div>
         ) : (
           filteredInvoices.map((invoice) => (
-            <Card key={invoice._id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <Card key={invoice._id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
@@ -1341,22 +1341,22 @@ export default function ArtisanInvoices() {
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] pointer-events-auto">
-          <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="mx-4 w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6">
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 size={32} className="text-red-600" />
                 </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-2">Delete Invoice?</h3>
-                <p className="text-gray-600 font-medium">{invoiceToDelete?.invoiceNumber || ''}</p>
-                <p className="text-sm text-gray-500 mt-2">Are you sure you want to delete this invoice?</p>
+                <h3 className="text-3xl font-bold text-foreground mb-2">Delete Invoice?</h3>
+                <p className="text-muted-foreground font-medium">{invoiceToDelete?.invoiceNumber || ''}</p>
+                <p className="text-sm text-muted-foreground mt-2">Are you sure you want to delete this invoice?</p>
               </div>
 
               <div className="flex gap-3">
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                  className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                   onClick={() => {
                     setShowDeleteModal(false);
                     setInvoiceToDelete(null);
@@ -1368,7 +1368,7 @@ export default function ArtisanInvoices() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                  className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                   onClick={handleDeleteInvoice}
                   disabled={isDeletingInvoice}
                 >

@@ -117,7 +117,7 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
       case 'expert': return 'bg-accent/10 text-accent border-0';
       case 'manufacturer': return 'bg-purple-100 text-purple-700 border-0';
       case 'admin': return 'bg-red-100 text-red-700 border-0';
-      default: return 'bg-gray-100 text-gray-700 border-0';
+      default: return 'bg-muted text-foreground border-0';
     }
   };
 
@@ -256,23 +256,23 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
         ))}
       </div>
 
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <Input
             placeholder={`Search ${activeFilter.toLowerCase()}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+            className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
           />
         </div>
       </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {loading && <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg"><p className="text-muted-foreground">Loading users...</p></Card>}
+        {loading && <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg"><p className="text-muted-foreground">Loading users...</p></Card>}
         
         {!loading && filteredUsers.length === 0 && (
-          <div className="col-span-full py-12 text-center bg-white rounded-2xl border-0 shadow-lg">
+          <div className="col-span-full py-12 text-center bg-card rounded-2xl border border-border shadow-lg">
             <UserX className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-bold text-foreground mb-1">No users found</h3>
             <p className="text-muted-foreground">Try adjusting your search or filter.</p>
@@ -280,9 +280,9 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
         )}
 
         {!loading && filteredUsers.map((user) => (
-          <Card key={user._id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+          <Card key={user._id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="flex items-start gap-4 mb-4">
-              <Avatar className="w-14 h-14 ring-4 ring-white shadow-lg">
+              <Avatar className="w-14 h-14 ring-4 ring-white dark:ring-gray-700 shadow-lg">
                 <AvatarFallback className="bg-primary text-white font-bold text-lg">
                   {(displayName(user)[0] || 'U').toUpperCase()}
                 </AvatarFallback>
@@ -301,7 +301,7 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-gray-50 mb-4">
+            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-muted/50 mb-4">
               <div>
                 <p className="text-xs text-muted-foreground font-medium mb-1">Joined</p>
                 <p className="text-sm font-bold text-foreground">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</p>
@@ -403,7 +403,7 @@ export default function AdminUserManagement({ canSuspendUsers = false, canDelete
           />
 
           <div className="relative z-[1001] w-full h-full flex items-center justify-center p-4">
-            <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl p-6">
+            <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl p-6">
               <div className="mb-4">
                 <h3 className="text-xl font-bold text-foreground">Edit Sub-Admin Permissions</h3>
                 <p className="text-sm text-muted-foreground mt-1">

@@ -158,7 +158,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     <div className="flex items-center gap-2">
       <NotificationBell />
       <button
-        className="p-3 rounded-xl hover:bg-gray-100 relative overflow-visible transition-colors"
+        className="p-3 rounded-xl hover:bg-muted relative overflow-visible transition-colors"
         type="button"
         aria-label="Open cart"
         onClick={openHeaderCart}

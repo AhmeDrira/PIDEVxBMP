@@ -63,12 +63,12 @@ export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsPr
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-gray-100 text-gray-700';
+      case 'pending': return 'bg-muted text-foreground';
       case 'processing': return 'bg-secondary/10 text-secondary';
       case 'shipped': return 'bg-primary/10 text-primary';
       case 'delivered': return 'bg-accent/10 text-accent';
       case 'cancelled': return 'bg-destructive/10 text-destructive';
-      default: return 'bg-gray-100 text-gray-700';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -77,7 +77,7 @@ export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsPr
       case 'paid': return 'bg-accent/10 text-accent';
       case 'pending': return 'bg-secondary/10 text-secondary';
       case 'failed': return 'bg-destructive/10 text-destructive';
-      default: return 'bg-gray-100 text-gray-700';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -96,7 +96,7 @@ export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsPr
       )}
 
       {/* Order Header */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-3 mb-3">
@@ -197,16 +197,16 @@ export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsPr
       </Card>
 
       {/* Order Items */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <h2 className="text-2xl font-bold text-foreground mb-6">Order Items</h2>
         
         <div className="space-y-4 mb-6">
           {order.products.map((product) => (
             <div
               key={product.id}
-              className="flex items-center gap-4 p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 transition-all"
+              className="flex items-center gap-4 p-6 rounded-2xl border-2 border-border hover:border-primary/20 transition-all"
             >
-              <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 border-gray-200">
+              <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 border-border">
                 <ImageWithFallback
                   src={product.image}
                   alt={product.name}
@@ -215,7 +215,7 @@ export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsPr
               </div>
               <div className="flex-1">
                 <h4 className="font-bold text-foreground text-lg mb-1">{product.name}</h4>
-                <Badge className="bg-gray-100 text-gray-700 text-xs px-2 py-1 border-0 mb-2">
+                <Badge className="bg-muted text-foreground text-xs px-2 py-1 border-0 mb-2">
                   {product.category}
                 </Badge>
                 <p className="text-sm text-muted-foreground">
@@ -237,15 +237,15 @@ export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsPr
         {/* Order Summary */}
         <div className="flex justify-end">
           <div className="w-full md:w-1/2 lg:w-1/3 space-y-4">
-            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-gray-50">
+            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-muted/50">
               <span className="text-muted-foreground">Subtotal:</span>
               <span className="font-semibold text-foreground">{order.subtotal.toFixed(2)} TND</span>
             </div>
-            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-gray-50">
+            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-muted/50">
               <span className="text-muted-foreground">Shipping:</span>
               <span className="font-semibold text-foreground">{order.shipping.toFixed(2)} TND</span>
             </div>
-            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-gray-50">
+            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-muted/50">
               <span className="text-muted-foreground">Tax (19%):</span>
               <span className="font-semibold text-foreground">{order.tax.toFixed(2)} TND</span>
             </div>
@@ -259,7 +259,7 @@ export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsPr
 
       {/* Order Notes */}
       {order.notes && (
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <h3 className="text-xl font-bold text-foreground mb-4">Order Notes</h3>
           <p className="text-muted-foreground leading-relaxed">{order.notes}</p>
         </Card>

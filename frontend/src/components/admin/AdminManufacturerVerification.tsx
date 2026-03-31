@@ -99,12 +99,12 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
       <div className="space-y-4">
         {loading && <p className="text-muted-foreground">Loading...</p>}
         {!loading && pendingManufacturers.length === 0 && (
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <p className="text-muted-foreground">No pending manufacturer applications.</p>
           </Card>
         )}
         {pendingManufacturers.map((manufacturer) => (
-          <Card key={manufacturer._id} className="p-8 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+          <Card key={manufacturer._id} className="p-8 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-4">
@@ -120,7 +120,7 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
               </div>
 
               <div className="space-y-4 lg:min-w-[280px]">
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100">
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-border">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <FileText size={24} className="text-primary" />
                   </div>
@@ -171,7 +171,7 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
                 {rejectingId === manufacturer._id && (
                   <div className="space-y-2">
                     <textarea
-                      className="w-full h-20 rounded-xl border-2 border-gray-200 p-3"
+                      className="w-full h-20 rounded-xl border-2 border-border p-3"
                       placeholder="Provide a rejection reason (optional)"
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}

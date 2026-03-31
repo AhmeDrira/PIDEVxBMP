@@ -39,13 +39,13 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
 
   return (
     <div className="space-y-8">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
+      <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
         Back to Directory
       </Button>
 
       {/* Profile Header */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col md:flex-row gap-8">
           <Avatar className="w-32 h-32 ring-4 ring-white shadow-2xl">
             <AvatarFallback className="bg-primary text-white font-bold text-5xl">
@@ -80,7 +80,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               </Button>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6 pt-6 border-t-2 border-gray-100">
+            <div className="grid md:grid-cols-3 gap-6 pt-6 border-t-2 border-border">
               <div className="flex items-center gap-3">
                 <MapPin size={20} className="text-primary" />
                 <div>
@@ -113,13 +113,13 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* About */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-6">About</h2>
             <p className="text-muted-foreground leading-relaxed">{artisan.bio}</p>
           </Card>
 
           {/* Skills */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-6">Skills & Expertise</h2>
             <div className="flex flex-wrap gap-3">
               {artisan.skills.map((skill, index) => (
@@ -134,7 +134,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
           </Card>
 
           {/* Certifications */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-6">Certifications</h2>
             <div className="space-y-3">
               {artisan.certifications.map((cert, index) => (
@@ -147,19 +147,19 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
           </Card>
 
           {/* Portfolio */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-6">Portfolio</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {artisan.portfolio.map((project) => (
                 <div key={project.id} className="group cursor-pointer">
-                  <div className="relative aspect-video rounded-xl overflow-hidden mb-4 bg-gray-100">
+                  <div className="relative aspect-video rounded-xl overflow-hidden mb-4 bg-muted">
                     <ImageWithFallback
                       src={project.image}
                       alt={project.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <Badge className="absolute top-3 right-3 bg-white text-foreground border-0 px-3 py-1">
+                    <Badge className="absolute top-3 right-3 bg-card text-foreground border-0 px-3 py-1">
                       {project.year}
                     </Badge>
                   </div>
@@ -174,7 +174,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Contact Information */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-6">Contact Information</h3>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
@@ -212,7 +212,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
           </Card>
 
           {/* Statistics */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-6">Statistics</h3>
             <div className="space-y-6">
               <div>

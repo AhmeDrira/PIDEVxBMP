@@ -91,7 +91,7 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-        <p className="text-gray-500 font-medium">Loading gallery...</p>
+        <p className="text-muted-foreground font-medium">Loading gallery...</p>
       </div>
     );
   }
@@ -109,19 +109,19 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-3">
         <ImageOff className="w-12 h-12 text-gray-300" />
-        <p className="text-gray-500">Portfolio item not found.</p>
+        <p className="text-muted-foreground">Portfolio item not found.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-gray-50">
+    <div className="min-h-full bg-muted/50">
       {/* Page Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-5 shadow-sm">
+      <div className="bg-card border-b border-border px-6 py-5 shadow-sm">
         <div className="flex items-center gap-4 mb-4">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 font-medium text-sm transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-border bg-card text-foreground hover:bg-muted/50 hover:border-border font-medium text-sm transition-all"
           >
             <ArrowLeft size={16} />
             Back to Portfolio
@@ -130,9 +130,9 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
 
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 truncate">{item.title}</h1>
+            <h1 className="text-2xl font-bold text-foreground truncate">{item.title}</h1>
             {item.description && (
-              <p className="mt-1 text-gray-500 text-sm leading-relaxed line-clamp-2">{item.description}</p>
+              <p className="mt-1 text-muted-foreground text-sm leading-relaxed line-clamp-2">{item.description}</p>
             )}
           </div>
 
@@ -159,24 +159,24 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
 
         {media.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="p-5 bg-gray-100 rounded-full">
-              <ImageOff className="w-10 h-10 text-gray-400" />
+            <div className="p-5 bg-muted rounded-full">
+              <ImageOff className="w-10 h-10 text-muted-foreground" />
             </div>
-            <p className="text-gray-500 font-medium text-lg">No media for this project yet.</p>
+            <p className="text-muted-foreground font-medium text-lg">No media for this project yet.</p>
           </div>
         )}
 
         {/* Photos Section */}
         {images.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             {/* Section Header */}
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
-              <div className="p-2 rounded-xl" style={{ backgroundColor: '#eff6ff' }}>
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
+              <div className="p-2 rounded-xl" style={{ backgroundColor: 'rgba(37,99,235,0.1)' }}>
                 <ImageIcon size={18} style={{ color: '#1e40af' }} />
               </div>
               <div>
-                <h2 className="font-bold text-gray-800">Photos</h2>
-                <p className="text-xs text-gray-400">{images.length} image{images.length > 1 ? 's' : ''}</p>
+                <h2 className="font-bold text-foreground">Photos</h2>
+                <p className="text-xs text-muted-foreground">{images.length} image{images.length > 1 ? 's' : ''}</p>
               </div>
             </div>
 
@@ -186,7 +186,7 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
                 {images.map((img, index) => (
                   <div
                     key={index}
-                    className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                    className="group relative aspect-square rounded-xl overflow-hidden bg-muted border border-border cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
                     onClick={() => setLightboxIndex(index)}
                   >
                     <img
@@ -197,8 +197,8 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
                     />
                     {/* Hover overlay */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 rounded-full p-2 shadow-md">
-                        <ZoomIn size={16} className="text-gray-700" />
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-card/90 rounded-full p-2 shadow-md">
+                        <ZoomIn size={16} className="text-foreground" />
                       </div>
                     </div>
                     {/* Index badge */}
@@ -214,14 +214,14 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
 
         {/* Videos Section */}
         {videos.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
               <div className="p-2 rounded-xl bg-indigo-50">
                 <Film size={18} className="text-indigo-600" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-800">Videos</h2>
-                <p className="text-xs text-gray-400">{videos.length} video{videos.length > 1 ? 's' : ''}</p>
+                <h2 className="font-bold text-foreground">Videos</h2>
+                <p className="text-xs text-muted-foreground">{videos.length} video{videos.length > 1 ? 's' : ''}</p>
               </div>
             </div>
 
@@ -230,7 +230,7 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
                 {videos.map((vid, index) => (
                   <div
                     key={index}
-                    className="relative rounded-xl overflow-hidden bg-gray-900 border border-gray-200 shadow-sm"
+                    className="relative rounded-xl overflow-hidden bg-gray-900 border border-border shadow-sm"
                     style={{ aspectRatio: '16/9' }}
                   >
                     <video
@@ -257,7 +257,7 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
         >
           {/* Close */}
           <button
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+            className="absolute top-4 right-4 p-2 rounded-full bg-card/10 hover:bg-card/20 text-white transition-colors z-10"
             onClick={() => setLightboxIndex(null)}
           >
             <X size={22} />
@@ -271,7 +271,7 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
           {/* Prev */}
           {images.length > 1 && (
             <button
-              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors z-10"
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-card/10 hover:bg-card/25 text-white transition-colors z-10"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + images.length) % images.length); }}
             >
               <ChevronLeft size={26} />
@@ -290,7 +290,7 @@ export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGaller
           {/* Next */}
           {images.length > 1 && (
             <button
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors z-10"
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-card/10 hover:bg-card/25 text-white transition-colors z-10"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % images.length); }}
             >
               <ChevronRight size={26} />

@@ -113,7 +113,7 @@ export default function SubAdminRegisterPage({ onBackToAdminLogin, onEmailSent }
             ← Back to Admin Portal
           </Button>
 
-          <Card className="p-10 bg-white rounded-3xl shadow-2xl border-0">
+          <Card className="p-10 bg-card rounded-3xl shadow-2xl border-0">
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-2">
                 <ShieldCheck className="text-primary" size={32} />
@@ -170,7 +170,7 @@ export default function SubAdminRegisterPage({ onBackToAdminLogin, onEmailSent }
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   {permissionOptions.map((permission) => (
-                    <Card key={permission.id} className="p-4 border-2 border-gray-100 rounded-2xl">
+                    <Card key={permission.id} className="p-4 border-2 border-border rounded-2xl">
                       <div className="flex items-start gap-3">
                         <Controller
                           name={`permissions.${permission.id}`}

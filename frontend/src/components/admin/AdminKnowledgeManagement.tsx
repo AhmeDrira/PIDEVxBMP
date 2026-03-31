@@ -152,7 +152,7 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p style={{ color: '#6B7280' }}>Manage platform articles and content</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Manage platform articles and content</p>
         </div>
         <Button
           className="text-white"
@@ -170,36 +170,36 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <Card className="p-6 bg-white">
+        <Card className="p-6 bg-card">
           <BookOpen size={32} style={{ color: '#1F3A8A' }} className="mb-2" />
-          <p className="text-3xl mb-1" style={{ color: '#111827' }}>{articles.length}</p>
-          <p style={{ color: '#6B7280' }}>Total Articles</p>
+          <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{articles.length}</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Total Articles</p>
         </Card>
-        <Card className="p-6 bg-white">
+        <Card className="p-6 bg-card">
           <Eye size={32} style={{ color: '#F59E0B' }} className="mb-2" />
-          <p className="text-3xl mb-1" style={{ color: '#111827' }}>
+          <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>
             {stats.totalViews.toLocaleString()}
           </p>
-          <p style={{ color: '#6B7280' }}>Total Views</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Total Views</p>
         </Card>
-        <Card className="p-6 bg-white">
+        <Card className="p-6 bg-card">
           <BookOpen size={32} style={{ color: '#10B981' }} className="mb-2" />
-          <p className="text-3xl mb-1" style={{ color: '#111827' }}>{stats.categoryCount}</p>
-          <p style={{ color: '#6B7280' }}>Categories</p>
+          <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.categoryCount}</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Categories</p>
         </Card>
       </div>
 
-      <Card className="p-6 bg-white">
+      <Card className="p-6 bg-card">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr style={{ borderBottom: '2px solid #E5E7EB' }}>
-                <th className="text-left py-3" style={{ color: '#6B7280' }}>Title</th>
-                <th className="text-left py-3" style={{ color: '#6B7280' }}>Author</th>
-                <th className="text-left py-3" style={{ color: '#6B7280' }}>Category</th>
-                <th className="text-left py-3" style={{ color: '#6B7280' }}>Views</th>
-                <th className="text-left py-3" style={{ color: '#6B7280' }}>Date</th>
-                <th className="text-left py-3" style={{ color: '#6B7280' }}>Actions</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Title</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Author</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Category</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Views</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Date</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -215,18 +215,18 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
               )}
               {!loading && articles.map((article) => (
                 <tr key={article._id} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                  <td className="py-4" style={{ color: '#111827' }}>{article.title}</td>
-                  <td className="py-4" style={{ color: '#6B7280' }}>{article.authorName}</td>
+                  <td className="py-4" style={{ color: 'var(--foreground)' }}>{article.title}</td>
+                  <td className="py-4" style={{ color: 'var(--muted-foreground)' }}>{article.authorName}</td>
                   <td className="py-4">
                     <span
                       className="px-2 py-1 rounded text-xs"
-                      style={{ backgroundColor: '#F3F4F6', color: '#6B7280' }}
+                      style={{ backgroundColor: '#F3F4F6', color: 'var(--muted-foreground)' }}
                     >
                       {article.category}
                     </span>
                   </td>
-                  <td className="py-4" style={{ color: '#6B7280' }}>{article.views}</td>
-                  <td className="py-4" style={{ color: '#6B7280' }}>{new Date(article.createdAt).toLocaleDateString()}</td>
+                  <td className="py-4" style={{ color: 'var(--muted-foreground)' }}>{article.views}</td>
+                  <td className="py-4" style={{ color: 'var(--muted-foreground)' }}>{new Date(article.createdAt).toLocaleDateString()}</td>
                   <td className="py-4">
                     <div className="flex gap-2">
                       <Button

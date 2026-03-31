@@ -239,7 +239,7 @@ export default function ArtisanSubscription() {
     <div className="relative">
       <div className={`space-y-8 animate-in fade-in duration-500 transition-all ${showCancelDialog ? 'blur-md pointer-events-none' : ''}`}>
         {/* Current Subscription */}
-        <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-4">
@@ -303,7 +303,7 @@ export default function ArtisanSubscription() {
             {plans.map((plan) => (
               <Card
                 key={plan.id}
-                className={`p-8 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 relative ${
+                className={`p-8 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 relative ${
                   plan.popular ? 'ring-4 ring-secondary/20 hover:-translate-y-2' : 'hover:-translate-y-1'
                 }`}
               >
@@ -357,7 +357,7 @@ export default function ArtisanSubscription() {
         </div>
 
         {/* Payment History */}
-        <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-2xl font-bold text-foreground">Payment History</h3>
@@ -390,7 +390,7 @@ export default function ArtisanSubscription() {
                 return (
                   <div
                     key={index}
-                    className="grid grid-cols-4 gap-4 items-center px-4 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-200 transition-all duration-200"
+                    className="grid grid-cols-4 gap-4 items-center px-4 py-4 rounded-2xl border border-border bg-muted/50 hover:bg-muted/50 hover:border-border transition-all duration-200"
                   >
                     {/* Date */}
                     <div className="flex items-center gap-3">
@@ -441,7 +441,7 @@ export default function ArtisanSubscription() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <CreditCard size={32} className="text-muted-foreground" />
               </div>
               <p className="text-muted-foreground text-lg font-medium">No payment history yet.</p>
@@ -459,14 +459,14 @@ export default function ArtisanSubscription() {
             onClick={() => setShowCancelDialog(false)}
           />
           {/* Modal Content - Square Form */}
-          <div className="relative bg-white rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.3)] w-[280px] h-[280px] flex flex-col items-center justify-center overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100">
+          <div className="relative bg-card rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.3)] w-[280px] h-[280px] flex flex-col items-center justify-center overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-border">
             <div className="p-6 flex flex-col items-center justify-center h-full w-full">
               <div className="text-center flex-1 flex flex-col items-center justify-center">
                 <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
                   <AlertTriangle className="text-red-600" size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Cancel Subscription?</h3>
-                <p className="text-sm text-gray-600 font-medium leading-relaxed px-2">
+                <h3 className="text-xl font-bold text-foreground mb-2">Cancel Subscription?</h3>
+                <p className="text-sm text-muted-foreground font-medium leading-relaxed px-2">
                   Are you sure you want to cancel?
                 </p>
               </div>
@@ -475,7 +475,7 @@ export default function ArtisanSubscription() {
                 <button
                   type="button"
                   onClick={() => setShowCancelDialog(false)}
-                  className="flex-1 h-11 rounded-xl border-2 border-gray-200 font-bold text-gray-700 bg-white hover:bg-gray-50 transition-all text-sm"
+                  className="flex-1 h-11 rounded-xl border-2 border-border font-bold text-foreground bg-card hover:bg-muted/50 transition-all text-sm"
                   disabled={isCanceling}
                 >
                   Cancel
@@ -483,11 +483,11 @@ export default function ArtisanSubscription() {
                 <button
                   type="button"
                   onClick={handleCancelSubscription}
-                  className="flex-1 h-11 rounded-xl border-2 border-gray-200 font-bold text-gray-700 bg-white hover:bg-gray-50 transition-all text-sm"
+                  className="flex-1 h-11 rounded-xl border-2 border-border font-bold text-foreground bg-card hover:bg-muted/50 transition-all text-sm"
                   disabled={isCanceling}
                 >
                   {isCanceling ? (
-                    <Loader2 className="animate-spin mx-auto text-gray-400" size={18} />
+                    <Loader2 className="animate-spin mx-auto text-muted-foreground" size={18} />
                   ) : (
                     "Confirm"
                   )}

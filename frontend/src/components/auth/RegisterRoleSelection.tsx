@@ -39,7 +39,7 @@ export default function RegisterRoleSelection({ onRoleSelect, onBackToLogin }: R
   return (
     <div className="w-full max-w-xl">
       <div className="mb-8">
-        <Button variant="ghost" onClick={onBackToLogin} className="mb-6 hover:bg-white rounded-xl">
+        <Button variant="ghost" onClick={onBackToLogin} className="mb-6 hover:bg-card rounded-xl">
           ← Back to Login
         </Button>
         <h2 className="text-3xl font-bold text-foreground mb-3">Create Your Account</h2>
@@ -51,7 +51,7 @@ export default function RegisterRoleSelection({ onRoleSelect, onBackToLogin }: R
           <button
             key={role.id}
             onClick={() => onRoleSelect(role.id)}
-            className="w-full group text-left p-6 rounded-2xl border-2 border-gray-200 hover:border-primary hover:shadow-xl transition-all duration-300 bg-white"
+            className="w-full group text-left p-6 rounded-2xl border-2 border-border hover:border-primary hover:shadow-xl transition-all duration-300 bg-card"
           >
             <div className="flex items-start gap-4">
               <div 

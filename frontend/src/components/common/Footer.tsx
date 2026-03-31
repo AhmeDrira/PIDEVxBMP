@@ -25,14 +25,14 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="bg-white text-gray-600 border-t border-gray-200 mt-24">
+    <footer className="bg-card text-muted-foreground border-t border-border mt-24">
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Column 1: Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 rounded-xl bg-primary dark:bg-blue-600 flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">B</span>
               </div>
               <div>
@@ -117,7 +117,7 @@ export default function Footer() {
       </div>
 
       {/* Bottom Bar */}
-      <div className="border-t border-gray-200 bg-gray-50">
+      <div className="border-t border-border bg-muted/40">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Copyright */}
@@ -133,10 +133,10 @@ export default function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-primary flex items-center justify-center transition-colors group"
+                  className="w-9 h-9 rounded-lg bg-muted hover:bg-primary dark:bg-blue-600 flex items-center justify-center transition-colors group"
                   aria-label={social.label}
                 >
-                  <social.icon size={18} className="text-gray-600 group-hover:text-white transition-colors" />
+                  <social.icon size={18} className="text-muted-foreground group-hover:text-white transition-colors" />
                 </a>
               ))}
             </div>

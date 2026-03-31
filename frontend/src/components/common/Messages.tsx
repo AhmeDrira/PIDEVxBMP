@@ -668,10 +668,10 @@ export default function Messages() {
 
   return (
     <div className="h-[calc(100vh-12rem)]">
-      <Card className="h-full bg-white rounded-2xl border-0 shadow-lg flex flex-col lg:flex-row overflow-hidden">
+      <Card className="h-full bg-card rounded-2xl border border-border shadow-lg flex flex-col lg:flex-row overflow-hidden">
         {/* Conversations List */}
-        <div className="lg:w-96 border-r-2 border-gray-100 flex flex-col">
-          <div className="p-6 border-b-2 border-gray-100">
+        <div className="lg:w-96 border-r-2 border-border flex flex-col">
+          <div className="p-6 border-b-2 border-border">
             
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
@@ -679,7 +679,7 @@ export default function Messages() {
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
               />
             </div>
           </div>
@@ -698,7 +698,7 @@ export default function Messages() {
                 className={`w-full p-4 transition-all ${
                   selectedConversationId === conv.id
                     ? 'bg-primary/5 border-l-4 border-primary'
-                    : 'hover:bg-gray-50 border-l-4 border-transparent'
+                    : 'hover:bg-muted/50 border-l-4 border-transparent'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -726,7 +726,7 @@ export default function Messages() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col relative bg-gray-50 h-full">
+        <div className="flex-1 flex flex-col relative bg-muted/50 h-full">
           {callState.status === 'ringing' ? (
             <IncomingCallModal
               callState={callState}
@@ -773,7 +773,7 @@ export default function Messages() {
           ) : (
             <>
           {selectedConv && (
-                <div className="p-6 flex items-center justify-between border-b-2 border-gray-100 bg-white">
+                <div className="p-6 flex items-center justify-between border-b-2 border-border bg-card">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Avatar className="w-12 h-12 ring-2 ring-white shadow-md">
@@ -784,7 +784,7 @@ export default function Messages() {
                 <div className="flex items-center gap-2 relative" ref={profileMenuRef}>
                   <div>
                     <h3 className="font-bold text-foreground text-lg">{selectedConv.name}</h3>
-                    <p className="text-sm font-medium" style={{ color: selectedConv.online ? '#10B981' : '#6B7280' }}>
+                    <p className="text-sm font-medium" style={{ color: selectedConv.online ? '#10B981' : 'var(--muted-foreground)' }}>
                       {selectedConv.online ? 'Online' : 'Offline'}
                     </p>
                   </div>
@@ -798,7 +798,7 @@ export default function Messages() {
                     <ChevronDown size={16} />
                   </Button>
                   {isProfileMenuOpen && (
-                    <div className="absolute left-0 top-full mt-2 z-40 min-w-[180px] rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                    <div className="absolute left-0 top-full mt-2 z-40 min-w-[180px] rounded-xl border border-border bg-card p-1 shadow-lg">
                       <button
                         type="button"
                         onClick={() => {
@@ -806,7 +806,7 @@ export default function Messages() {
                           setIsProfileMenuOpen(false);
                         }}
                         disabled={selectedConv.role !== 'artisan'}
-                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText size={16} />
                         Voir le profil
@@ -814,7 +814,7 @@ export default function Messages() {
                       <button
                         type="button"
                         onClick={() => { setConfirmModal({ type: blockedByMe ? 'unblock' : 'block' }); setIsProfileMenuOpen(false); }}
-                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50"
+                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50"
                       >
                         {blockedByMe ? <ShieldCheck size={16} /> : <Ban size={16} />}
                         {blockedByMe ? 'Unblock' : 'Block'}
@@ -842,11 +842,11 @@ export default function Messages() {
                   <MoreHorizontal size={20} />
                 </Button>
                 {isConversationMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 z-40 min-w-[220px] rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                  <div className="absolute right-0 top-full mt-2 z-40 min-w-[220px] rounded-xl border border-border bg-card p-1 shadow-lg">
                     <button
                       type="button"
                       onClick={() => { setConfirmModal({ type: 'delete-conv' }); setIsConversationMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 text-left"
                     >
                       <Trash2 size={16} />
                       Delete Conversation
@@ -854,7 +854,7 @@ export default function Messages() {
                     <button
                       type="button"
                       onClick={() => { setConfirmModal({ type: blockedByMe ? 'unblock' : 'block' }); setIsConversationMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 text-left"
                     >
                       {blockedByMe ? <ShieldCheck size={16} /> : <Ban size={16} />}
                       {blockedByMe ? 'Unblock User' : 'Block User'}
@@ -862,7 +862,7 @@ export default function Messages() {
                     <button
                       type="button"
                       onClick={() => { setConfirmModal({ type: 'report' }); setIsConversationMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 text-left"
                     >
                       <Flag size={16} />
                       Report
@@ -893,7 +893,7 @@ export default function Messages() {
                   )}
                   {hoveredMessageId === message.id && (
                     <div className={`absolute -top-4 ${message.isSelf ? '-left-1' : '-right-1'} z-20`}>
-                      <div className="flex items-center gap-1 rounded-full border bg-white shadow-sm px-1 py-0.5">
+                      <div className="flex items-center gap-1 rounded-full border bg-card shadow-sm px-1 py-0.5">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -927,7 +927,7 @@ export default function Messages() {
                         )}
                       </div>
                       {reactionPickerForMessageId === message.id && (
-                        <div className="mt-1 rounded-full border bg-white shadow-md px-2 py-1 flex items-center gap-1">
+                        <div className="mt-1 rounded-full border bg-card shadow-md px-2 py-1 flex items-center gap-1">
                           {REACTION_EMOJIS.map((emoji) => (
                             <button
                               key={emoji}
@@ -947,7 +947,7 @@ export default function Messages() {
                       className={`mb-2 rounded-xl border-l-4 px-3 py-2 ${
                         message.isSelf
                           ? 'bg-blue-100 border-l-blue-500 text-blue-900'
-                          : 'bg-gray-100 border-l-gray-400 text-gray-700'
+                          : 'bg-muted border-l-gray-400 text-foreground'
                       }`}
                     >
                       <p className="text-[11px] font-semibold mb-0.5">Replied to {message.replyTo.senderName}</p>
@@ -959,7 +959,7 @@ export default function Messages() {
                       className={`px-5 py-3 rounded-2xl shadow-sm ${
                         message.isSelf
                           ? 'rounded-br-sm text-white'
-                          : 'bg-white text-foreground rounded-bl-sm'
+                          : 'bg-card text-foreground rounded-bl-sm'
                       }`}
                       style={message.isSelf ? { backgroundColor: '#1E40AF' } : {}}
                     >
@@ -983,29 +983,29 @@ export default function Messages() {
                           const url = `${API_BASE_URL}${att.url}`;
                           const isImage = att.mimeType?.startsWith('image/');
                           return (
-                            <div key={att.filename} className="rounded-2xl border border-gray-200 bg-white shadow-sm p-3">
+                            <div key={att.filename} className="rounded-2xl border border-border bg-card shadow-sm p-3">
                               {isImage ? (
                                 <a href={url} target="_blank" rel="noreferrer" className="block">
                                   <img
                                     src={url}
                                     alt={att.originalName}
-                                    className="max-h-44 w-full rounded-xl object-contain bg-gray-50"
+                                    className="max-h-44 w-full rounded-xl object-contain bg-muted/50"
                                   />
                                 </a>
                               ) : null}
                               <div className="flex items-center gap-3 mt-2">
-                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                                  {isImage ? <ImageIcon size={18} className="text-gray-600" /> : <FileText size={18} className="text-gray-600" />}
+                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                                  {isImage ? <ImageIcon size={18} className="text-muted-foreground" /> : <FileText size={18} className="text-muted-foreground" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">{att.originalName}</p>
-                                  <p className="text-xs text-gray-500">{formatFileSize(att.size)}</p>
+                                  <p className="text-sm font-medium text-foreground truncate">{att.originalName}</p>
+                                  <p className="text-xs text-muted-foreground">{formatFileSize(att.size)}</p>
                                 </div>
-                                <a href={url} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-primary">
+                                <a href={url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary">
                                   <Download size={16} />
                                 </a>
                               </div>
-                              <p className="text-[11px] text-right text-gray-500 mt-1">Envoyé</p>
+                              <p className="text-[11px] text-right text-muted-foreground mt-1">Envoyé</p>
                             </div>
                           );
                         })}
@@ -1018,7 +1018,7 @@ export default function Messages() {
                   {reactionSummary(message).length > 0 && (
                     <div className="mt-1 px-1 flex flex-wrap gap-1.5">
                       {reactionSummary(message).map(([emoji, count]) => (
-                        <span key={emoji} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-xs">
+                        <span key={emoji} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs">
                           <span>{emoji}</span>
                           <span>{count}</span>
                         </span>
@@ -1030,7 +1030,7 @@ export default function Messages() {
             ))}
           </div>
 
-          <div className="p-6 border-t-2 border-gray-100">
+          <div className="p-6 border-t-2 border-border">
             {blockedByMe && selectedConv && (
               <div className="mb-3 rounded-xl border border-yellow-200 bg-yellow-50 p-3">
                 <p className="text-sm text-yellow-900 font-medium">Vous avez bloque {selectedConv.name}.</p>
@@ -1048,7 +1048,7 @@ export default function Messages() {
               </div>
             )}
             {selectedFiles.length > 0 && (
-              <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+              <div className="mb-3 rounded-xl border border-border bg-muted/50 p-3 space-y-2">
                 {selectedFiles.map((file, idx) => (
                   <div key={`${file.name}-${idx}`} className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex items-center gap-2">
@@ -1145,7 +1145,7 @@ export default function Messages() {
                     placeholder="Type a message..."
                     value={messageInput}
                     onChange={e => setMessageInput(e.target.value)}
-                    className="flex-1 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                    className="flex-1 h-12 rounded-xl border-2 border-border focus:border-primary"
                     disabled={sendingDisabled}
                   />
                   <Button
@@ -1173,15 +1173,15 @@ export default function Messages() {
             onClick={() => setConfirmModal(null)}
           >
             <div
-              style={{ backgroundColor: '#fff', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+              style={{ backgroundColor: 'var(--card)', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1f2937', textAlign: 'center', margin: '0 0 8px' }}>{config.title}</h3>
-              <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>{config.message}</p>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--foreground)', textAlign: 'center', margin: '0 0 8px' }}>{config.title}</h3>
+              <p style={{ fontSize: 14, color: 'var(--muted-foreground)', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>{config.message}</p>
               <div style={{ display: 'flex', gap: 12 }}>
                 <button
                   onClick={() => setConfirmModal(null)}
-                  style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid #e5e7eb', backgroundColor: '#fff', color: '#374151', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>

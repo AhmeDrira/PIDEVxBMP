@@ -54,7 +54,7 @@ const TUNISIAN_STATES = [
 ];
 
 const inputCls = (hasError: boolean) =>
-  `h-11 rounded-xl border-2 ${hasError ? '' : 'border-gray-200 focus:border-blue-500'}`;
+  `h-11 rounded-xl border-2 ${hasError ? '' : 'border-border focus:border-blue-500'}`;
 
 const inputStyle = (hasError: boolean): React.CSSProperties =>
   hasError ? { borderColor: '#f87171', borderWidth: 2 } : {};
@@ -119,12 +119,12 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
   // ── ORDER SUMMARY (sidebar, used for all steps) ──
   const orderSummary = (
     <div className="sticky top-8 space-y-4">
-      <Card className="p-5 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-5 bg-card rounded-2xl border border-border shadow-lg">
         <h3 className="text-lg font-bold text-foreground mb-4">Order Summary</h3>
         <div className="space-y-3 mb-4 max-h-52 overflow-y-auto">
           {cart.map(item => (
             <div key={item._id} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                 <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
@@ -135,7 +135,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
             </div>
           ))}
         </div>
-        <div className="space-y-2 pt-3 border-t border-gray-100">
+        <div className="space-y-2 pt-3 border-t border-border">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Subtotal ({totalItems} items)</span>
             <span className="font-medium text-foreground">{subtotal.toFixed(2)} DT</span>
@@ -144,13 +144,13 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
             <span>Shipping</span>
             <span className="font-medium text-foreground">{SHIPPING_COST.toFixed(2)} DT</span>
           </div>
-          <div className="pt-3 border-t border-gray-100 flex justify-between">
+          <div className="pt-3 border-t border-border flex justify-between">
             <span className="text-base font-semibold">Total</span>
             <span className="text-xl font-bold text-primary">{grandTotal.toFixed(2)} DT</span>
           </div>
         </div>
       </Card>
-      <Card className="p-4 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-4 bg-card rounded-2xl border border-border shadow-lg">
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm"><Shield size={16} className="text-green-600" /><span>Secure checkout</span></div>
           <div className="flex items-center gap-2 text-sm"><Truck size={16} className="text-blue-600" /><span>Nationwide delivery</span></div>
@@ -217,7 +217,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300"
                   style={{
-                    backgroundColor: isCompleted ? '#22c55e' : isActive ? 'var(--primary, #2563eb)' : '#f3f4f6',
+                    backgroundColor: isCompleted ? '#22c55e' : isActive ? 'var(--primary, #2563eb)' : 'var(--muted)',
                     boxShadow: isActive ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
                   }}
                 >
@@ -233,7 +233,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
               {i < STEPS.length - 1 && (
                 <div
                   className="w-12 h-0.5 mx-1 mt-[-12px] transition-all duration-300"
-                  style={{ backgroundColor: step > i ? '#22c55e' : '#e5e7eb' }}
+                  style={{ backgroundColor: step > i ? '#22c55e' : 'var(--border)' }}
                 />
               )}
             </div>
@@ -247,7 +247,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
 
           {/* ── STEP 0: CART ── */}
           {step === 0 && (
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
               <div className="flex items-center gap-3 mb-6">
                 <ShoppingCart size={24} className="text-primary" />
                 <h2 className="text-2xl font-bold">Review Your Cart</h2>
@@ -261,8 +261,8 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
               ) : (
                 <div className="space-y-3">
                   {cart.map(item => (
-                    <div key={item._id} className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-primary/20 transition-all">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                    <div key={item._id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/20 transition-all">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                         <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -270,10 +270,10 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
                         <p className="text-sm text-muted-foreground">{getManufacturerName(item)}</p>
                         <p className="text-sm font-medium text-primary">{item.price} DT / unit</p>
                       </div>
-                      <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-2 py-1 border border-gray-200">
-                        <button type="button" className="w-7 h-7 rounded-md border border-gray-300 bg-white text-sm font-bold hover:bg-gray-100" onClick={() => updateCartQuantity(String(item._id), -1)}>-</button>
+                      <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2 py-1 border border-border">
+                        <button type="button" className="w-7 h-7 rounded-md border border-border bg-card text-sm font-bold hover:bg-muted" onClick={() => updateCartQuantity(String(item._id), -1)}>-</button>
                         <span className="font-bold text-base min-w-[20px] text-center">{item.quantity}</span>
-                        <button type="button" className="w-7 h-7 rounded-md border border-gray-300 bg-white text-sm font-bold hover:bg-gray-100" onClick={() => updateCartQuantity(String(item._id), 1)}>+</button>
+                        <button type="button" className="w-7 h-7 rounded-md border border-border bg-card text-sm font-bold hover:bg-muted" onClick={() => updateCartQuantity(String(item._id), 1)}>+</button>
                       </div>
                       <p className="text-lg font-bold text-foreground min-w-[80px] text-right">{(item.price * item.quantity).toFixed(2)} DT</p>
                     </div>
@@ -285,7 +285,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
 
           {/* ── STEP 1: PERSONAL INFO (inline — no inner component to avoid focus loss) ── */}
           {step === 1 && (
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
               <div className="flex items-center gap-3 mb-6">
                 <User size={24} className="text-primary" />
                 <h2 className="text-2xl font-bold">Personal Information</h2>
@@ -331,7 +331,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
 
           {/* ── STEP 2: SHIPPING ADDRESS (inline) ── */}
           {step === 2 && (
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
               <div className="flex items-center gap-3 mb-6">
                 <MapPin size={24} className="text-primary" />
                 <h2 className="text-2xl font-bold">Shipping Address</h2>
@@ -365,7 +365,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
                     <select
                       value={data.shippingAddress.state}
                       onChange={e => setData(prev => ({ ...prev, shippingAddress: { ...prev.shippingAddress, state: e.target.value } }))}
-                      className="w-full h-11 rounded-xl border-2 px-3 text-sm bg-white border-gray-200 focus:border-blue-500"
+                      className="w-full h-11 rounded-xl border-2 px-3 text-sm bg-card border-border focus:border-blue-500"
                       style={inputStyle(!!errors.state)}
                     >
                       <option value="">Select...</option>
@@ -388,7 +388,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
                   </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">Country</Label>
-                    <Input value="Tunisia" disabled className="h-11 rounded-xl bg-gray-50" />
+                    <Input value="Tunisia" disabled className="h-11 rounded-xl bg-muted/50" />
                   </div>
                 </div>
               </div>
@@ -397,7 +397,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
 
           {/* ── STEP 3: SHIPPING METHOD ── */}
           {step === 3 && (
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
               <div className="flex items-center gap-3 mb-6">
                 <Truck size={24} className="text-primary" />
                 <h2 className="text-2xl font-bold">Shipping Method</h2>
@@ -405,7 +405,7 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
               <div className="p-5 rounded-xl border-2 border-primary bg-primary/5 shadow-md">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-white">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary dark:bg-blue-600 text-white">
                       <Package size={20} />
                     </div>
                     <div>
@@ -430,28 +430,28 @@ export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, ge
 
           {/* ── STEP 4: REVIEW & PAY ── */}
           {step === 4 && (
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
               <div className="flex items-center gap-3 mb-6">
                 <CreditCard size={24} className="text-primary" />
                 <h2 className="text-2xl font-bold">Review & Pay</h2>
               </div>
               <div className="space-y-5">
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="p-4 rounded-xl bg-muted/50 border border-border">
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Contact</h4>
                   <p className="font-medium">{data.personalInfo.fullName}</p>
                   <p className="text-sm text-muted-foreground">{data.personalInfo.email} · {data.personalInfo.phone}</p>
                 </div>
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="p-4 rounded-xl bg-muted/50 border border-border">
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Shipping Address</h4>
                   <p className="font-medium">{data.shippingAddress.address}</p>
                   <p className="text-sm text-muted-foreground">{data.shippingAddress.city}, {data.shippingAddress.state} {data.shippingAddress.postalCode}</p>
                   <p className="text-sm text-muted-foreground">{data.shippingAddress.country}</p>
                 </div>
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="p-4 rounded-xl bg-muted/50 border border-border">
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Shipping Method</h4>
                   <p className="font-medium">Standard Delivery (3-5 days) — {SHIPPING_COST.toFixed(2)} DT</p>
                 </div>
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="p-4 rounded-xl bg-muted/50 border border-border">
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Items ({totalItems})</h4>
                   <div className="space-y-2">
                     {cart.map(item => (

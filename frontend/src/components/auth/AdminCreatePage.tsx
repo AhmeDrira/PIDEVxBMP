@@ -56,9 +56,9 @@ export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreat
       {/* Right Section - Form */}
       <div className="lg:w-1/2 flex items-center justify-center p-8 lg:p-16 bg-background overflow-y-auto">
         <div className="w-full max-w-xl">
-      <Card className="p-10 bg-white rounded-3xl shadow-2xl border-0">
+      <Card className="p-10 bg-card rounded-3xl shadow-2xl border-0">
         <div className="mb-8">
-          <Button variant="ghost" onClick={onBackToLogin} className="mb-4 hover:bg-gray-50 rounded-xl">
+          <Button variant="ghost" onClick={onBackToLogin} className="mb-4 hover:bg-muted/50 rounded-xl">
             ← Back to Login
           </Button>
           <div className="flex items-center gap-3">
@@ -74,7 +74,7 @@ export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreat
               <Label htmlFor="firstName" className="text-foreground text-base">First Name</Label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                <Input id="firstName" type="text" placeholder="John" {...register('firstName')} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.firstName ? 'border-red-500' : 'border-gray-200'} focus:border-primary`} />
+                <Input id="firstName" type="text" placeholder="John" {...register('firstName')} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.firstName ? 'border-red-500' : 'border-border'} focus:border-primary`} />
               </div>
               {errors.firstName && <p className="text-sm text-destructive font-medium">{errors.firstName.message}</p>}
             </div>
@@ -82,7 +82,7 @@ export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreat
               <Label htmlFor="lastName" className="text-foreground text-base">Last Name</Label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                <Input id="lastName" type="text" placeholder="Doe" {...register('lastName')} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.lastName ? 'border-red-500' : 'border-gray-200'} focus:border-primary`} />
+                <Input id="lastName" type="text" placeholder="Doe" {...register('lastName')} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.lastName ? 'border-red-500' : 'border-border'} focus:border-primary`} />
               </div>
               {errors.lastName && <p className="text-sm text-destructive font-medium">{errors.lastName.message}</p>}
             </div>
@@ -107,7 +107,7 @@ export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreat
                   if (!available) setError('email', { message: 'Email already in use' });
                   else clearErrors('email');
                 }}
-                className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-gray-200'} focus:border-primary`}
+                className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-border'} focus:border-primary`}
               />
             </div>
             {errors.email && <p className="text-sm text-destructive font-medium">{errors.email.message}</p>}
@@ -132,7 +132,7 @@ export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreat
                   if (!available) setError('phone', { message: 'Phone number already in use' });
                   else clearErrors('phone');
                 }}
-                className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.phone ? 'border-red-500' : 'border-gray-200'} focus:border-primary`}
+                className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.phone ? 'border-red-500' : 'border-border'} focus:border-primary`}
               />
             </div>
             {errors.phone && <p className="text-sm text-destructive font-medium">{errors.phone.message}</p>}
@@ -143,7 +143,7 @@ export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreat
               <Label htmlFor="password" className="text-foreground text-base">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground z-10" size={20} />
-                <PasswordInput id="password" placeholder="Create password" autoComplete="new-password" {...register('password')} error={!!errors.password} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-gray-200'} focus:border-primary`} />
+                <PasswordInput id="password" placeholder="Create password" autoComplete="new-password" {...register('password')} error={!!errors.password} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-border'} focus:border-primary`} />
               </div>
               {errors.password && <p className="text-sm text-destructive font-medium">{errors.password.message}</p>}
             </div>
@@ -151,7 +151,7 @@ export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreat
               <Label htmlFor="confirmPassword" className="text-foreground text-base">Confirm Password</Label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground z-10" size={20} />
-                <PasswordInput id="confirmPassword" placeholder="Confirm password" autoComplete="new-password" {...register('confirmPassword')} error={!!errors.confirmPassword} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'} focus:border-primary`} />
+                <PasswordInput id="confirmPassword" placeholder="Confirm password" autoComplete="new-password" {...register('confirmPassword')} error={!!errors.confirmPassword} className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.confirmPassword ? 'border-red-500' : 'border-border'} focus:border-primary`} />
               </div>
               {errors.confirmPassword && <p className="text-sm text-destructive font-medium">{errors.confirmPassword.message}</p>}
             </div>

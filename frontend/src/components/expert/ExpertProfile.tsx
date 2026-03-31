@@ -164,7 +164,7 @@ export default function ExpertProfile() {
   return (
     <div className="space-y-6">
       {/* Profile Header */}
-      <Card className="p-6 bg-white">
+      <Card className="p-6 bg-card">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex flex-col items-center">
             <div className="relative">
@@ -197,18 +197,18 @@ export default function ExpertProfile() {
                 <Camera size={20} />
               </button>
             </div>
-            <p className="text-sm mt-2" style={{ color: '#6B7280' }}>Click to change photo</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--muted-foreground)' }}>Click to change photo</p>
           </div>
 
           <div className="flex-1">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-2xl mb-1" style={{ color: '#111827' }}>{formData.firstName} {formData.lastName}</h2>
-                <p className="flex items-center gap-2 mb-2" style={{ color: '#6B7280' }}>
+                <h2 className="text-2xl mb-1" style={{ color: 'var(--foreground)' }}>{formData.firstName} {formData.lastName}</h2>
+                <p className="flex items-center gap-2 mb-2" style={{ color: 'var(--muted-foreground)' }}>
                   <Briefcase size={16} />
                   {formData.specialization || 'No specialization set'}
                 </p>
-                <p className="flex items-center gap-2" style={{ color: '#6B7280' }}>
+                <p className="flex items-center gap-2" style={{ color: 'var(--muted-foreground)' }}>
                   <MapPin size={16} />
                   {formData.location || 'No location set'}
                 </p>
@@ -227,7 +227,7 @@ export default function ExpertProfile() {
               {stats.map((stat, index) => (
                 <div key={index} className="text-center p-4 rounded-lg" style={{ backgroundColor: '#F3F4F6' }}>
                   <p className="text-2xl mb-1" style={{ color: '#1F3A8A' }}>{stat.value}</p>
-                  <p className="text-sm" style={{ color: '#6B7280' }}>{stat.label}</p>
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -236,8 +236,8 @@ export default function ExpertProfile() {
       </Card>
 
       {/* Profile Information */}
-      <Card className="p-6 bg-white">
-        <h3 className="text-xl mb-6" style={{ color: '#111827' }}>Profile Information</h3>
+      <Card className="p-6 bg-card">
+        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Profile Information</h3>
 
         {isEditing ? (
           <form onSubmit={handleSave} className="space-y-6">
@@ -245,7 +245,7 @@ export default function ExpertProfile() {
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
                   <Input
                     id="firstName"
                     value={formData.firstName}
@@ -259,7 +259,7 @@ export default function ExpertProfile() {
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
                   <Input
                     id="lastName"
                     value={formData.lastName}
@@ -277,9 +277,9 @@ export default function ExpertProfile() {
                   type="email"
                   value={formData.email}
                   disabled
-                  className="bg-gray-50"
+                  className="bg-muted/50"
                 />
-                <p className="text-xs text-gray-400">Email cannot be changed here</p>
+                <p className="text-xs text-muted-foreground">Email cannot be changed here</p>
               </div>
 
               <div className="space-y-2">
@@ -298,7 +298,7 @@ export default function ExpertProfile() {
                   {TUNISIA_STATES.map((state) => (
                     <label
                       key={state}
-                      className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-foreground"
+                      className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm text-foreground"
                     >
                       <Checkbox
                         checked={selectedStates.includes(state)}
@@ -365,55 +365,55 @@ export default function ExpertProfile() {
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Full Name</p>
-                <p style={{ color: '#111827' }}>{formData.firstName} {formData.lastName}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Full Name</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.firstName} {formData.lastName}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Email Address</p>
-                <p style={{ color: '#111827' }}>{formData.email}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Email Address</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.email}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Phone Number</p>
-                <p style={{ color: '#111827' }}>{formData.phone || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Phone Number</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.phone || 'Not provided'}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Location</p>
-                <p style={{ color: '#111827' }}>{formData.location || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Location</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.location || 'Not provided'}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Specialization</p>
-                <p style={{ color: '#111827' }}>{formData.specialization || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Specialization</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.specialization || 'Not provided'}</p>
               </div>
             </div>
 
             <div>
-              <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Institution / Organization</p>
-              <p style={{ color: '#111827' }}>{formData.institution || 'Not provided'}</p>
+              <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Institution / Organization</p>
+              <p style={{ color: 'var(--foreground)' }}>{formData.institution || 'Not provided'}</p>
             </div>
 
             <div>
-              <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Bio</p>
-              <p style={{ color: '#111827' }}>{formData.bio || 'No bio written yet.'}</p>
+              <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Bio</p>
+              <p style={{ color: 'var(--foreground)' }}>{formData.bio || 'No bio written yet.'}</p>
             </div>
           </div>
         )}
       </Card>
 
       {/* Security Settings */}
-      <Card className="p-6 bg-white">
-        <h3 className="text-xl mb-6" style={{ color: '#111827' }}>Security Settings</h3>
+      <Card className="p-6 bg-card">
+        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Security Settings</h3>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p style={{ color: '#111827' }}>Change Password</p>
-              <p className="text-sm" style={{ color: '#6B7280' }}>Update your password regularly for security</p>
+              <p style={{ color: 'var(--foreground)' }}>Change Password</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Update your password regularly for security</p>
             </div>
             <Button variant="outline">Change</Button>
           </div>
           <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid #E5E7EB' }}>
             <div>
-              <p style={{ color: '#111827' }}>Two-Factor Authentication</p>
-              <p className="text-sm" style={{ color: '#6B7280' }}>Add an extra layer of security</p>
+              <p style={{ color: 'var(--foreground)' }}>Two-Factor Authentication</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Add an extra layer of security</p>
             </div>
             <Button variant="outline">Enable</Button>
           </div>

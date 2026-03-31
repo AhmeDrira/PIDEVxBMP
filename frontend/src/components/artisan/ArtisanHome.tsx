@@ -120,7 +120,7 @@ const monthLabel = (date: Date) =>
 
 function ChartEmptyState({ message }: { message: string }) {
   return (
-    <div className="h-full flex items-center justify-center text-sm text-muted-foreground border border-dashed border-gray-200 rounded-xl bg-gray-50/60 px-6 text-center">
+    <div className="h-full flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-xl bg-muted/50 px-6 text-center">
       {message}
     </div>
   );
@@ -558,14 +558,14 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     if (status === 'active' || status === 'in-progress') return 'bg-emerald-100 text-emerald-700';
     if (status === 'pending') return 'bg-amber-100 text-amber-700';
     if (status === 'completed') return 'bg-blue-100 text-blue-700';
-    return 'bg-gray-100 text-gray-700';
+    return 'bg-muted text-foreground';
   };
 
   const getPriorityColor = (priority?: string) => {
     if (priority === 'high') return 'bg-red-100 text-red-700';
     if (priority === 'medium') return 'bg-yellow-100 text-yellow-700';
     if (priority === 'low') return 'bg-green-100 text-green-700';
-    return 'bg-gray-100 text-gray-700';
+    return 'bg-muted text-foreground';
   };
 
   const plans = [
@@ -602,12 +602,12 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
 
       <ProfileCompletionBanner user={userData} onNavigate={onNavigate} profileView="profile" />
 
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
               <h2 className="text-2xl font-bold text-foreground">My Subscription</h2>
-              <Badge className={`${currentPlan.status === 'Active' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-gray-100 text-gray-500 border-gray-200'} border-2 px-4 py-1 text-xs font-bold`}>
+              <Badge className={`${currentPlan.status === 'Active' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-muted text-muted-foreground border-border'} border-2 px-4 py-1 text-xs font-bold`}>
                 {currentPlan.status.toUpperCase()}
               </Badge>
             </div>
@@ -646,7 +646,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           </div>
           <Button
             onClick={() => onNavigate('subscription')}
-            className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg font-bold"
+            className="h-12 px-8 bg-primary !text-white dark:!bg-gray-800 dark:!text-gray-100 hover:bg-primary/90 dark:hover:!bg-gray-700 rounded-xl shadow-lg font-bold transition-all border-0 dark:border dark:border-gray-700"
           >
             Manage Billing
           </Button>
@@ -660,7 +660,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-foreground">Activity Timeline (6 Months)</h2>
             <p className="text-sm text-muted-foreground">Projects, quotes, and invoices created over time.</p>
@@ -669,7 +669,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             {hasActivityData ? (
               <ResponsiveContainer width="100%" height={300} minWidth={280}>
                 <LineChart data={activitySeries}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" />
                   <YAxis allowDecimals={false} />
                   <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Count']} />
@@ -686,7 +686,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           </div>
         </Card>
 
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-foreground">Revenue Overview (6 Months)</h2>
             <p className="text-sm text-muted-foreground">Paid and pending invoice amounts by month.</p>
@@ -695,7 +695,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             {hasRevenueData ? (
               <ResponsiveContainer width="100%" height={300} minWidth={280}>
                 <LineChart data={revenueSeries}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip formatter={(value: number | string) => [`${safeNumber(value).toFixed(0)} TND`, 'Amount']} />
@@ -714,7 +714,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-foreground">Project Pipeline</h2>
             <p className="text-sm text-muted-foreground">Distribution by project status and execution progress.</p>
@@ -723,7 +723,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             {hasProjectStatusData ? (
               <ResponsiveContainer width="100%" height={240} minWidth={240}>
                 <BarChart data={projectStatusSeries}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" />
                   <YAxis allowDecimals={false} />
                   <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Projects']} />
@@ -754,7 +754,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           </div>
         </Card>
 
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-foreground">Quote Conversion</h2>
             <p className="text-sm text-muted-foreground">Accepted, pending, and rejected quote distribution.</p>
@@ -788,7 +788,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           </div>
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             {quoteStatusSeries.map((status) => (
-              <div key={status.name} className="rounded-lg bg-gray-50 p-2">
+              <div key={status.name} className="rounded-lg bg-muted/50 p-2">
                 <p className="text-xs text-muted-foreground">{status.name}</p>
                 <p className="text-sm font-bold" style={{ color: status.color }}>{status.value}</p>
               </div>
@@ -802,7 +802,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           </div>
         </Card>
 
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-foreground">Payment Health</h2>
             <p className="text-sm text-muted-foreground">Current behavior from available payment records.</p>
@@ -811,7 +811,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             {hasPaymentData ? (
               <ResponsiveContainer width="100%" height={240} minWidth={240}>
                 <BarChart data={paymentDelayData.bars}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" />
                   <YAxis allowDecimals={false} />
                   <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Invoices']} />
@@ -835,7 +835,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg xl:col-span-2">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg xl:col-span-2">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-foreground">Top Purchased Materials</h2>
             <p className="text-sm text-muted-foreground">Most used materials across your active projects.</p>
@@ -869,7 +869,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
               </div>
               <div className="space-y-2">
                 {topMaterials.map((material, index) => (
-                  <div key={material.name} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
+                  <div key={material.name} className="flex items-center justify-between rounded-lg border border-border p-3">
                     <div className="flex items-center gap-2">
                       <span
                         className="inline-block h-3 w-3 rounded-full"
@@ -885,11 +885,11 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
           )}
         </Card>
 
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <h2 className="text-xl font-bold text-foreground mb-4">Key Metrics</h2>
           <div className="space-y-3">
             {keyMetrics.map((metric) => (
-              <div key={metric.label} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+              <div key={metric.label} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                 <div>
                   <p className="text-sm text-muted-foreground">{metric.label}</p>
                   <p className="text-lg font-semibold text-foreground">{metric.value}</p>
@@ -907,7 +907,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         </Card>
       </div>
 
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Recent Projects</h2>
@@ -930,7 +930,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             {recentProjects.map((project) => (
               <div
                 key={project._id}
-                className="p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
+                className="p-6 rounded-2xl border-2 border-border hover:border-primary/20 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
               >
                 <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                   <div className="flex-1">
@@ -972,7 +972,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         )}
       </Card>
 
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <h2 className="text-2xl font-bold text-foreground mb-6">Recent Activity</h2>
         <div className="space-y-5">
           {recentActivities.length === 0 ? (

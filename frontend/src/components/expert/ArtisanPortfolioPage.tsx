@@ -75,11 +75,11 @@ export default function ArtisanPortfolioPage({ artisanId, artisanName, artisanDo
       </Button>
 
       <div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: '0 0 4px' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--foreground)', margin: '0 0 4px' }}>
           {artisanName}'s Portfolio
         </h1>
         {artisanDomain && (
-          <p style={{ fontSize: 15, color: '#6b7280' }}>{artisanDomain}</p>
+          <p style={{ fontSize: 15, color: 'var(--muted-foreground)' }}>{artisanDomain}</p>
         )}
       </div>
 
@@ -92,9 +92,9 @@ export default function ArtisanPortfolioPage({ artisanId, artisanName, artisanDo
       )}
 
       {!loading && !error && portfolio.length === 0 && (
-        <Card className="p-12 bg-white rounded-2xl border-0 shadow-lg text-center">
+        <Card className="p-12 bg-card rounded-2xl border border-border shadow-lg text-center">
           <ImageOff size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-xl font-semibold text-gray-500">No portfolio items yet</p>
+          <p className="text-xl font-semibold text-muted-foreground">No portfolio items yet</p>
           <p className="text-muted-foreground mt-1">This artisan hasn't added any work to their portfolio.</p>
         </Card>
       )}
@@ -107,9 +107,9 @@ export default function ArtisanPortfolioPage({ artisanId, artisanName, artisanDo
             const videoCount = item.media.filter(m => m.type === 'video').length;
 
             return (
-              <Card key={item._id} className="bg-white rounded-2xl border-0 shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <Card key={item._id} className="bg-card rounded-2xl border border-border shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                 {/* Cover media */}
-                <div style={{ height: 200, background: '#f3f4f6', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ height: 200, background: 'var(--muted)', position: 'relative', overflow: 'hidden' }}>
                   {cover ? (
                     cover.type === 'image' ? (
                       <img
@@ -151,8 +151,8 @@ export default function ArtisanPortfolioPage({ artisanId, artisanName, artisanDo
 
                 {/* Info */}
                 <div className="p-5">
-                  <h3 style={{ fontSize: 17, fontWeight: 700, color: '#1f2937', margin: '0 0 6px' }}>{item.title}</h3>
-                  <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 8px', lineHeight: 1.5 }}>
+                  <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 6px' }}>{item.title}</h3>
+                  <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.5 }}>
                     {item.description.length > 100 ? item.description.slice(0, 100) + '…' : item.description}
                   </p>
 

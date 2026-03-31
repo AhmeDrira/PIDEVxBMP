@@ -15,20 +15,20 @@ export default function IncomingCallModal({ callState, onAccept, onReject }: Inc
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center animate-in zoom-in-95 duration-200 text-center">
+      <div className="bg-card rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center animate-in zoom-in-95 duration-200 text-center">
         <div className="relative mb-6">
           <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
           <Avatar className="h-24 w-24 ring-4 ring-primary/20 relative z-10">
-            <AvatarFallback className="text-3xl bg-primary text-white">
+            <AvatarFallback className="text-3xl bg-primary dark:bg-blue-600 text-white">
               {callState.remoteUser?.avatar || 'U'}
             </AvatarFallback>
           </Avatar>
         </div>
         
-        <h3 className="text-2xl font-bold text-gray-900 mb-1">
+        <h3 className="text-2xl font-bold text-foreground mb-1">
           {callState.remoteUser?.name || 'Utilisateur'}
         </h3>
-        <p className="text-gray-500 mb-8 flex items-center justify-center gap-2">
+        <p className="text-muted-foreground mb-8 flex items-center justify-center gap-2">
           {callState.type === 'video' ? <Video size={18} /> : <Phone size={18} />}
           <span>Appel {callState.type === 'video' ? 'vidéo' : 'audio'} entrant...</span>
         </p>

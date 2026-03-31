@@ -91,14 +91,14 @@ export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName
       </Button>
 
       {/* Main white card */}
-      <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.07)', padding: '36px 40px' }}>
+      <div style={{ background: 'var(--card)', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.07)', padding: '36px 40px' }}>
 
         {/* Title & description */}
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#111827', marginBottom: 14, lineHeight: 1.2 }}>
+        <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--foreground)', marginBottom: 14, lineHeight: 1.2 }}>
           {item.title}
         </h1>
         {item.description && (
-          <p style={{ fontSize: 15, color: '#374151', lineHeight: 1.85, maxWidth: 900, marginBottom: 32 }}>
+          <p style={{ fontSize: 15, color: 'var(--foreground)', lineHeight: 1.85, maxWidth: 900, marginBottom: 32 }}>
             {item.description}
           </p>
         )}
@@ -109,9 +109,9 @@ export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName
             <div style={{ background: '#EEF2FF', borderRadius: 16, padding: '18px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <MapPin size={17} style={{ color: '#6366f1' }} />
-                <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>Location</span>
+                <span style={{ fontSize: 12, color: 'var(--muted-foreground)', fontWeight: 500 }}>Location</span>
               </div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: 0 }}>{item.location}</p>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>{item.location}</p>
             </div>
           )}
 
@@ -119,9 +119,9 @@ export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName
             <div style={{ background: '#ECFDF5', borderRadius: 16, padding: '18px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <Calendar size={17} style={{ color: '#10b981' }} />
-                <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>Completed</span>
+                <span style={{ fontSize: 12, color: 'var(--muted-foreground)', fontWeight: 500 }}>Completed</span>
               </div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>
                 {new Date(item.completedDate).toLocaleDateString('en-GB')}
               </p>
             </div>
@@ -130,9 +130,9 @@ export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName
           <div style={{ background: '#FFF7ED', borderRadius: 16, padding: '18px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <CheckCircle size={17} style={{ color: '#f59e0b' }} />
-              <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>Status</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)', fontWeight: 500 }}>Status</span>
             </div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: 0 }}>Completed</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Completed</p>
           </div>
         </div>
 
@@ -143,7 +143,7 @@ export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName
               <div style={{ background: '#EEF2FF', borderRadius: 10, padding: 8, display: 'flex' }}>
                 <ImageIcon size={20} style={{ color: '#6366f1' }} />
               </div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 }}>Project Gallery</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Project Gallery</h2>
             </div>
 
             {images.length > 0 && (
@@ -151,7 +151,7 @@ export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName
                 {images.map((img, idx) => (
                   <div
                     key={idx}
-                    style={{ borderRadius: 14, overflow: 'hidden', aspectRatio: '4/3', background: '#f3f4f6', boxShadow: '0 2px 6px rgba(0,0,0,0.07)' }}
+                    style={{ borderRadius: 14, overflow: 'hidden', aspectRatio: '4/3', background: 'var(--muted)', boxShadow: '0 2px 6px rgba(0,0,0,0.07)' }}
                   >
                     <img
                       src={resolveMediaUrl(img.url)}
@@ -168,12 +168,12 @@ export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName
 
             {videos.length > 0 && (
               <div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Videos</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)', marginBottom: 12 }}>Videos</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 14 }}>
                   {videos.map((vid, idx) => (
                     <div
                       key={idx}
-                      style={{ borderRadius: 14, overflow: 'hidden', aspectRatio: '16/9', background: '#111827', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+                      style={{ borderRadius: 14, overflow: 'hidden', aspectRatio: '16/9', background: 'var(--foreground)', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
                     >
                       <video
                         src={resolveMediaUrl(vid.url)}

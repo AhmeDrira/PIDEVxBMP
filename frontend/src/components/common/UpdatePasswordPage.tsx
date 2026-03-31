@@ -41,7 +41,7 @@ export default function UpdatePasswordPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="p-8 bg-white rounded-3xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-3xl border-0 shadow-lg">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <Lock className="text-primary" size={24} />

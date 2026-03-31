@@ -13,7 +13,7 @@ export default function EmailSentPage({ email, onBackToLogin }: EmailSentPagePro
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative" style={{ backgroundImage: "url('/construction-bg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
       <div className="absolute inset-0 bg-black/60" />
-      <Card className="w-full max-w-xl p-10 bg-white rounded-3xl shadow-2xl border-0 text-center relative z-10">
+      <Card className="w-full max-w-xl p-10 bg-card rounded-3xl shadow-2xl border-0 text-center relative z-10">
         <div className="mb-10">
           <Logo variant="dark" size="md" className="mx-auto mb-8" />
           
@@ -33,7 +33,7 @@ export default function EmailSentPage({ email, onBackToLogin }: EmailSentPagePro
         </div>
 
         <div className="space-y-6">
-          <div className="p-6 bg-gray-50 rounded-2xl text-left space-y-3">
+          <div className="p-6 bg-muted/50 rounded-2xl text-left space-y-3">
             <h4 className="font-semibold text-foreground flex items-center gap-2">
               Next Steps:
             </h4>

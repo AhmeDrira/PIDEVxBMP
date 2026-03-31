@@ -53,7 +53,7 @@ export default function AdminLoginPage({ onLogin, onCreateSubAdmin }: AdminLogin
       <RegisterLeftSection />
       <div className="lg:w-1/2 flex items-center justify-center p-8 lg:p-16 bg-background">
         <div className="w-full max-w-xl">
-          <Card className="p-10 bg-white rounded-3xl shadow-2xl border-0">
+          <Card className="p-10 bg-card rounded-3xl shadow-2xl border-0">
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-3">
                 <Shield className="text-primary" size={32} />
@@ -72,7 +72,7 @@ export default function AdminLoginPage({ onLogin, onCreateSubAdmin }: AdminLogin
                   type="password"
                   placeholder="Enter admin secret key"
                   {...register('secretKey')}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.secretKey ? 'border-red-500' : 'border-gray-200'} focus:border-primary transition-colors bg-white`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.secretKey ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
                   />
                 </div>
               {errors.secretKey && <p className="text-sm text-destructive font-medium">{errors.secretKey.message}</p>}

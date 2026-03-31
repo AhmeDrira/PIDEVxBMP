@@ -79,7 +79,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   }, [menuItems, activeView]);
 
   const PermissionNotice = ({ message }: { message: string }) => (
-    <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg flex flex-col items-center text-center">
+    <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg flex flex-col items-center text-center">
       <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
         <ShieldOff className="text-primary" size={28} />
       </div>

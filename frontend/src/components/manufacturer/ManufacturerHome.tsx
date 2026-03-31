@@ -65,8 +65,8 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-        <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937', marginBottom: 4 }}>{label}</p>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', marginBottom: 4 }}>{label}</p>
         {payload.map((entry: any, i: number) => (
           <p key={i} style={{ fontSize: 12, color: entry.color, margin: 0 }}>
             {entry.name === 'sales' ? 'Revenue' : 'Orders'}: <strong>{entry.name === 'sales' ? `${entry.value.toLocaleString()} TND` : entry.value}</strong>
@@ -90,28 +90,28 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
       value: `${formatCurrency(stats.totalRevenue)} TND`,
       icon: DollarSign,
       color: '#10b981',
-      bg: '#ecfdf5',
+      bg: 'rgba(5,150,105,0.1)',
     },
     {
       label: 'Total Orders',
       value: stats.totalOrders,
       icon: ShoppingBag,
       color: '#7c3aed',
-      bg: '#f5f3ff',
+      bg: 'rgba(124,58,237,0.1)',
     },
     {
       label: 'Avg Order Value',
       value: `${stats.avgOrderValue.toFixed(0)} TND`,
       icon: TrendingUp,
       color: '#f59e0b',
-      bg: '#fffbeb',
+      bg: 'rgba(217,119,6,0.1)',
     },
     {
       label: 'Active Products',
       value: stats.activeProducts,
       icon: Package,
       color: '#3b82f6',
-      bg: '#eff6ff',
+      bg: 'rgba(37,99,235,0.1)',
     },
   ];
 
@@ -123,8 +123,8 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
 
       {/* Page Header */}
       <div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: 0 }}>Dashboard</h1>
-        <p style={{ fontSize: 15, color: '#6b7280', margin: '4px 0 0' }}>Overview of your business performance</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--foreground)', margin: 0 }}>Dashboard</h1>
+        <p style={{ fontSize: 15, color: 'var(--muted-foreground)', margin: '4px 0 0' }}>Overview of your business performance</p>
       </div>
 
       {/* Stat Cards */}
@@ -135,20 +135,20 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
             <div
               key={i}
               style={{
-                backgroundColor: '#fff',
+                backgroundColor: 'var(--card)',
                 borderRadius: 16,
                 padding: '24px 20px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                border: '1px solid #f3f4f6',
+                border: '1px solid var(--border)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <p style={{ fontSize: 13, fontWeight: 500, color: '#6b7280', margin: 0 }}>{card.label}</p>
+                <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted-foreground)', margin: 0 }}>{card.label}</p>
                 <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon size={20} style={{ color: card.color }} />
                 </div>
               </div>
-              <p style={{ fontSize: 28, fontWeight: 800, color: '#1f2937', margin: 0, lineHeight: 1 }}>
+              <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--foreground)', margin: 0, lineHeight: 1 }}>
                 {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
               </p>
             </div>
@@ -157,17 +157,17 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
       </div>
 
       {/* Revenue Chart */}
-      <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6' }}>
+      <div style={{ backgroundColor: 'var(--card)', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: 0 }}>Revenue Overview</h2>
-            <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Last 6 months performance</p>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Revenue Overview</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '2px 0 0' }}>Last 6 months performance</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6b7280' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--muted-foreground)' }}>
               <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#7c3aed', display: 'inline-block' }} /> Revenue
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6b7280' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--muted-foreground)' }}>
               <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#10b981', display: 'inline-block' }} /> Orders
             </span>
           </div>
@@ -180,9 +180,9 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
                 <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--muted)" />
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v} />
             <Tooltip content={<CustomTooltip />} />
             <Area type="monotone" dataKey="sales" stroke="#7c3aed" strokeWidth={2.5} fill="url(#colorRevenue)" name="sales" />
           </AreaChart>
@@ -193,8 +193,8 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
         {/* Top Selling Products */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: '0 0 20px' }}>Top Selling Products</h2>
+        <div style={{ backgroundColor: 'var(--card)', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 20px' }}>Top Selling Products</h2>
           {topProducts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
               <Package size={40} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
@@ -209,19 +209,19 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
                     width: 28, height: 28, borderRadius: 8,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 12, fontWeight: 700,
-                    backgroundColor: index === 0 ? '#f5f3ff' : '#f9fafb',
-                    color: index === 0 ? '#7c3aed' : '#6b7280',
+                    backgroundColor: index === 0 ? 'rgba(124,58,237,0.1)' : '#f9fafb',
+                    color: index === 0 ? '#7c3aed' : 'var(--muted-foreground)',
                   }}>
                     {index + 1}
                   </div>
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: '#1f2937', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{product.name}</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{product.name}</p>
                       <p style={{ fontSize: 14, fontWeight: 700, color: '#10b981', margin: 0 }}>{product.sales.toLocaleString()} TND</p>
                     </div>
                     {/* Bar */}
-                    <div style={{ height: 6, backgroundColor: '#f3f4f6', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ height: 6, backgroundColor: 'var(--muted)', borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${(product.sales / maxTopSales) * 100}%`, backgroundColor: PIE_COLORS[index] || '#7c3aed', borderRadius: 999, transition: 'width 0.5s' }} />
                     </div>
                     <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{product.units} units sold</p>
@@ -233,8 +233,8 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
         </div>
 
         {/* Monthly Orders */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', margin: '0 0 20px' }}>Monthly Orders</h2>
+        <div style={{ backgroundColor: 'var(--card)', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 20px' }}>Monthly Orders</h2>
           {monthlyData.every(d => d.orders === 0) ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
               <BarChart3 size={40} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
@@ -243,9 +243,9 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={monthlyData} barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--muted)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="orders" fill="#7c3aed" radius={[6, 6, 0, 0]} name="orders" />
               </BarChart>

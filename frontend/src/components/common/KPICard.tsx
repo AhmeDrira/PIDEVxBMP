@@ -14,7 +14,7 @@ interface KPICardProps {
 
 export default function KPICard({ label, value, icon, color, trend, trendUp = true, subtitle }: KPICardProps) {
   return (
-    <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
       <div className="flex items-start justify-between mb-4">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-md"

@@ -92,7 +92,7 @@ export default function VideoCall({
           right: '20px', 
           width: '180px', 
           height: '240px', 
-          backgroundColor: '#1f2937', 
+          backgroundColor: 'var(--foreground)', 
           borderRadius: '12px', 
           border: '2px solid white',
           zIndex: 50
@@ -117,7 +117,7 @@ export default function VideoCall({
             <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-3">
               <span className="text-xl font-bold">Moi</span>
             </div>
-            <span className="text-xs text-center text-gray-400">Caméra<br/>désactivée</span>
+            <span className="text-xs text-center text-muted-foreground">Caméra<br/>désactivée</span>
           </div>
         )}
       </div>

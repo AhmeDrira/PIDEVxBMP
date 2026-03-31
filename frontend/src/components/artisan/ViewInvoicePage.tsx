@@ -75,7 +75,7 @@ export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePagePr
       case 'pending': return 'bg-secondary/10 text-secondary';
       case 'overdue': return 'bg-destructive/10 text-destructive';
       case 'partially-paid': return 'bg-amber-100 text-amber-700';
-      default: return 'bg-gray-100 text-gray-700';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -109,7 +109,7 @@ export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePagePr
       )}
 
       {/* Header Card */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -186,7 +186,7 @@ export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePagePr
               <p className="text-sm text-muted-foreground">{invoice.client.address}</p>
             </div>
             {invoice.paymentMethod && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="mt-4 pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground mb-1">Payment Method</p>
                 <p className="font-semibold text-foreground">{invoice.paymentMethod}</p>
               </div>
@@ -196,13 +196,13 @@ export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePagePr
       </Card>
 
       {/* Items Table */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <h2 className="text-2xl font-bold text-foreground mb-6">Invoice Items</h2>
         
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b-2 border-gray-200">
+              <tr className="border-b-2 border-border">
                 <th className="text-left py-4 px-4 font-semibold text-foreground">#</th>
                 <th className="text-left py-4 px-4 font-semibold text-foreground">Description</th>
                 <th className="text-center py-4 px-4 font-semibold text-foreground">Quantity</th>
@@ -212,7 +212,7 @@ export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePagePr
             </thead>
             <tbody>
               {invoice.items.map((item, index) => (
-                <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={item.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                   <td className="py-4 px-4 text-muted-foreground">{index + 1}</td>
                   <td className="py-4 px-4">
                     <p className="font-medium text-foreground">{item.description}</p>
@@ -234,17 +234,17 @@ export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePagePr
 
         <div className="mt-8 flex justify-end">
           <div className="w-full md:w-1/2 lg:w-1/3 space-y-4">
-            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-gray-50">
+            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-muted/50">
               <span className="text-muted-foreground">Subtotal:</span>
               <span className="font-semibold text-foreground">{invoice.subtotal.toFixed(2)} TND</span>
             </div>
             {invoice.discount > 0 && (
-              <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-gray-50">
+              <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-muted/50">
                 <span className="text-muted-foreground">Discount:</span>
                 <span className="font-semibold text-destructive">-{invoice.discount.toFixed(2)} TND</span>
               </div>
             )}
-            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-gray-50">
+            <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-muted/50">
               <span className="text-muted-foreground">Tax (19%):</span>
               <span className="font-semibold text-foreground">{invoice.tax.toFixed(2)} TND</span>
             </div>
@@ -270,7 +270,7 @@ export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePagePr
 
       {/* Notes */}
       {invoice.notes && (
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <h3 className="text-xl font-bold text-foreground mb-4">Notes</h3>
           <p className="text-muted-foreground leading-relaxed">{invoice.notes}</p>
         </Card>

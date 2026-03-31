@@ -68,7 +68,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
         </Button>
       )}
 
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Edit Product</h1>
           <p className="text-lg text-muted-foreground">Update product details and inventory</p>
@@ -86,7 +86,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
               placeholder="e.g., Premium Cement - 50kg"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="h-12 rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -101,7 +101,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
                 id="category"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full h-12 px-4 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none"
+                className="w-full h-12 px-4 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
                 required
               >
                 {categories.map(cat => (
@@ -122,7 +122,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
                 placeholder="0.00"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                className="h-12 rounded-xl border-2 border-border focus:border-primary"
                 required
               />
             </div>
@@ -139,7 +139,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
               placeholder="0"
               value={formData.stock}
               onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="h-12 rounded-xl border-2 border-border focus:border-primary"
               required
             />
             <p className="text-sm text-muted-foreground">Current stock level available for sale</p>
@@ -156,7 +156,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={6}
-              className="rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -172,7 +172,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {productImages.map((img, idx) => (
                   <div key={idx} className="relative group">
-                    <div className="aspect-video rounded-xl overflow-hidden border-2 border-gray-200">
+                    <div className="aspect-video rounded-xl overflow-hidden border-2 border-border">
                       <ImageWithFallback
                         src={img}
                         alt={`Product image ${idx + 1}`}
@@ -192,7 +192,7 @@ export default function EditProductPage({ productId, onBack, onSave }: EditProdu
             )}
 
             {/* Add New Image */}
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-primary transition-colors bg-gray-50">
+            <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-primary transition-colors bg-muted/50">
               <Upload size={48} className="mx-auto mb-4 text-muted-foreground" />
               <p className="text-base font-medium text-foreground mb-2">
                 {newImageFile || 'Upload new product image'}

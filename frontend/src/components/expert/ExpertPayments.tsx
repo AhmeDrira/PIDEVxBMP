@@ -60,7 +60,7 @@ export default function ExpertPayments() {
       case 'paid': return 'bg-green-100 text-green-700 border-green-200';
       case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
       case 'failed': return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -134,21 +134,21 @@ export default function ExpertPayments() {
           <Button
             onClick={() => handleDownloadPdf(selectedPayment)}
             disabled={downloadingPaymentId === selectedPayment._id}
-            className="bg-primary text-white rounded-xl shadow-lg hover:bg-primary/90 transition-all px-6 h-11"
+            className="bg-primary dark:bg-blue-600 text-white rounded-xl shadow-lg hover:bg-primary/90 transition-all px-6 h-11"
           >
             {downloadingPaymentId === selectedPayment._id ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Printer size={18} className="mr-2" />}
             Generate PDF
           </Button>
         </div>
 
-        <Card className="p-10 bg-white rounded-2xl border-0 shadow-xl print-receipt print:shadow-none print:m-0 print:border">
+        <Card className="p-10 bg-card rounded-2xl border-0 shadow-xl print-receipt print:shadow-none print:m-0 print:border">
           <div className="flex justify-between items-start mb-8 border-b-2 pb-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Wallet className="text-primary" size={32} />
                 <h1 className="text-3xl font-black text-foreground tracking-tight">RECEIPT</h1>
               </div>
-              <p className="text-muted-foreground font-mono bg-gray-50 px-3 py-1 rounded-md inline-block text-xs">ID: #{selectedPayment._id.slice(-8).toUpperCase()}</p>
+              <p className="text-muted-foreground font-mono bg-muted/50 px-3 py-1 rounded-md inline-block text-xs">ID: #{selectedPayment._id.slice(-8).toUpperCase()}</p>
             </div>
             <div className="text-right">
               <h3 className="font-bold text-xl text-primary">BMP Marketplace</h3>
@@ -161,7 +161,7 @@ export default function ExpertPayments() {
 
           <div className="grid grid-cols-2 gap-8 mb-6">
             <div className="space-y-4">
-              <h4 className="font-bold text-sm text-foreground border-b border-gray-100 pb-2 flex items-center gap-2">
+              <h4 className="font-bold text-sm text-foreground border-b border-border pb-2 flex items-center gap-2">
                 <Package size={16} className="text-primary" /> Order Info
               </h4>
               <div className="grid grid-cols-2 gap-4">
@@ -176,7 +176,7 @@ export default function ExpertPayments() {
               </div>
             </div>
             <div className="space-y-4">
-              <h4 className="font-bold text-sm text-foreground border-b border-gray-100 pb-2 flex items-center gap-2">
+              <h4 className="font-bold text-sm text-foreground border-b border-border pb-2 flex items-center gap-2">
                 <CreditCard size={16} className="text-primary" /> Payment
               </h4>
               <div className="flex items-center justify-between">
@@ -196,9 +196,9 @@ export default function ExpertPayments() {
             </div>
           </div>
 
-          <div className="mb-8 p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+          <div className="mb-8 p-4 bg-muted/50 rounded-xl border border-border">
             <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Stripe Transaction ID</p>
-            <p className="font-mono text-[10px] break-all text-gray-500 tracking-tight leading-relaxed">{selectedPayment.stripeSessionId}</p>
+            <p className="font-mono text-[10px] break-all text-muted-foreground tracking-tight leading-relaxed">{selectedPayment.stripeSessionId}</p>
           </div>
 
           <div className="mb-8">
@@ -207,7 +207,7 @@ export default function ExpertPayments() {
             </h4>
             <div className="border rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-muted/50 border-b border-border">
                   <tr>
                     <th className="px-4 py-3 text-left text-[10px] font-black text-muted-foreground uppercase tracking-wider">Item Name</th>
                     <th className="px-4 py-3 text-center text-[10px] font-black text-muted-foreground uppercase tracking-wider">Qty</th>
@@ -217,7 +217,7 @@ export default function ExpertPayments() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {selectedPayment.items.map((item: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-gray-50/50">
+                    <tr key={idx} className="hover:bg-muted/50">
                       <td className="px-4 py-3">
                         <p className="font-bold text-xs">{item.name}</p>
                       </td>
@@ -239,7 +239,7 @@ export default function ExpertPayments() {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-dashed border-gray-200 text-center">
+          <div className="mt-8 pt-6 border-t border-dashed border-border text-center">
             <p className="text-sm font-bold text-foreground mb-1">Thank you for your business!</p>
             <p className="text-[10px] text-muted-foreground">This is a computer-generated receipt. No signature required.</p>
           </div>
@@ -256,7 +256,7 @@ export default function ExpertPayments() {
           <p className="text-muted-foreground font-medium mt-1">Manage and track your product purchases</p>
         </div>
         <div className="bg-primary/10 px-6 py-3 rounded-2xl border-2 border-primary/20 flex items-center gap-3 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-primary dark:bg-blue-600 flex items-center justify-center text-white shadow-md">
             <Wallet size={20} />
           </div>
           <div>
@@ -269,8 +269,8 @@ export default function ExpertPayments() {
       </div>
 
       {payments.length === 0 ? (
-        <Card className="p-16 text-center bg-white rounded-3xl border-0 shadow-xl border-b-4 border-b-gray-100">
-          <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
+        <Card className="p-16 text-center bg-card rounded-3xl border-0 shadow-xl border-b-4 border-b-gray-100">
+          <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
             <CreditCard size={48} />
           </div>
           <h3 className="text-2xl font-black text-foreground mb-2">No payments found</h3>
@@ -278,18 +278,18 @@ export default function ExpertPayments() {
             You haven't made any product purchases yet. Visit the marketplace to explore materials.
           </p>
           <Button 
-            className="h-14 px-10 text-lg font-bold text-white bg-primary hover:bg-primary/90 rounded-2xl shadow-xl hover:scale-105 transition-all"
+            className="h-14 px-10 text-lg font-bold text-white bg-primary dark:bg-blue-600 hover:bg-primary/90 rounded-2xl shadow-xl hover:scale-105 transition-all"
             onClick={() => window.location.href = '/'}
           >
             Explore Marketplace
           </Button>
         </Card>
       ) : (
-        <Card className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden">
+        <Card className="bg-card rounded-3xl border-0 shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-100">
+                <tr className="bg-muted/50 border-b border-border">
                   <th className="px-8 py-6 text-left text-xs font-black text-muted-foreground uppercase tracking-widest">Order Details</th>
                   <th className="px-8 py-6 text-left text-xs font-black text-muted-foreground uppercase tracking-widest">Date</th>
                   <th className="px-8 py-6 text-left text-xs font-black text-muted-foreground uppercase tracking-widest">Amount</th>
@@ -302,7 +302,7 @@ export default function ExpertPayments() {
                   <tr key={payment._id} className="group hover:bg-primary/[0.02] transition-colors">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                        <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
                           <Package size={24} />
                         </div>
                         <div>

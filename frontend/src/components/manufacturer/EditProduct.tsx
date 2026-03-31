@@ -31,12 +31,12 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
 
   return (
     <div className="space-y-8">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
+      <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
         Back to Products
       </Button>
 
-      <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg max-w-4xl mx-auto">
+      <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg max-w-4xl mx-auto">
         <h2 className="text-3xl font-bold text-foreground mb-8">Edit Product</h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -46,7 +46,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="h-12 rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -58,7 +58,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
                 id="category"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full h-12 px-4 border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none"
+                className="w-full h-12 px-4 border-2 border-border rounded-xl focus:border-primary focus:outline-none"
               >
                 <option>Building Materials</option>
                 <option>Construction Steel</option>
@@ -75,7 +75,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
                 type="number"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                className="h-12 rounded-xl border-2 border-border focus:border-primary"
                 required
               />
             </div>
@@ -88,7 +88,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
               type="number"
               value={formData.stock}
               onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })}
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="h-12 rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -100,7 +100,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={4}
-              className="rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -113,7 +113,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
               onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
               rows={6}
               placeholder="Enter specifications (one per line)"
-              className="rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="rounded-xl border-2 border-border focus:border-primary"
             />
           </div>
 
@@ -121,7 +121,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
             <Label className="text-base font-semibold">Product Images</Label>
             <div className="grid grid-cols-4 gap-4 mb-4">
               {images.map((image, index) => (
-                <div key={index} className="relative aspect-square rounded-xl border-2 border-gray-200 overflow-hidden bg-gray-50">
+                <div key={index} className="relative aspect-square rounded-xl border-2 border-border overflow-hidden bg-muted/50">
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                     {image}
                   </div>
@@ -135,7 +135,7 @@ export default function EditProduct({ productId, onBack, onSave }: EditProductPr
                 </div>
               ))}
             </div>
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-primary transition-colors bg-gray-50">
+            <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-primary transition-colors bg-muted/50">
               <Upload size={48} className="mx-auto mb-4 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground mb-2">Upload Product Images</p>
               <p className="text-xs text-muted-foreground mb-3">PNG, JPG (Max 5MB each)</p>

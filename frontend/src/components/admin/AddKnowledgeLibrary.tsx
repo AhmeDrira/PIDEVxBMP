@@ -50,12 +50,12 @@ export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibr
 
   return (
     <div className="space-y-8">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
+      <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
         Back to Library
       </Button>
 
-      <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg max-w-5xl mx-auto">
+      <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg max-w-5xl mx-auto">
         <h2 className="text-3xl font-bold text-foreground mb-8">Add Knowledge Library Article</h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -66,7 +66,7 @@ export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibr
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Enter article title"
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="h-12 rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -77,7 +77,7 @@ export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibr
               id="category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full h-12 px-4 border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none"
+              className="w-full h-12 px-4 border-2 border-border rounded-xl focus:border-primary focus:outline-none"
               required
             >
               <option value="">Select a category...</option>
@@ -95,7 +95,7 @@ export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibr
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               placeholder="Write your article content here... You can use HTML formatting."
               rows={20}
-              className="rounded-xl border-2 border-gray-200 focus:border-primary font-mono text-sm"
+              className="rounded-xl border-2 border-border focus:border-primary font-mono text-sm"
               required
             />
             <p className="text-xs text-muted-foreground">
@@ -111,7 +111,7 @@ export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibr
                 onChange={(e) => setCurrentTag(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                 placeholder="Add tag..."
-                className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                className="h-12 rounded-xl border-2 border-border focus:border-primary"
               />
               <Button
                 type="button"
@@ -141,7 +141,7 @@ export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibr
 
           <div className="space-y-2">
             <Label className="text-base font-semibold">Attachments (Optional)</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-primary transition-colors bg-gray-50">
+            <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-primary transition-colors bg-muted/50">
               <Upload size={48} className="mx-auto mb-4 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground mb-2">Upload supporting documents</p>
               <p className="text-xs text-muted-foreground mb-3">PDF, DOC, DOCX, XLS, XLSX, DWG (Max 10MB each)</p>
@@ -159,7 +159,7 @@ export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibr
             {attachments.length > 0 && (
               <div className="mt-4 space-y-2">
                 {attachments.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-white border-2 border-gray-100">
+                  <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-card border-2 border-border">
                     <span className="text-sm text-foreground">{file}</span>
                     <button
                       type="button"

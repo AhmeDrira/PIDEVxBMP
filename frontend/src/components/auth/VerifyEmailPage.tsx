@@ -38,7 +38,7 @@ export default function VerifyEmailPage({ onBackToLogin }: VerifyEmailPageProps)
 
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-background">
-      <Card className="w-full max-w-md p-10 bg-white rounded-3xl shadow-2xl border-0 text-center">
+      <Card className="w-full max-w-md p-10 bg-card rounded-3xl shadow-2xl border-0 text-center">
         {status === 'loading' && (
           <div className="py-8 space-y-4">
             <Loader2 className="mx-auto h-12 w-12 text-primary animate-spin" />

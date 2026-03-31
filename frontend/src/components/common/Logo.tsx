@@ -7,7 +7,8 @@ interface LogoProps {
 }
 
 export default function Logo({ variant = 'dark', size = 'md', className = '' }: LogoProps) {
-  const textColor = variant === 'dark' ? 'text-foreground' : 'text-white';
+  // Logo text is primary blue in both modes for the 'dark' variant
+  const textColor = variant === 'dark' ? 'text-primary' : 'text-white';
 
   const sizes = {
     sm: {
@@ -34,8 +35,8 @@ export default function Logo({ variant = 'dark', size = 'md', className = '' }: 
 
   return (
     <div className={`flex items-center ${sizeConfig.container} ${className}`}>
-      {/* Logo Image */}
-      <div className={`${sizeConfig.logoHeight} aspect-square flex items-center justify-center bg-primary rounded-lg`}>
+      {/* Logo Image - Always Primary Blue */}
+      <div className={`${sizeConfig.logoHeight} aspect-square flex items-center justify-center bg-primary rounded-lg shadow-sm`}>
         <svg 
           viewBox="0 0 100 100" 
           className="w-full h-full p-2"
@@ -62,7 +63,7 @@ export default function Logo({ variant = 'dark', size = 'md', className = '' }: 
         <h1 className={`${sizeConfig.title} font-bold ${textColor} leading-none mb-0.5`}>
           BMP.tn
         </h1>
-        <p className={`${sizeConfig.subtitle} ${variant === 'dark' ? 'text-muted-foreground' : 'text-white/80'}`}>
+        <p className={`${sizeConfig.subtitle} ${variant === 'dark' ? 'text-gray-500 dark:text-gray-400' : 'text-white/80'}`}>
           Construction Marketplace
         </p>
       </div>

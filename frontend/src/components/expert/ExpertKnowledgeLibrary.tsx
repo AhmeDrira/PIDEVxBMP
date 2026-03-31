@@ -90,7 +90,7 @@ export default function ExpertKnowledgeLibrary() {
   }
 
   const searchToolbar = (
-    <Card className="p-4 bg-white rounded-2xl border-0 shadow-lg w-full max-w-full min-w-0">
+    <Card className="p-4 bg-card rounded-2xl border border-border shadow-lg w-full max-w-full min-w-0">
       <div className="flex flex-col md:flex-row gap-3 w-full min-w-0">
         <div className="relative flex-1 min-w-0 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
@@ -98,7 +98,7 @@ export default function ExpertKnowledgeLibrary() {
             placeholder="Search articles..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 h-12 w-full max-w-full rounded-xl border-2 border-gray-200 focus:border-primary"
+            className="pl-12 h-12 w-full max-w-full rounded-xl border-2 border-border focus:border-primary"
           />
         </div>
         <Button
@@ -140,13 +140,13 @@ export default function ExpertKnowledgeLibrary() {
             <p className="text-sm text-muted-foreground">{filteredArticles.length} article(s) trouvé(s)</p>
 
             {loading && (
-              <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+              <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
                 <p className="text-muted-foreground">Loading articles...</p>
               </Card>
             )}
 
             {!loading && filteredArticles.length === 0 && (
-              <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+              <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
                 <p className="text-muted-foreground">No articles found.</p>
               </Card>
             )}
@@ -156,7 +156,7 @@ export default function ExpertKnowledgeLibrary() {
                 filteredArticles.map((article) => (
                   <Card
   key={article._id}
-  className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden max-w-full min-w-0"
+  className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden max-w-full min-w-0"
 >
   <div className="flex items-start gap-4 sm:gap-6 min-w-0">
     <div

@@ -14,19 +14,19 @@ export default function CallingModal({ callState, onCancel }: CallingModalProps)
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center text-center">
+      <div className="bg-card rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center text-center">
         <div className="relative mb-6">
           <Avatar className="h-24 w-24 ring-4 ring-primary/20">
-            <AvatarFallback className="text-3xl bg-primary text-white">
+            <AvatarFallback className="text-3xl bg-primary dark:bg-blue-600 text-white">
               {callState.remoteUser?.avatar || 'U'}
             </AvatarFallback>
           </Avatar>
         </div>
         
-        <h3 className="text-2xl font-bold text-gray-900 mb-1">
+        <h3 className="text-2xl font-bold text-foreground mb-1">
           {callState.remoteUser?.name || 'Utilisateur'}
         </h3>
-        <p className="text-gray-500 mb-2">Appel {callState.type === 'video' ? 'vidéo' : 'audio'} en cours...</p>
+        <p className="text-muted-foreground mb-2">Appel {callState.type === 'video' ? 'vidéo' : 'audio'} en cours...</p>
         <p className="text-primary italic mb-8 animate-pulse">Sonnerie...</p>
 
         <button
