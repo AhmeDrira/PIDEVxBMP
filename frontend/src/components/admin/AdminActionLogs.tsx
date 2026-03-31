@@ -41,6 +41,8 @@ const actionLabels = [
   { label: 'User suspended',                value: 'admin.user.suspend' },
   { label: 'User activated',                value: 'admin.user.activate' },
   { label: 'User deleted',                  value: 'admin.user.delete' },
+  { label: 'Report submitted',              value: 'report.submit' },
+  { label: 'Report status updated',         value: 'admin.report.status.update' },
 ];
 
 type BasicUserRow = { _id: string; role: string; adminType?: string };
@@ -56,7 +58,7 @@ export default function AdminActionLogs() {
   const [accountStatsLoading, setAccountStatsLoading] = useState(false);
   const [logSummary, setLogSummary] = useState({
     total: 0, paymentEvents: 0, marketplaceEvents: 0, invoiceInstallmentEvents: 0,
-    manufacturerProductEvents: 0, adminSecurityEvents: 0,
+    manufacturerProductEvents: 0, adminSecurityEvents: 0, reportEvents: 0,
     byRole: {} as Record<string, number>,
     topActions: [] as Array<{ actionKey: string; actionLabel: string; count: number }>,
   });
@@ -134,6 +136,9 @@ export default function AdminActionLogs() {
     const invoiceNumber = String(metadata.invoiceNumber || '').trim(); if (invoiceNumber) chips.push(`invoice: ${invoiceNumber}`);
     const quoteNumber = String(metadata.quoteNumber || '').trim(); if (quoteNumber) chips.push(`quote: ${quoteNumber}`);
     const productName = String(metadata.name || '').trim(); if (productName) chips.push(`product: ${productName}`);
+    const reportType = String(metadata.reportType || '').trim(); if (reportType) chips.push(`report: ${reportType}`);
+    const reportStatus = String(metadata.newStatus || metadata.status || '').trim(); if (reportStatus) chips.push(`status: ${reportStatus}`);
+    const reportReason = String(metadata.reason || '').trim(); if (reportReason) chips.push(`reason: ${reportReason.slice(0, 40)}${reportReason.length > 40 ? '...' : ''}`);
     if (!chips.length) return null;
     return (
       <div className="mt-2 flex flex-wrap gap-1">
@@ -152,6 +157,7 @@ export default function AdminActionLogs() {
     { label: 'Installments',     value: logSummary.invoiceInstallmentEvents,  icon: BarChart3,      accent: '#d97706' },
     { label: 'Products',         value: logSummary.manufacturerProductEvents, icon: Wrench,         accent: '#059669' },
     { label: 'Admin Security',   value: logSummary.adminSecurityEvents,       icon: ShieldEllipsis, accent: '#dc2626' },
+    { label: 'Reports',          value: logSummary.reportEvents,              icon: UserCog,        accent: '#0ea5e9' },
   ];
 
   return (
@@ -190,7 +196,7 @@ export default function AdminActionLogs() {
       </div>
 
       {/* ── STAT CARDS ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         {statCards.map((s) => (
           <div key={s.label} style={{ ...card, padding: '18px 20px', borderTop: `3px solid ${s.accent}` }}>
             <div className="flex items-center justify-between mb-3">

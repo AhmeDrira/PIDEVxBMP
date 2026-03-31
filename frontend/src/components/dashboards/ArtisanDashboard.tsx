@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, ShoppingBag } from 'lucide-react';
+import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, ShoppingBag, ClipboardList } from 'lucide-react';
 import ArtisanHome from '../artisan/ArtisanHome';
 import ArtisanProjects from '../artisan/ArtisanProjects';
 import ArtisanMarketplace from '../artisan/ArtisanMarketplace';
@@ -14,6 +14,7 @@ import PortfolioGalleryPage from '../artisan/PortfolioGalleryPage';
 import MyOrders from '../common/MyOrders';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
 import ArtisanProfileReviews from '../artisan/ArtisanProfileReviews';
+import MyReports from '../common/MyReports';
 import axios from 'axios';
 
 interface ArtisanDashboardProps {
@@ -135,6 +136,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
     { id: 'subscription', label: 'Subscription', icon: <CreditCard size={20} /> },
     { id: 'orders', label: 'My Orders', icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: 'My Reports', icon: <ClipboardList size={20} /> },
   ];
 
   const renderContent = () => {
@@ -168,6 +170,8 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
         return <ArtisanProfileReviews />;
       case 'orders':
         return <MyOrders />;
+      case 'reports':
+        return <MyReports role="artisan" userId={String(currentUser?._id || currentUser?.id || 'artisan')} />;
       default:
         return <ArtisanHome onNavigate={setActiveView} />;
     }

@@ -36,6 +36,7 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/knowledge', require('./routes/knowledgeRoutes'));
 app.use('/api/logs', require('./routes/actionLogRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
 
 
 module.exports = app;

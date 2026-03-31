@@ -102,9 +102,9 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
   ];
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white text-slate-900">
       {/* Left side - Premium Branding */}
-      <div className="lg:w-1/2 relative overflow-hidden bg-primary dark:bg-blue-900">
+      <div className="lg:w-1/2 relative overflow-hidden bg-[#1e40af]">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
           <ImageWithFallback
@@ -112,7 +112,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
             alt="Construction"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/90 to-primary/95" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1e40af]/95 via-[#1e3a8a]/90 to-[#1e40af]/95" />
         </div>
 
         {/* Content */}
@@ -164,42 +164,42 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
       </div>
 
       {/* Right side - Modern Login Form */}
-      <div className="lg:w-1/2 flex items-start lg:items-center justify-center p-8 lg:p-12 bg-background overflow-y-auto min-h-screen lg:min-h-0">
+      <div className="lg:w-1/2 flex items-start lg:items-center justify-center p-8 lg:p-12 bg-white overflow-y-auto min-h-screen lg:min-h-0">
         <div className="w-full max-w-xl py-6 lg:py-0">
-          <Card className="p-8 bg-card rounded-3xl shadow-2xl border-0">
+          <Card className="p-8 bg-white rounded-3xl shadow-2xl border border-slate-200">
             <div className="mb-6">
-              <h2 className="text-3xl font-bold text-foreground mb-3">Welcome Back</h2>
-              <p className="text-muted-foreground text-lg">Sign in to continue to your account</p>
+              <h2 className="text-3xl font-bold text-slate-900 mb-3">Welcome Back</h2>
+              <p className="text-slate-500 text-lg">Sign in to continue to your account</p>
             </div>
 
             <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-foreground text-base">Email Address</Label>
+                <Label htmlFor="email" className="text-slate-900 text-base">Email Address</Label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                   <Input
                     id="email"
                     type="email"
                     placeholder="your@email.com"
                     autoComplete="email"
                     {...register('email')}
-                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
+                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-slate-300'} focus:border-[#1F3A8A] transition-colors bg-white text-slate-900 placeholder:text-slate-400`}
                   />
                 </div>
                 {errors.email && <p className="text-sm text-destructive font-medium">{errors.email.message}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-foreground text-base">Password</Label>
+                <Label htmlFor="password" className="text-slate-900 text-base">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground z-10" size={20} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={20} />
                   <PasswordInput
                     id="password"
                     placeholder="Enter your password"
                     autoComplete="current-password"
                     {...register('password')}
                     error={!!errors.password}
-                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
+                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-slate-300'} focus:border-[#1F3A8A] transition-colors bg-white text-slate-900 placeholder:text-slate-400`}
                   />
                 </div>
                 {errors.password && <p className="text-sm text-destructive font-medium">{errors.password.message}</p>}
@@ -210,7 +210,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
                   <div className="relative flex items-center shrink-0">
                     <input
                       type="checkbox"
-                      className="peer appearance-none w-6 h-6 rounded-lg border-2 border-border checked:border-primary checked:bg-primary transition-all duration-200 cursor-pointer"
+                      className="peer appearance-none w-6 h-6 rounded-lg border-2 border-slate-300 checked:border-[#1F3A8A] checked:bg-[#1F3A8A] transition-all duration-200 cursor-pointer"
                     />
                     <Check
                       size={14}
@@ -218,11 +218,11 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
                       className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200 pointer-events-none"
                     />
                   </div>
-                  <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Remember me</span>
+                  <span className="text-sm font-medium text-slate-500 group-hover:text-slate-900 transition-colors">Remember me</span>
                 </label>
                 <Button
                   variant="link"
-                  className="p-0 h-auto font-normal text-primary hover:text-primary/80"
+                  className="p-0 h-auto font-normal text-[#1F3A8A] hover:text-[#172c6e]"
                   onClick={() => onForgotPassword(watch('email'))}
                   type="button"
                 >
@@ -233,7 +233,8 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full h-14 text-base font-semibold !bg-blue-700 hover:!bg-blue-800 !text-white rounded-xl shadow-lg shadow-blue-700/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#1F3A8A', color: '#FFFFFF' }}
               >
                 {isLoading ? (
                   <>
@@ -246,12 +247,12 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
               </Button>
 
               <div className="text-center pt-4 space-y-2">
-                <p className="text-muted-foreground">
+                <p className="text-slate-500">
                   Don&apos;t have an account?{' '}
                   <button
                     type="button"
                     onClick={onRegister}
-                    className="font-semibold text-primary hover:text-primary/80 transition-colors"
+                    className="font-semibold text-[#1F3A8A] hover:text-[#172c6e] transition-colors"
                   >
                     Create Account
                   </button>

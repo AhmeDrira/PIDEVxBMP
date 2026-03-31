@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, Users, CheckSquare, BookOpen, BarChart3, ShieldOff, History } from 'lucide-react';
+import { Home, Users, CheckSquare, BookOpen, BarChart3, ShieldOff, History, Flag } from 'lucide-react';
 import AdminUserManagement from '../admin/AdminUserManagement';
 import AdminManufacturerVerification from '../admin/AdminManufacturerVerification';
 import AdminKnowledgeManagement from '../admin/AdminKnowledgeManagement';
@@ -10,6 +10,7 @@ import { Card } from '../ui/card';
 import AdminProfile from '../admin/AdminProfile';
 import UpdatePasswordPage from '../common/UpdatePasswordPage';
 import AdminActionLogs from '../admin/AdminActionLogs';
+import AdminReports from '../admin/AdminReports';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -59,12 +60,19 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       icon: <History size={20} />,
       visible: isSuperAdmin || isSubAdmin,
     },
+    {
+      id: 'reports',
+      label: 'Reports',
+      icon: <Flag size={20} />,
+      visible: isSuperAdmin || isSubAdmin,
+    },
   ].filter((item) => item.visible !== false)), [isSuperAdmin, isSubAdmin, permissions]);
 
   const canSuspendUsers = isSuperAdmin || permissions.canSuspendUsers;
   const canDeleteUsers = isSuperAdmin || permissions.canDeleteUsers;
   const canVerifyManufacturers = isSuperAdmin || permissions.canVerifyManufacturers;
   const canManageKnowledge = isSuperAdmin || permissions.canManageKnowledge;
+  const canManageReports = isSuperAdmin || permissions.canManageReports;
 
   useEffect(() => {
     if (!menuItems.length) return;
@@ -116,6 +124,12 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <AdminActionLogs />
         ) : (
           <PermissionNotice message="Only admins can access action logs." />
+        );
+      case 'reports':
+        return (isSuperAdmin || isSubAdmin) ? (
+          <AdminReports canManageReports={canManageReports} />
+        ) : (
+          <PermissionNotice message="Only admins can access reports." />
         );
       case 'analytics':
         return <AdminAnalytics onNavigate={setActiveView} />;

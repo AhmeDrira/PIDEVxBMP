@@ -503,7 +503,6 @@ export default function ArtisanQuotes() {
                 Non
               </Button>
               <Button
-                type="button"
                 variant="outline"
                 className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                 onClick={handleGenerateInvoiceFromQuote}
@@ -556,7 +555,7 @@ export default function ArtisanQuotes() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 h-12 rounded-xl border-2 border-red-200 bg-card text-red-600 font-semibold hover:bg-red-50 hover:border-red-300 transition-all"
+                  className="flex-1 h-12 rounded-xl border-2 border-red-200 bg-card text-red-600 font-semibold hover:bg-red-50 hover:border-red-300 transition-all !bg-destructive !border-destructive !text-white hover:!bg-destructive/90"
                   onClick={handleDeleteQuote}
                   disabled={isDeletingQuote}
                 >
@@ -591,10 +590,10 @@ export default function ArtisanQuotes() {
   // --- DESIGN & UTILITAIRES ---
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'bg-accent/10 text-accent border-accent/20';
-      case 'pending': return 'bg-secondary/10 text-secondary border-secondary/20';
-      case 'rejected': return 'bg-destructive/10 text-destructive border-destructive/20';
-      default: return 'bg-muted text-foreground border-border';
+      case 'approved': return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-100 dark:text-emerald-700 dark:border-emerald-200';
+      case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-100 dark:text-amber-700 dark:border-amber-200';
+      case 'rejected': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-100 dark:text-red-700 dark:border-red-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-100 dark:text-slate-700 dark:border-slate-200';
     }
   };
 
@@ -1182,7 +1181,7 @@ export default function ArtisanQuotes() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-xl border-2 h-10 hover:bg-primary hover:text-white"
+                      className="rounded-xl border-2 h-10 bg-card text-foreground hover:bg-muted/50"
                       onClick={() => { setSelectedQuote(quote); setView('details'); }}
                     >
                       <Eye size={16} className="mr-2" /> View
@@ -1190,7 +1189,7 @@ export default function ArtisanQuotes() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-xl border-2 h-10 hover:bg-accent hover:text-white"
+                      className="rounded-xl border-2 h-10 hover:bg-accent hover:text-white dark:!bg-secondary dark:!border-secondary dark:!text-white dark:hover:!bg-secondary/90"
                       onClick={() => handleDownloadQuotePdf(quote)}
                     >
                       <Download size={16} className="mr-2" /> PDF
@@ -1207,7 +1206,7 @@ export default function ArtisanQuotes() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-xl border-2 h-10 hover:bg-red-600 hover:text-white"
+                      className="rounded-xl border-2 h-10 hover:bg-red-600 hover:text-white dark:!bg-destructive dark:!border-destructive dark:!text-white dark:hover:!bg-destructive/90"
                       onClick={() => openDeleteQuoteModal(quote)}
                     >
                       <Trash2 size={16} className="mr-2" /> Delete

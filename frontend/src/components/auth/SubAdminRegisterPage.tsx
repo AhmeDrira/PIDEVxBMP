@@ -21,6 +21,7 @@ const defaultPermissions = {
   canVerifyManufacturers: true,
   canManageKnowledge: true,
   canSuspendUsers: false,
+  canManageReports: false,
   canDeleteUsers: false,
 };
 
@@ -91,6 +92,11 @@ export default function SubAdminRegisterPage({ onBackToAdminLogin, onEmailSent }
       id: 'canSuspendUsers' as const,
       title: 'Suspend Users',
       description: 'Pause accounts that violate policies',
+    },
+    {
+      id: 'canManageReports' as const,
+      title: 'Manage Reports',
+      description: 'Review reports and set accepted/rejected status',
     },
     {
       id: 'canDeleteUsers' as const,

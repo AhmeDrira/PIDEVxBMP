@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import {
   Search,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
+import { toast } from 'sonner';
 import ViewArtisanProfile from '../expert/ViewArtisanProfile';
 import VoiceMessage from './VoiceMessage';
 import VoiceRecorder from './VoiceRecorder';
@@ -81,6 +83,15 @@ interface Message {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const API_BASE_URL = API_URL.replace(/\/api\/?$/, '');
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
+const REPORT_REASONS = [
+  'Harassment or abusive behavior',
+  'Spam or misleading content',
+  'Fraud or suspicious activity',
+  'Late delivery or no-show',
+  'Poor quality of service/product',
+  'Policy violation',
+  'Other',
+];
 
 export default function Messages() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -103,6 +114,10 @@ export default function Messages() {
   const [blockedByOther, setBlockedByOther] = useState(false);
   const [selectedProfileArtisanId, setSelectedProfileArtisanId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ type: 'delete-conv' | 'block' | 'unblock' | 'report' | 'delete-msg'; messageId?: string } | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
+  const [reportCustomReason, setReportCustomReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const conversationMenuRef = useRef<HTMLDivElement | null>(null);
@@ -551,6 +566,64 @@ export default function Messages() {
     }
   };
 
+  const openReportModal = () => {
+    setIsConversationMenuOpen(false);
+    setConfirmModal(null);
+    setReportReason(REPORT_REASONS[0]);
+    setReportCustomReason('');
+    setReportDetails('');
+    setReportModalOpen(true);
+  };
+
+  const closeReportModal = () => {
+    setReportModalOpen(false);
+  };
+
+  const handleSubmitDirectReport = async () => {
+    if (!selectedConv) {
+      toast.error('Unable to submit report right now.');
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      toast.error('You must be logged in to submit a report.');
+      return;
+    }
+
+    const reason = reportReason === 'Other' ? reportCustomReason.trim() : reportReason;
+    if (!reason) {
+      toast.error('Please select or write a report reason.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          reportType: 'user',
+          targetUserId: selectedConv.participantId,
+          targetRole: selectedConv.role,
+          reason,
+          details: reportDetails.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit report');
+      }
+
+      closeReportModal();
+      toast.success('Report submitted. We will notify you soon via email once it is treated.');
+    } catch {
+      toast.error('Failed to submit report. Please try again.');
+    }
+  };
+
   const handleConfirmAction = async () => {
     if (!confirmModal) return;
     switch (confirmModal.type) {
@@ -703,22 +776,22 @@ export default function Messages() {
               >
                 <div className="flex items-start gap-3">
                   <div className="relative">
-                    <Avatar className="w-14 h-14 ring-2 ring-white shadow-md">
-                      <AvatarFallback className="bg-primary text-white font-semibold text-lg">{conv.avatar}</AvatarFallback>
+                    <Avatar className="w-14 h-14 ring-2 ring-border shadow-md dark:ring-slate-700">
+                      <AvatarFallback className="bg-slate-200 text-slate-500 font-semibold text-lg dark:bg-slate-700 dark:text-slate-100">{conv.avatar}</AvatarFallback>
                     </Avatar>
-                    {conv.online && <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white bg-accent shadow-sm" />}
+                    {conv.online && <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-border dark:border-slate-800 bg-emerald-500 shadow-sm" />}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="font-bold text-foreground truncate">{conv.name}</h4>
                       <span className="text-xs text-muted-foreground">{conv.timestamp}</span>
                     </div>
-                    <Badge variant="secondary" className="mb-2 text-xs bg-secondary/10 text-secondary border-0">
+                    <Badge variant="secondary" className="mb-2 text-xs bg-blue-100 text-blue-700 dark:bg-blue-100 dark:text-blue-700 border-0">
                       {conv.role}
                     </Badge>
                     <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
                   </div>
-                  {conv.unread > 0 && <span className="px-2 py-1 rounded-full text-xs font-bold text-white bg-destructive shadow-sm">{conv.unread}</span>}
+                  {conv.unread > 0 && <span className="px-2 py-1 rounded-full text-xs font-bold text-white bg-red-500 dark:bg-red-500 shadow-sm">{conv.unread}</span>}
                 </div>
               </button>
             ))}
@@ -726,7 +799,7 @@ export default function Messages() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col relative bg-muted/50 h-full">
+        <div className="flex-1 flex flex-col relative bg-muted/50 dark:bg-[#0b0f14] h-full">
           {callState.status === 'ringing' ? (
             <IncomingCallModal
               callState={callState}
@@ -776,15 +849,15 @@ export default function Messages() {
                 <div className="p-6 flex items-center justify-between border-b-2 border-border bg-card">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <Avatar className="w-12 h-12 ring-2 ring-white shadow-md">
-                    <AvatarFallback className="bg-primary text-white font-semibold">{selectedConv.avatar}</AvatarFallback>
+                  <Avatar className="w-12 h-12 ring-2 ring-border shadow-md dark:ring-slate-700">
+                    <AvatarFallback className="bg-slate-200 text-slate-500 font-semibold dark:bg-slate-700 dark:text-slate-100">{selectedConv.avatar}</AvatarFallback>
                   </Avatar>
-                  {selectedConv.online && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white bg-accent" />}
+                  {selectedConv.online && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-border dark:border-slate-800 bg-emerald-500" />}
                 </div>
                 <div className="flex items-center gap-2 relative" ref={profileMenuRef}>
                   <div>
                     <h3 className="font-bold text-foreground text-lg">{selectedConv.name}</h3>
-                    <p className="text-sm font-medium" style={{ color: selectedConv.online ? '#10B981' : 'var(--muted-foreground)' }}>
+                    <p className="text-sm font-medium" style={{ color: selectedConv.online ? '#10B981' : '#6B7280' }}>
                       {selectedConv.online ? 'Online' : 'Offline'}
                     </p>
                   </div>
@@ -861,7 +934,7 @@ export default function Messages() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setConfirmModal({ type: 'report' }); setIsConversationMenuOpen(false); }}
+                      onClick={openReportModal}
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 text-left"
                     >
                       <Flag size={16} />
@@ -873,7 +946,7 @@ export default function Messages() {
               </div>
             </div>
           )}
-          <div className="flex-1 overflow-y-auto p-8 space-y-6" style={{ backgroundColor: '#F9FAFB' }}>
+          <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-[#11161c]">
             {loadingMessages && <p className="text-sm text-muted-foreground">Loading messages...</p>}
             {!loadingMessages && messages.length === 0 && selectedConv && <p className="text-sm text-muted-foreground">No messages yet.</p>}
             {!selectedConv && !loadingConversations && <p className="text-sm text-muted-foreground">Select a conversation to start chatting.</p>}
@@ -1196,6 +1269,98 @@ export default function Messages() {
           </div>
         );
       })()}
+
+      {reportModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={closeReportModal}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 20,
+              border: '1px solid var(--border)',
+              padding: 24,
+              maxWidth: 520,
+              width: '92%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 22, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 8px' }}>Report User</h3>
+            <p style={{ fontSize: 14, color: 'var(--muted-foreground)', margin: '0 0 16px', lineHeight: 1.5 }}>
+              Reporting: <strong style={{ color: 'var(--foreground)' }}>{selectedConv?.name || 'User'}</strong>
+            </p>
+
+            <div style={{ marginBottom: 14 }}>
+              <label htmlFor="direct-report-reason" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
+                Reason
+              </label>
+              <select
+                id="direct-report-reason"
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                style={{ width: '100%', height: 42, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', padding: '0 10px', fontSize: 14 }}
+              >
+                {REPORT_REASONS.map((reason) => (
+                  <option key={reason} value={reason}>{reason}</option>
+                ))}
+              </select>
+            </div>
+
+            {reportReason === 'Other' && (
+              <div style={{ marginBottom: 14 }}>
+                <label htmlFor="direct-report-custom" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
+                  Custom reason
+                </label>
+                <Input
+                  id="direct-report-custom"
+                  value={reportCustomReason}
+                  onChange={(e) => setReportCustomReason(e.target.value)}
+                  placeholder="Write your reason"
+                />
+              </div>
+            )}
+
+            <div style={{ marginBottom: 20 }}>
+              <label htmlFor="direct-report-details" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
+                Details (optional)
+              </label>
+              <Textarea
+                id="direct-report-details"
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Add extra details"
+                className="min-h-28"
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={closeReportModal}
+                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitDirectReport}
+                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: 'none', backgroundColor: '#f59e0b', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Submit Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

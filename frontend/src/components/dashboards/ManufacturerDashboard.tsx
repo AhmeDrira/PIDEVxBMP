@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, Package, ShoppingBag, BarChart3 } from 'lucide-react';
+import { Home, Package, ShoppingBag, ClipboardList } from 'lucide-react';
 import ManufacturerHome from '../manufacturer/ManufacturerHome';
 import ManufacturerProducts from '../manufacturer/ManufacturerProducts';
 import ManufacturerOrders from '../manufacturer/ManufacturerOrders';
 import ManufacturerProfile from '../manufacturer/ManufacturerProfile';
 import NotificationBell from '../common/NotificationBell';
+import MyReports from '../common/MyReports';
 import axios from 'axios';
 
 interface ManufacturerDashboardProps {
@@ -65,6 +66,7 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'products', label: 'My Products', icon: <Package size={20} /> },
     { id: 'orders', label: 'Orders', icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: 'My Reports', icon: <ClipboardList size={20} /> },
   ];
 
   const handleMenuItemClick = async (id: string) => {
@@ -106,6 +108,8 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
         return <ManufacturerProducts />;
       case 'orders':
         return <ManufacturerOrders />;
+      case 'reports':
+        return <MyReports role="manufacturer" userId={String(currentUser?._id || currentUser?.id || 'manufacturer')} />;
       case 'profile':
         return <ManufacturerProfile />;
       default:

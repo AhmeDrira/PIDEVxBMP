@@ -52,6 +52,7 @@ const subAdminPermissionsSchema = z.object({
   canVerifyManufacturers: z.boolean().default(false),
   canManageKnowledge: z.boolean().default(false),
   canSuspendUsers: z.boolean().default(false),
+  canManageReports: z.boolean().default(false),
   canDeleteUsers: z.boolean().default(false),
 });
 

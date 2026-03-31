@@ -40,14 +40,14 @@ export default function RegisterLeftSection() {
   ];
 
   return (
-    <div className="lg:w-1/2 relative overflow-hidden bg-primary dark:bg-blue-900">
+    <div className="lg:w-1/2 relative overflow-hidden bg-[#1e40af]">
       <div className="absolute inset-0">
         <ImageWithFallback
           src="https://images.unsplash.com/photo-1693679758394-6d56a1e5c1a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjBzaXRlJTIwbW9kZXJuJTIwYnVpbGRpbmd8ZW58MXx8fHwxNzcwNTc2NzAyfDA&ixlib=rb-4.1.0&q=80&w=1080"
           alt="Construction"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/90 to-primary/95" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1e40af]/95 via-[#1e3a8a]/90 to-[#1e40af]/95" />
       </div>
 
       <div className="relative z-10 h-full flex flex-col justify-center px-8 lg:px-16 py-16 text-white">

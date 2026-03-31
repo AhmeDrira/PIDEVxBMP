@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, User, LogOut, Settings, KeyRound, Star } from 'lucide-react';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 
 interface ProfileDropdownProps {
@@ -35,13 +35,10 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
         className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted transition-colors"
       >
         <Avatar className="w-10 h-10 ring-2 ring-border">
-          {profilePhoto ? (
-            <img src={profilePhoto} alt={userName} className="w-full h-full object-cover rounded-full" />
-          ) : (
-            <AvatarFallback className="bg-primary text-white font-semibold">
-              {userName.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          )}
+          <AvatarImage src={profilePhoto || undefined} alt={userName} className="object-cover" />
+          <AvatarFallback className="text-white font-semibold" style={{ backgroundColor: 'var(--sidebar-primary)' }}>
+            {userName.charAt(0).toUpperCase()}
+          </AvatarFallback>
         </Avatar>
         <div className="text-left hidden xl:block">
           <p className="text-sm font-semibold text-foreground">{userName}</p>
@@ -59,14 +56,11 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
           <div className="absolute right-0 top-full mt-2 w-64 bg-card rounded-2xl shadow-2xl border-0 z-50 overflow-hidden">
             <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-b-2 border-border">
               <div className="flex items-center gap-3 mb-2">
-                <Avatar className="w-12 h-12 ring-2 ring-white shadow-md overflow-hidden">
-                  {profilePhoto ? (
-                    <img src={profilePhoto} alt={userName} className="w-full h-full object-cover" />
-                  ) : (
-                    <AvatarFallback className="bg-primary text-white font-semibold text-lg">
-                      {userName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  )}
+                <Avatar className="w-12 h-12 ring-2 ring-border shadow-md overflow-hidden">
+                  <AvatarImage src={profilePhoto || undefined} alt={userName} className="object-cover" />
+                  <AvatarFallback className="text-white font-semibold text-lg" style={{ backgroundColor: 'var(--sidebar-primary)' }}>
+                    {userName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground truncate">{userName}</p>

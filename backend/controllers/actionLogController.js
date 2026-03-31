@@ -69,6 +69,9 @@ const listActionLogs = async (req, res) => {
         { 'metadata.quoteNumber': searchRegex },
         { 'metadata.stripeSessionId': searchRegex },
         { 'metadata.items.name': searchRegex },
+        { 'metadata.reason': searchRegex },
+        { 'metadata.reportType': searchRegex },
+        { 'metadata.newStatus': searchRegex },
       ];
     }
 
@@ -80,6 +83,7 @@ const listActionLogs = async (req, res) => {
       invoiceInstallmentEvents,
       manufacturerProductEvents,
       adminSecurityEvents,
+      reportEvents,
       roleBuckets,
       topActions,
     ] = await Promise.all([
@@ -90,6 +94,7 @@ const listActionLogs = async (req, res) => {
       ActionLog.countDocuments({ ...query, actionKey: /^artisan\.invoice\.payment\./i }),
       ActionLog.countDocuments({ ...query, actionKey: /^manufacturer\.product\./i }),
       ActionLog.countDocuments({ ...query, actionKey: /^admin\./i }),
+      ActionLog.countDocuments({ ...query, actionKey: /report/i }),
       ActionLog.aggregate([
         { $match: query },
         { $group: { _id: '$actorRole', count: { $sum: 1 } } },
@@ -122,6 +127,7 @@ const listActionLogs = async (req, res) => {
         invoiceInstallmentEvents,
         manufacturerProductEvents,
         adminSecurityEvents,
+        reportEvents,
         byRole,
         topActions: topActions.map((item) => ({
           actionKey: item._id,

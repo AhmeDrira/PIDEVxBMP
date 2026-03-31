@@ -410,8 +410,8 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
             {filteredArtisans.map(artisan => (
               <Card key={artisan.id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                 <div className="flex items-start gap-4 mb-4">
-                  <Avatar className="w-16 h-16 ring-4 ring-white shadow-lg">
-                    <AvatarFallback className="bg-primary text-white font-bold text-xl">
+                  <Avatar className="w-16 h-16 ring-4 ring-border dark:ring-slate-700 shadow-lg">
+                    <AvatarFallback className="bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-100 font-bold text-xl">
                       {artisan.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
@@ -437,14 +437,14 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
                 <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{artisan.bio}</p>
 
-                <div className="grid grid-cols-2 gap-4 mb-4 p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white">
+                <div className="grid grid-cols-2 gap-4 mb-4 p-4 rounded-xl bg-slate-100 border border-slate-200 dark:!bg-slate-800 dark:!border-slate-600">
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium mb-1">Experience</p>
-                    <p className="text-sm font-bold text-foreground">{artisan.experience}</p>
+                    <p className="text-xs text-slate-500 dark:!text-slate-300 font-medium mb-1">Experience</p>
+                    <p className="text-sm font-bold text-slate-900 dark:!text-slate-100">{artisan.experience}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium mb-1">Portfolio</p>
-                    <p className="text-sm font-bold text-foreground">{artisan.completedProjects} projects</p>
+                    <p className="text-xs text-slate-500 dark:!text-slate-300 font-medium mb-1">Portfolio</p>
+                    <p className="text-sm font-bold text-slate-900 dark:!text-slate-100">{artisan.completedProjects} projects</p>
                   </div>
                 </div>
 
@@ -461,7 +461,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
                 <div className="flex gap-3">
                   <Button
-                    className="flex-1 h-11 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md"
+                    className="flex-1 h-11 text-white !bg-secondary !border-secondary hover:!bg-secondary/90 rounded-xl shadow-md"
                     onClick={() => handleContact(artisan.id)}
                   >
                     <MessageSquare size={16} className="mr-2" />
@@ -469,7 +469,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-11 px-6 rounded-xl border-2"
+                    className="h-11 px-6 rounded-xl border-2 bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200 dark:!bg-slate-700 dark:!text-slate-100 dark:!border-slate-500 dark:hover:!bg-slate-600"
                     onClick={() => setPage({ type: 'profile', artisanId: artisan.id, artisanName: artisan.name, artisanDomain: artisan.specialization })}
                   >
                     View Profile

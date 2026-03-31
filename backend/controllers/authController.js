@@ -54,6 +54,7 @@ const superAdminPermissions = {
   canVerifyManufacturers: true,
   canManageKnowledge: true,
   canSuspendUsers: true,
+  canManageReports: true,
   canDeleteUsers: true,
 };
 
@@ -61,6 +62,7 @@ const coercePermissions = (source = {}) => ({
   canVerifyManufacturers: Boolean(source.canVerifyManufacturers),
   canManageKnowledge: Boolean(source.canManageKnowledge),
   canSuspendUsers: Boolean(source.canSuspendUsers),
+  canManageReports: Boolean(source.canManageReports),
   canDeleteUsers: Boolean(source.canDeleteUsers),
 });
 
