@@ -50,7 +50,7 @@ export default function ManufacturerOrders() {
       case 'shipped': return 'bg-primary/10 text-primary border-primary/20';
       case 'delivered': return 'bg-accent/10 text-accent border-accent/20';
       case 'paid': return 'bg-green-100 text-green-700 border-green-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -81,12 +81,12 @@ export default function ManufacturerOrders() {
 
   return (
     <div className="space-y-8">
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <Input
             placeholder="Search orders..."
-            className="pl-12 h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+            className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -125,13 +125,13 @@ export default function ManufacturerOrders() {
 
           <div className="space-y-4">
             {filteredOrders.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200 text-muted-foreground">
+              <div className="text-center py-20 bg-card rounded-2xl border-2 border-dashed border-border text-muted-foreground">
                 <Package size={48} className="mx-auto mb-4 opacity-20" />
                 <p className="text-xl font-medium">No orders found</p>
               </div>
             ) : (
               filteredOrders.map((order) => (
-                <Card key={order.id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+                <Card key={order.id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-4">

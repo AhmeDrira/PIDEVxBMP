@@ -95,7 +95,7 @@ export default function CallWindow({
             <div className="relative mb-8">
               <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: '3s' }}></div>
               <Avatar className="h-40 w-40 ring-4 ring-primary/30 shadow-2xl relative z-10">
-                <AvatarFallback className="text-5xl bg-primary text-white">
+                <AvatarFallback className="text-5xl bg-primary dark:bg-blue-600 text-white">
                   {callState.remoteUser?.avatar || 'U'}
                 </AvatarFallback>
               </Avatar>

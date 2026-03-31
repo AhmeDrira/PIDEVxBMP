@@ -84,9 +84,9 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
 
   return (
     <div className="w-full max-w-xl">
-      <Card className="p-10 bg-white rounded-3xl shadow-2xl border-0">
+      <Card className="p-10 bg-card rounded-3xl shadow-2xl border-0">
         <div className="mb-8">
-          <Button variant="ghost" onClick={onBackToRoleSelection} className="mb-4 hover:bg-gray-50 rounded-xl">
+          <Button variant="ghost" onClick={onBackToRoleSelection} className="mb-4 hover:bg-muted/50 rounded-xl">
             ← Change Role
           </Button>
           <h2 className="text-3xl font-bold text-foreground mb-3">Create Your Account</h2>
@@ -104,7 +104,7 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
                   type="text"
                   placeholder="John"
                   {...register('firstName')}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.firstName ? 'border-red-500' : 'border-gray-200'} focus:border-primary`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.firstName ? 'border-red-500' : 'border-border'} focus:border-primary`}
                 />
               </div>
               {errors.firstName && <p className="text-sm text-destructive font-medium">{errors.firstName.message}</p>}
@@ -119,7 +119,7 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
                   type="text"
                   placeholder="Doe"
                   {...register('lastName')}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.lastName ? 'border-red-500' : 'border-gray-200'} focus:border-primary`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.lastName ? 'border-red-500' : 'border-border'} focus:border-primary`}
                 />
               </div>
               {errors.lastName && <p className="text-sm text-destructive font-medium">{errors.lastName.message}</p>}
@@ -145,7 +145,7 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
                   if (!available) setError('email', { message: 'Email already in use' });
                   else clearErrors('email');
                 }}
-                className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-gray-200'} focus:border-primary`}
+                className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-border'} focus:border-primary`}
               />
             </div>
             {errors.email && <p className="text-sm text-destructive font-medium">{errors.email.message}</p>}
@@ -162,7 +162,7 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
                   autoComplete="new-password"
                   {...register('password')}
                   error={!!errors.password}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-gray-200'} focus:border-primary`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-border'} focus:border-primary`}
                 />
               </div>
               {errors.password && <p className="text-sm text-destructive font-medium">{errors.password.message}</p>}
@@ -178,7 +178,7 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
                   autoComplete="new-password"
                   {...register('confirmPassword')}
                   error={!!errors.confirmPassword}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'} focus:border-primary`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.confirmPassword ? 'border-red-500' : 'border-border'} focus:border-primary`}
                 />
               </div>
               {errors.confirmPassword && <p className="text-sm text-destructive font-medium">{errors.confirmPassword.message}</p>}
@@ -192,10 +192,10 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
               </Label>
               <div
                 onClick={() => certFileRef.current?.click()}
-                className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-primary transition-colors bg-gray-50"
+                className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-primary transition-colors bg-muted/50"
               >
-                <Upload size={24} className="mx-auto mb-2 text-gray-400" />
-                <p className="text-sm text-gray-500">
+                <Upload size={24} className="mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
                   {certificationFile ? certificationFile.name : 'Click to upload certification PDF'}
                 </p>
                 <input
@@ -209,17 +209,17 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
             </div>
           )}
 
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-gray-50">
-            <input type="checkbox" id="terms" required className="mt-1 w-5 h-5 rounded border-gray-300" />
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50">
+            <input type="checkbox" id="terms" required className="mt-1 w-5 h-5 rounded border-border" />
             <label htmlFor="terms" className="text-sm text-muted-foreground">
               I agree to the <a href="#" className="text-primary font-semibold hover:underline">Terms of Service</a> and <a href="#" className="text-primary font-semibold hover:underline">Privacy Policy</a>
             </label>
           </div>
 
           <div className="relative py-2">
-            <div className="border-t border-gray-200" />
+            <div className="border-t border-border" />
             <div className="absolute inset-0 flex justify-center">
-              <span className="px-3 text-xs font-semibold text-muted-foreground bg-white uppercase tracking-[0.18em] -mt-3">
+              <span className="px-3 text-xs font-semibold text-muted-foreground bg-card uppercase tracking-[0.18em] -mt-3">
                 Or create account with Google
               </span>
             </div>

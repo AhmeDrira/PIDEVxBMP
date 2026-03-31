@@ -44,7 +44,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
       case 'approved': return 'bg-accent/10 text-accent border-accent/20';
       case 'pending': return 'bg-secondary/10 text-secondary border-secondary/20';
       case 'rejected': return 'bg-destructive/10 text-destructive border-destructive/20';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -59,7 +59,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
 
   return (
     <div className="space-y-8">
-      <Button variant="ghost" onClick={onBack} className="hover:bg-white rounded-xl">
+      <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
         Back to Quotes
       </Button>
@@ -85,7 +85,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Project Information */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-6">Project Information</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="flex items-center gap-4">
@@ -131,14 +131,14 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
           </Card>
 
           {/* Quote Details */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-4">Description</h2>
             <p className="text-muted-foreground leading-relaxed mb-8">{quote.description}</p>
 
             <h2 className="text-2xl font-bold text-foreground mb-6">Cost Breakdown</h2>
             <div className="space-y-3">
               {quote.breakdown.map((item, index) => (
-                <div key={index} className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100">
+                <div key={index} className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-white border-2 border-border">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-bold text-foreground">{item.item}</h4>
                     <p className="text-xl font-bold text-primary">{item.total.toLocaleString()} TND</p>
@@ -154,7 +154,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
           </Card>
 
           {/* Payment Terms */}
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-2xl font-bold text-foreground mb-4">Payment Terms</h2>
             <div className="p-6 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/20">
               <p className="text-foreground leading-relaxed">{quote.paymentTerms}</p>
@@ -171,7 +171,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Quote Summary */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-6">Quote Summary</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -194,7 +194,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
           </Card>
 
           {/* Amount Summary */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-6">Amount Summary</h3>
             <div className="space-y-4">
               <div className="flex justify-between">
@@ -205,7 +205,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
                 <span className="text-muted-foreground">Tax (19%)</span>
                 <span className="font-semibold text-foreground">{quote.tax.toLocaleString()} TND</span>
               </div>
-              <div className="pt-4 border-t-2 border-gray-100">
+              <div className="pt-4 border-t-2 border-border">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-foreground">Total</span>
                   <span className="text-3xl font-bold text-primary">{quote.total.toLocaleString()} TND</span>
@@ -215,7 +215,7 @@ export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
           </Card>
 
           {/* Actions */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-xl font-bold text-foreground mb-4">Actions</h3>
             <div className="space-y-3">
               {quote.status === 'approved' && (

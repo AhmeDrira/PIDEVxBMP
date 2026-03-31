@@ -95,7 +95,7 @@ export function GoogleLoginButton({ onSuccess, variant = 'signin', role }: Googl
           alignItems: 'center',
           justifyContent: 'center',
           gap: '10px',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--card)',
           color: '#3c4043',
           fontSize: '14px',
           fontWeight: '600',

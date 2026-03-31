@@ -22,9 +22,9 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
     switch (role) {
       case 'artisan': return 'bg-secondary/10 text-secondary';
       case 'expert': return 'bg-accent/10 text-accent';
-      case 'manufacturer': return 'bg-purple-100 text-purple-700';
-      case 'admin': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'manufacturer': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+      case 'admin': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -32,9 +32,9 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+        className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted transition-colors"
       >
-        <Avatar className="w-10 h-10 ring-2 ring-gray-200">
+        <Avatar className="w-10 h-10 ring-2 ring-border">
           {profilePhoto ? (
             <img src={profilePhoto} alt={userName} className="w-full h-full object-cover rounded-full" />
           ) : (
@@ -56,8 +56,8 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
             className="fixed inset-0 z-40" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border-0 z-50 overflow-hidden">
-            <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-b-2 border-gray-100">
+          <div className="absolute right-0 top-full mt-2 w-64 bg-card rounded-2xl shadow-2xl border-0 z-50 overflow-hidden">
+            <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-b-2 border-border">
               <div className="flex items-center gap-3 mb-2">
                 <Avatar className="w-12 h-12 ring-2 ring-white shadow-md overflow-hidden">
                   {profilePhoto ? (
@@ -83,7 +83,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                   onViewProfile();
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
               >
                 <User size={18} className="text-muted-foreground" />
                 <span className="font-medium text-foreground">View Profile</span>
@@ -94,7 +94,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                   onEditProfile();
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
               >
                 <Settings size={18} className="text-muted-foreground" />
                 <span className="font-medium text-foreground">{editProfileLabel}</span>
@@ -106,7 +106,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                     onViewReviews();
                     setIsOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
                 >
                   <Star size={18} className="text-muted-foreground" />
                   <span className="font-medium text-foreground">View Profile Reviews</span>
@@ -119,14 +119,14 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                     onUpdatePassword();
                     setIsOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
                 >
                   <KeyRound size={18} className="text-muted-foreground" />
                   <span className="font-medium text-foreground">Update Password</span>
                 </button>
               )}
               
-              <div className="my-2 h-px bg-gray-200" />
+              <div className="my-2 h-px bg-border" />
               
               <button
                 onClick={() => {

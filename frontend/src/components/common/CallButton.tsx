@@ -15,7 +15,7 @@ export default function CallButton({ onAudioCall, onVideoCall, disabled }: CallB
         type="button"
         variant="ghost"
         size="icon"
-        className="rounded-full hover:bg-gray-100 text-gray-600 hover:text-primary transition-colors h-10 w-10"
+        className="rounded-full hover:bg-muted text-muted-foreground hover:text-primary transition-colors h-10 w-10"
         onClick={onAudioCall}
         disabled={disabled}
         title="Appel audio"
@@ -26,7 +26,7 @@ export default function CallButton({ onAudioCall, onVideoCall, disabled }: CallB
         type="button"
         variant="ghost"
         size="icon"
-        className="rounded-full hover:bg-gray-100 text-gray-600 hover:text-primary transition-colors h-10 w-10"
+        className="rounded-full hover:bg-muted text-muted-foreground hover:text-primary transition-colors h-10 w-10"
         onClick={onVideoCall}
         disabled={disabled}
         title="Appel vidéo"

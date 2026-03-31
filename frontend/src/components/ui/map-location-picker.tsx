@@ -122,7 +122,7 @@ export function MapLocationPicker({ value, onChange, onClose }: MapLocationPicke
   };
 
   return (
-    <div className="flex flex-col gap-4 h-[500px] w-full bg-white rounded-xl overflow-hidden border shadow-sm">
+    <div className="flex flex-col gap-4 h-[500px] w-full bg-card rounded-xl overflow-hidden border shadow-sm">
       <div className="p-4 border-b space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-semibold text-foreground flex items-center gap-2">
@@ -171,7 +171,7 @@ export function MapLocationPicker({ value, onChange, onClose }: MapLocationPicke
         </MapContainer>
       </div>
 
-      <div className="p-4 border-t bg-gray-50 flex flex-col gap-3">
+      <div className="p-4 border-t bg-muted/50 flex flex-col gap-3">
         <div className="text-sm text-muted-foreground flex items-start gap-2">
           <MapPin size={14} className="mt-0.5 flex-shrink-0" />
           <span className="line-clamp-2">{address || 'Click on the map to select a location'}</span>

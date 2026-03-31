@@ -28,7 +28,7 @@ export default function StatsCard({
   return (
     <Card 
       onClick={onClick}
-      className={`p-6 bg-white rounded-2xl border-0 shadow-lg transition-all duration-300 ${
+      className={`p-6 bg-card rounded-2xl border border-border shadow-lg transition-all duration-300 ${
         onClick ? 'cursor-pointer hover:-translate-y-1 hover:shadow-xl' : ''
       } ${
         isActive ? 'ring-2 ring-primary bg-blue-50/50' : ''

@@ -54,7 +54,7 @@ export default function SubAdminLoginPage({ onLogin, onForgotPassword }: SubAdmi
 
       <div className="lg:w-1/2 flex items-center justify-center p-8 lg:p-16 bg-background">
         <div className="w-full max-w-xl">
-          <Card className="p-10 bg-white rounded-3xl shadow-2xl border-0">
+          <Card className="p-10 bg-card rounded-3xl shadow-2xl border-0">
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-3">
                 <ShieldCheck className="text-primary" size={32} />
@@ -76,7 +76,7 @@ export default function SubAdminLoginPage({ onLogin, onForgotPassword }: SubAdmi
                     className={`pl-12 h-14 rounded-xl border-2 transition-colors ${
                       errors.email
                         ? 'border-red-500 focus:border-red-500'
-                        : 'border-gray-200 hover:border-[#1F3A8A] focus:border-[#1F3A8A]'
+                        : 'border-border hover:border-[#1F3A8A] focus:border-[#1F3A8A]'
                     }`}
                   />
                 </div>
@@ -95,7 +95,7 @@ export default function SubAdminLoginPage({ onLogin, onForgotPassword }: SubAdmi
                     className={`pl-12 h-14 rounded-xl border-2 transition-colors ${
                       errors.password
                         ? 'border-red-500 focus:border-red-500'
-                        : 'border-gray-200 hover:border-[#1F3A8A] focus:border-[#1F3A8A]'
+                        : 'border-border hover:border-[#1F3A8A] focus:border-[#1F3A8A]'
                     }`}
                   />
                 </div>

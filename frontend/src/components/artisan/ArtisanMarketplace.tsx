@@ -460,7 +460,7 @@ export default function ArtisanMarketplace() {
       <>
         {showProjectConfirm && productToAdd && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] pointer-events-auto">
-            <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="mx-4 w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
               <div className="p-6">
                 {confirmMessage ? (
                   <div className="text-center py-8">
@@ -482,18 +482,18 @@ export default function ArtisanMarketplace() {
                 ) : (
                   <>
                     <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Package size={32} className="text-gray-600" />
+                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package size={32} className="text-muted-foreground" />
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">Add this material to the project?</h3>
-                      <p className="text-gray-600 font-medium">{productToAdd.name}</p>
+                      <h3 className="text-xl font-bold text-foreground mb-2">Add this material to the project?</h3>
+                      <p className="text-muted-foreground font-medium">{productToAdd.name}</p>
                     </div>
 
                     <div className="flex gap-3">
                       <Button
                         type="button"
                         variant="outline"
-                        className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                        className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                         onClick={cancelAddToProject}
                         disabled={isAddingToProject}
                       >
@@ -502,7 +502,7 @@ export default function ArtisanMarketplace() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                        className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                         onClick={confirmAddToProject}
                         disabled={isAddingToProject}
                       >
@@ -730,8 +730,8 @@ export default function ArtisanMarketplace() {
 
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="space-y-4">
-            <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
-              <div className="aspect-video bg-gray-100">
+            <Card className="p-0 bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
+              <div className="aspect-video bg-muted">
                 <ImageWithFallback src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
               </div>
             </Card>
@@ -741,7 +741,7 @@ export default function ArtisanMarketplace() {
               const SERVER = API_URL.replace('/api', '');
               const pdfUrl = raw.startsWith('http') ? raw : `${SERVER}${raw.startsWith('/') ? '' : '/'}${raw}`;
               return (
-                <Card className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <Card className="p-5 bg-card rounded-2xl border border-border shadow-sm">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
                       <FileText size={24} className="text-blue-600" />
@@ -763,7 +763,7 @@ export default function ArtisanMarketplace() {
           </div>
 
           <div className="space-y-6">
-            <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
               <Badge className="mb-4 bg-primary/10 text-primary border-0 px-3 py-1 uppercase tracking-wider text-xs">
                 {selectedProduct.category}
               </Badge>
@@ -773,7 +773,7 @@ export default function ArtisanMarketplace() {
               </p>
               
               {/* Dynamic Rating Display & Input */}
-              <div className="flex flex-col gap-2 mb-6 p-4 bg-gray-50 rounded-xl">
+              <div className="flex flex-col gap-2 mb-6 p-4 bg-muted/50 rounded-xl">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold text-foreground">{displayedAverage.toFixed(1)}</span>
                   <div className="flex text-secondary">
@@ -783,7 +783,7 @@ export default function ArtisanMarketplace() {
                   </div>
                   <span className="text-muted-foreground">({displayedReviews} reviews)</span>
                 </div>
-                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-200">
+                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
                   <span className="text-sm text-muted-foreground mr-2">Rate this product:</span>
                   {Array.from({ length: maxStars }, (_, i) => i + 1).map((star) => (
                     <Star
@@ -951,7 +951,7 @@ export default function ArtisanMarketplace() {
   if (view === 'confirmation') {
     return (
       <div className="max-w-2xl mx-auto">
-        <Card className="p-12 text-center bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-12 text-center bg-card rounded-2xl border border-border shadow-lg">
           <div className="flex items-center justify-center w-24 h-24 rounded-full bg-accent/10 mb-6 mx-auto">
             <Check size={48} className="text-accent" />
           </div>
@@ -979,7 +979,7 @@ export default function ArtisanMarketplace() {
         </Button>
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
               <h2 className="text-3xl font-bold text-foreground mb-6">Shopping Cart ({cart.length})</h2>
               {cart.length === 0 ? (
                 <div className="text-center py-16">
@@ -989,8 +989,8 @@ export default function ArtisanMarketplace() {
               ) : (
                 <div className="space-y-4">
                   {cart.map((item) => (
-                    <div key={item._id} className="flex items-center gap-4 p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/20 transition-all">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                    <div key={item._id} className="flex items-center gap-4 p-6 rounded-2xl border-2 border-border hover:border-primary/20 transition-all">
+                      <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                         <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1">
@@ -998,12 +998,12 @@ export default function ArtisanMarketplace() {
                         <p className="text-sm text-muted-foreground">{getManufacturerName(item)}</p>
                         <p className="text-sm font-semibold text-primary">{item.price} TND / unit</p>
                       </div>
-                      <div className="px-4 py-2 rounded-xl bg-gray-50 border border-gray-200 min-w-[84px] text-center">
+                      <div className="px-4 py-2 rounded-xl bg-muted/50 border border-border min-w-[84px] text-center">
                         <p className="text-xs text-muted-foreground font-medium">Quantity</p>
                         <div className="mt-1 flex items-center justify-center gap-2">
                           <button
                             type="button"
-                            className="w-7 h-7 rounded-md border border-gray-300 bg-white text-sm font-bold leading-none hover:bg-gray-100"
+                            className="w-7 h-7 rounded-md border border-border bg-card text-sm font-bold leading-none hover:bg-muted"
                             onClick={() => updateCartQuantity(String(item._id), -1)}
                           >
                             -
@@ -1011,7 +1011,7 @@ export default function ArtisanMarketplace() {
                           <p className="font-bold text-lg text-foreground min-w-[20px]">{item.quantity}</p>
                           <button
                             type="button"
-                            className="w-7 h-7 rounded-md border border-gray-300 bg-white text-sm font-bold leading-none hover:bg-gray-100"
+                            className="w-7 h-7 rounded-md border border-border bg-card text-sm font-bold leading-none hover:bg-muted"
                             onClick={() => updateCartQuantity(String(item._id), 1)}
                           >
                             +
@@ -1028,13 +1028,13 @@ export default function ArtisanMarketplace() {
             </Card>
           </div>
           <div>
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg sticky top-8">
               <h3 className="text-xl font-bold text-foreground mb-6">Order Summary</h3>
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between text-muted-foreground"><span>Items</span><span className="font-semibold text-foreground">{totalItems}</span></div>
                 <div className="flex justify-between text-muted-foreground"><span>Materials amount</span><span className="font-semibold text-foreground">{itemsSubtotalAmount.toFixed(2)} DT</span></div>
                 <div className="flex justify-between text-muted-foreground text-sm"><span>Shipping</span><span className="text-muted-foreground italic">Calculated at checkout</span></div>
-                <div className="pt-4 border-t-2 border-gray-100">
+                <div className="pt-4 border-t-2 border-border">
                   <div className="flex justify-between">
                     <span className="text-lg font-semibold text-foreground">Subtotal</span>
                     <span className="text-2xl font-bold text-primary">{itemsSubtotalAmount.toFixed(2)} DT</span>
@@ -1064,19 +1064,19 @@ export default function ArtisanMarketplace() {
           <p className="text-lg text-muted-foreground">{projectId ? 'Add construction materials directly to your project.' : 'Browse and order construction materials'}</p>
         </div>
         {projectId && (
-          <Button onClick={() => window.location.href = '/?artisanView=projects'} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-white shadow-sm">
+          <Button onClick={() => window.location.href = '/?artisanView=projects'} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-card shadow-sm">
             <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Projects
           </Button>
         )}
       </div>
 
-      <Card className="p-4 md:p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-4 md:p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <Input placeholder="Search materials or tools..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 h-12 rounded-xl border-2 border-gray-200 focus:border-primary bg-gray-50/50" />
+            <Input placeholder="Search materials or tools..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary bg-muted/50" />
           </div>
-          <Button variant={showFilters ? "default" : "outline"} className={`h-12 px-6 rounded-xl border-2 transition-all ${showFilters ? 'bg-primary text-white shadow-md' : 'hover:bg-gray-50'}`} onClick={() => setShowFilters(!showFilters)}>
+          <Button variant={showFilters ? "default" : "outline"} className={`h-12 px-6 rounded-xl border-2 transition-all ${showFilters ? 'bg-primary dark:bg-blue-600 text-white shadow-md' : 'hover:bg-muted/50'}`} onClick={() => setShowFilters(!showFilters)}>
             <SlidersHorizontal size={20} className="mr-2" /> Filters
           </Button>
         </div>
@@ -1086,7 +1086,7 @@ export default function ArtisanMarketplace() {
         {/* Sidebar Filtres Améliorée */}
         {showFilters && (
           <div className="lg:w-80 flex-shrink-0 animate-in slide-in-from-left-4 fade-in">
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8 border-t-4 border-t-primary">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg sticky top-8 border-t-4 border-t-primary">
               <div className="flex items-center justify-between mb-6 border-b pb-4">
                 <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                   <SlidersHorizontal size={20} className="text-primary"/> Filters
@@ -1098,14 +1098,14 @@ export default function ArtisanMarketplace() {
 
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Category</Label>
-                  <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-gray-100 bg-gray-50 focus:border-primary focus:bg-white transition-colors outline-none cursor-pointer">
+                  <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Category</Label>
+                  <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card transition-colors outline-none cursor-pointer">
                     {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
                   </select>
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex justify-between">
+                  <Label className="text-sm font-bold text-foreground uppercase tracking-wider flex justify-between">
                     <span>Price Range</span>
                     <span className="text-primary">{priceRange[0]} - {priceRange[1]} TND</span>
                   </Label>
@@ -1113,19 +1113,19 @@ export default function ArtisanMarketplace() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Manufacturer</Label>
-                  <select value={selectedManufacturer} onChange={(e) => setSelectedManufacturer(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-gray-100 bg-gray-50 focus:border-primary focus:bg-white transition-colors outline-none cursor-pointer">
+                  <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Manufacturer</Label>
+                  <select value={selectedManufacturer} onChange={(e) => setSelectedManufacturer(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card transition-colors outline-none cursor-pointer">
                     {manufacturers.map(mfr => <option key={mfr} value={mfr}>{mfr === 'all' ? 'All Manufacturers' : mfr}</option>)}
                   </select>
                 </div>
 
-                <div className="pt-4 border-t border-gray-100">
+                <div className="pt-4 border-t border-border">
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${availableOnly ? 'bg-primary border-primary' : 'border-gray-300 group-hover:border-primary'}`}>
+                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${availableOnly ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'}`}>
                       {availableOnly && <Check size={14} className="text-white" />}
                     </div>
                     <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} className="hidden" />
-                    <span className="text-sm font-semibold text-gray-700 select-none">In Stock Only</span>
+                    <span className="text-sm font-semibold text-foreground select-none">In Stock Only</span>
                   </label>
                 </div>
               </div>
@@ -1138,7 +1138,7 @@ export default function ArtisanMarketplace() {
           {isLoading ? (
             <div className="text-center py-20 text-muted-foreground">Loading marketplace...</div>
           ) : filteredProducts.length === 0 ? (
-            <Card className="p-16 text-center bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-16 text-center bg-card rounded-2xl border border-border shadow-lg">
               <Package size={64} className="mx-auto mb-4 text-gray-300" />
               <h3 className="text-xl font-bold text-foreground mb-2">No Products Found</h3>
               <p className="text-muted-foreground">Try adjusting your filters to find what you need.</p>
@@ -1146,10 +1146,10 @@ export default function ArtisanMarketplace() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {paginatedProducts.map((product) => (
-                <Card key={product._id} className="group bg-white rounded-2xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
-                  <div className="aspect-video relative overflow-hidden bg-gray-100">
+                <Card key={product._id} className="group bg-card rounded-2xl border border-border shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
+                  <div className="aspect-video relative overflow-hidden bg-muted">
                     <ImageWithFallback src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0 px-3 py-1 backdrop-blur-sm font-bold shadow-sm">
+                    <Badge className="absolute top-3 right-3 bg-card/90 text-primary border-0 px-3 py-1 backdrop-blur-sm font-bold shadow-sm">
                       {product.category}
                     </Badge>
                   </div>
@@ -1166,7 +1166,7 @@ export default function ArtisanMarketplace() {
                       <span className="text-xs text-muted-foreground ml-1">({product.numReviews})</span>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 mb-4">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border mb-4">
                       <span className="text-2xl font-bold text-primary">{product.price.toLocaleString()} <span className="text-sm">TND</span></span>
                       <span className={`text-xs font-bold px-2 py-1 rounded-md ${product.stock > 10 ? 'bg-green-100 text-green-700' : product.stock > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
                         {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
@@ -1174,7 +1174,7 @@ export default function ArtisanMarketplace() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-auto">
-                      <Button variant="outline" className="h-11 rounded-xl border-2 hover:bg-gray-50 hover:text-primary transition-colors" onClick={() => { setSelectedProduct(product); setView('detail'); }}>
+                      <Button variant="outline" className="h-11 rounded-xl border-2 hover:bg-muted/50 hover:text-primary transition-colors" onClick={() => { setSelectedProduct(product); setView('detail'); }}>
                         <Eye size={16} className="mr-1" /> View
                       </Button>
                       <Button disabled={product.stock === 0} className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors" onClick={() => guard(() => addToCart(product))}>
@@ -1192,7 +1192,7 @@ export default function ArtisanMarketplace() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-11 rounded-2xl border-2 border-gray-200 bg-white p-0 hover:bg-gray-50 disabled:opacity-50"
+                className="h-11 w-11 rounded-2xl border-2 border-border bg-card p-0 hover:bg-muted/50 disabled:opacity-50"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={safeCurrentPage === 1}
                 aria-label="Previous page"
@@ -1210,7 +1210,7 @@ export default function ArtisanMarketplace() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-11 rounded-2xl border-2 border-gray-200 bg-white p-0 hover:bg-gray-50 disabled:opacity-50"
+                className="h-11 w-11 rounded-2xl border-2 border-border bg-card p-0 hover:bg-muted/50 disabled:opacity-50"
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={safeCurrentPage === totalPages}
                 aria-label="Next page"

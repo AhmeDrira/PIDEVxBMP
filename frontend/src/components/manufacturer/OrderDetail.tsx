@@ -92,7 +92,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
       </Button>
 
       {/* Header */}
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Order</p>
@@ -109,7 +109,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
       </Card>
 
       {/* Progress Bar */}
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <h3 className="text-lg font-bold text-foreground mb-5">Order Progress</h3>
         <div className="relative">
           <div className="flex items-center justify-between relative">
@@ -125,7 +125,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
                     style={{
                       width: 44, height: 44,
                       minWidth: 44, minHeight: 44,
-                      backgroundColor: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#22c55e') : '#f3f4f6',
+                      backgroundColor: isReached ? (isCurrent ? 'var(--primary, #2563eb)' : '#22c55e') : 'var(--muted)',
                       color: isReached ? '#ffffff' : '#9ca3af',
                       boxShadow: isCurrent ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
                     }}
@@ -144,7 +144,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
                 </div>
               );
             })}
-            <div className="absolute top-5 left-[12.5%] right-[12.5%] h-1 bg-gray-100 rounded-full">
+            <div className="absolute top-5 left-[12.5%] right-[12.5%] h-1 bg-muted rounded-full">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{ backgroundColor: '#22c55e' }}
@@ -156,15 +156,15 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
 
         {/* Timeline Events */}
         {timeline.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-gray-100">
+          <div className="mt-6 pt-4 border-t border-border">
             <div className="space-y-3">
               {timeline.map((event: any, i: number) => {
                 const evConf = statusConfig[event.status] || {};
                 const EvIcon = evConf.icon || CircleDot;
                 return (
                   <div key={i} className="flex gap-3 items-start">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${evConf.bg || 'bg-gray-100'} border`}>
-                      <EvIcon size={12} className={evConf.color || 'text-gray-500'} />
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${evConf.bg || 'bg-muted'} border`}>
+                      <EvIcon size={12} className={evConf.color || 'text-muted-foreground'} />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">{event.label}</p>
@@ -183,19 +183,19 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Items */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
               <Package size={20} className="text-primary" /> Order Items
             </h3>
             <div className="space-y-3">
               {(order.items || []).map((item: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0">
                       {item.image ? (
                         <img src={getImageUrl(item.image) || ''} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center"><Package size={20} className="text-gray-400" /></div>
+                        <div className="w-full h-full flex items-center justify-center"><Package size={20} className="text-muted-foreground" /></div>
                       )}
                     </div>
                     <div>
@@ -207,26 +207,26 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
                 </div>
               ))}
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-foreground">
+            <div className="mt-4 pt-4 border-t border-border flex justify-between font-bold text-foreground">
               <span>Total</span>
               <span className="text-xl text-primary">{(order.amount || 0).toFixed(2)} DT</span>
             </div>
           </Card>
 
           {/* Customer Info */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
               <User size={20} className="text-primary" /> Customer
             </h3>
             <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
                 <User size={18} className="text-primary" />
                 <div>
                   <p className="text-xs text-muted-foreground">Name</p>
                   <p className="font-semibold">{order.customer}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
                 <Mail size={18} className="text-primary" />
                 <div>
                   <p className="text-xs text-muted-foreground">Email</p>
@@ -237,7 +237,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
 
             {/* Shipping address if available */}
             {order.shippingAddress && (
-              <div className="mt-4 p-4 rounded-xl bg-gray-50">
+              <div className="mt-4 p-4 rounded-xl bg-muted/50">
                 <p className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
                   <MapPin size={16} className="text-primary" /> Shipping Address
                 </p>
@@ -254,7 +254,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
 
         {/* Action Sidebar */}
         <div className="space-y-4">
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
               <Truck size={20} className="text-primary" /> Update Status
             </h3>
@@ -290,7 +290,7 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
             </div>
           </Card>
 
-          <Card className="p-5 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-5 bg-card rounded-2xl border border-border shadow-lg">
             <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
               <FileText size={16} className="text-primary" /> Details
             </h4>

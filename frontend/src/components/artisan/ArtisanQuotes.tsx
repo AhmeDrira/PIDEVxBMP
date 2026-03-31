@@ -466,14 +466,14 @@ export default function ArtisanQuotes() {
   const renderInvoiceConfirmBar = () => (
     showInvoiceModal ? (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] pointer-events-auto">
-        <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="mx-4 w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
           <div className="p-6">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText size={32} className="text-gray-600" />
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText size={32} className="text-muted-foreground" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-900 mb-2">Generate Invoice?</h3>
-              <p className="text-gray-600 font-medium">{invoiceTargetQuote?.quoteNumber || selectedQuote?.quoteNumber}</p>
+              <h3 className="text-3xl font-bold text-foreground mb-2">Generate Invoice?</h3>
+              <p className="text-muted-foreground font-medium">{invoiceTargetQuote?.quoteNumber || selectedQuote?.quoteNumber}</p>
             </div>
 
             <div className="space-y-2 mb-6">
@@ -484,7 +484,7 @@ export default function ArtisanQuotes() {
                 min={todayLocalDate}
                 value={invoiceDueDate}
                 onChange={(e) => setInvoiceDueDate(e.target.value)}
-                className="h-12 rounded-xl border-2 border-gray-200"
+                className="h-12 rounded-xl border-2 border-border"
               />
             </div>
 
@@ -492,7 +492,7 @@ export default function ArtisanQuotes() {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                 onClick={() => {
                   setShowInvoiceModal(false);
                   setInvoiceDueDate('');
@@ -505,7 +505,7 @@ export default function ArtisanQuotes() {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                 onClick={handleGenerateInvoiceFromQuote}
                 disabled={isGeneratingInvoice}
               >
@@ -521,20 +521,20 @@ export default function ArtisanQuotes() {
   const renderDeleteQuoteConfirmBar = () => (
     showDeleteQuoteModal ? (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] pointer-events-auto">
-        <div className="mx-4 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="mx-4 w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
           <div className="p-6">
             <div className="text-center mb-6">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${deleteQuoteError ? 'bg-amber-50' : 'bg-red-50'}`}>
                 <Trash2 size={32} className={deleteQuoteError ? 'text-amber-600' : 'text-red-600'} />
               </div>
-              <h3 className="text-3xl font-bold text-gray-900 mb-2">Delete Quote?</h3>
-              <p className="text-gray-600 font-medium">{quoteToDelete?.quoteNumber || ''}</p>
+              <h3 className="text-3xl font-bold text-foreground mb-2">Delete Quote?</h3>
+              <p className="text-muted-foreground font-medium">{quoteToDelete?.quoteNumber || ''}</p>
               {deleteQuoteError ? (
                 <div className="mt-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 font-medium text-left">
                   ⚠️ {deleteQuoteError}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 mt-2">Are you sure you want to delete this quote?</p>
+                <p className="text-sm text-muted-foreground mt-2">Are you sure you want to delete this quote?</p>
               )}
             </div>
 
@@ -542,7 +542,7 @@ export default function ArtisanQuotes() {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 h-12 rounded-xl border-2 border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                className="flex-1 h-12 rounded-xl border-2 border-border bg-card text-foreground font-semibold hover:bg-muted/50 hover:border-gray-400 transition-all"
                 onClick={() => {
                   setShowDeleteQuoteModal(false);
                   setQuoteToDelete(null);
@@ -556,7 +556,7 @@ export default function ArtisanQuotes() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 h-12 rounded-xl border-2 border-red-200 bg-white text-red-600 font-semibold hover:bg-red-50 hover:border-red-300 transition-all"
+                  className="flex-1 h-12 rounded-xl border-2 border-red-200 bg-card text-red-600 font-semibold hover:bg-red-50 hover:border-red-300 transition-all"
                   onClick={handleDeleteQuote}
                   disabled={isDeletingQuote}
                 >
@@ -594,7 +594,7 @@ export default function ArtisanQuotes() {
       case 'approved': return 'bg-accent/10 text-accent border-accent/20';
       case 'pending': return 'bg-secondary/10 text-secondary border-secondary/20';
       case 'rejected': return 'bg-destructive/10 text-destructive border-destructive/20';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -646,7 +646,7 @@ export default function ArtisanQuotes() {
         <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
           <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Quotes
         </Button>
-        <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
           <h2 className="text-3xl font-bold text-foreground mb-8">Generate New Quote</h2>
           <form className="space-y-6" onSubmit={handleCreateQuote}>
             {/* Projet */}
@@ -662,8 +662,8 @@ export default function ArtisanQuotes() {
                   if (touched.project) setErrors(prev => ({ ...prev, project: validateField('project', e.target.value) }));
                 }}
                 onBlur={() => handleBlur('project')}
-                className={`w-full h-12 px-4 border-2 rounded-xl focus:border-primary focus:outline-none bg-white ${
-                  touched.project && errors.project ? 'border-red-500' : 'border-gray-200'
+                className={`w-full h-12 px-4 border-2 rounded-xl focus:border-primary focus:outline-none bg-card ${
+                  touched.project && errors.project ? 'border-red-500' : 'border-border'
                 }`}
               >
                 <option value="">Choose a project...</option>
@@ -694,7 +694,7 @@ export default function ArtisanQuotes() {
                 onBlur={() => handleBlur('clientName')}
                 placeholder="Client full name"
                 className={`h-12 rounded-xl border-2 focus:border-primary ${
-                  touched.clientName && errors.clientName ? 'border-red-500' : 'border-gray-200'
+                  touched.clientName && errors.clientName ? 'border-red-500' : 'border-border'
                 }`}
               />
               {touched.clientName && errors.clientName && (
@@ -720,7 +720,7 @@ export default function ArtisanQuotes() {
                   onBlur={() => handleBlur('laborHand')}
                   placeholder="0.00"
                   className={`h-12 rounded-xl border-2 focus:border-primary ${
-                    touched.laborHand && errors.laborHand ? 'border-red-500' : 'border-gray-200'
+                    touched.laborHand && errors.laborHand ? 'border-red-500' : 'border-border'
                   }`}
                 />
                 {touched.laborHand && errors.laborHand && (
@@ -730,7 +730,7 @@ export default function ArtisanQuotes() {
 
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Materials from project (TND)</Label>
-                <div className="h-12 rounded-xl border-2 border-gray-200 bg-gray-50 px-3 flex items-center justify-between gap-3">
+                <div className="h-12 rounded-xl border-2 border-border bg-muted/50 px-3 flex items-center justify-between gap-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -744,13 +744,13 @@ export default function ArtisanQuotes() {
                   <span className="text-lg font-bold text-primary">{formatAmount(materialsAmount)}</span>
                 </div>
                 {showAllMaterials && (
-                  <div className="rounded-xl border border-gray-200 bg-white p-3 max-h-48 overflow-auto">
+                  <div className="rounded-xl border border-border bg-card p-3 max-h-48 overflow-auto">
                     {groupedMaterials.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No materials added to this project yet.</p>
                     ) : (
                       <div className="space-y-2">
                         {groupedMaterials.map((entry: any, index: number) => (
-                          <div key={String(entry.item?._id || index)} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div key={String(entry.item?._id || index)} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2">
                             <p className="text-sm font-medium text-foreground truncate pr-2">{entry.item?.name || 'Material'}</p>
                             <p className="text-sm text-muted-foreground whitespace-nowrap">
                               x{entry.quantity} • {formatAmount(Number(entry.item?.price || 0) * entry.quantity)}
@@ -798,15 +798,15 @@ export default function ArtisanQuotes() {
             <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
               <p className="text-sm text-muted-foreground mb-2">Total amount preview</p>
               <div className="grid md:grid-cols-3 gap-3 text-sm">
-                <div className="rounded-lg bg-white p-3 border border-gray-100">
+                <div className="rounded-lg bg-card p-3 border border-border">
                   <p className="text-muted-foreground">Labor hand</p>
                   <p className="font-semibold text-foreground">{formatAmount(Number.isFinite(laborHandAmount) ? laborHandAmount : 0)}</p>
                 </div>
-                <div className="rounded-lg bg-white p-3 border border-gray-100">
+                <div className="rounded-lg bg-card p-3 border border-border">
                   <p className="text-muted-foreground">Materials</p>
                   <p className="font-semibold text-foreground">{formatAmount(materialsAmount)}</p>
                 </div>
-                <div className="rounded-lg bg-primary text-white p-3 border border-primary/30">
+                <div className="rounded-lg bg-primary dark:bg-blue-600 text-white p-3 border border-primary/30">
                   <p>Total</p>
                   <p className="font-bold text-lg">{formatAmount(totalAmount)}</p>
                 </div>
@@ -829,7 +829,7 @@ export default function ArtisanQuotes() {
                 placeholder="Describe the work, materials, and services included..."
                 rows={6}
                 className={`rounded-xl border-2 focus:border-primary ${
-                  touched.description && errors.description ? 'border-red-500' : 'border-gray-200'
+                  touched.description && errors.description ? 'border-red-500' : 'border-border'
                 }`}
               />
               {touched.description && errors.description && (
@@ -854,7 +854,7 @@ export default function ArtisanQuotes() {
                   }}
                   onBlur={() => handleBlur('validUntil')}
                   className={`h-12 rounded-xl border-2 focus:border-primary ${
-                    touched.validUntil && errors.validUntil ? 'border-red-500' : 'border-gray-200'
+                    touched.validUntil && errors.validUntil ? 'border-red-500' : 'border-border'
                   }`}
                 />
                 {touched.validUntil && errors.validUntil && (
@@ -867,7 +867,7 @@ export default function ArtisanQuotes() {
                 <Label className="text-base font-semibold">Payment Terms <span style={{ color: 'red' }}>*</span></Label>
 
                 <div className="flex flex-wrap gap-3">
-                  <label className={`flex items-center gap-2 px-3 h-10 rounded-lg border-2 cursor-pointer ${formData.paymentType === 'percentage' ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white'}`}>
+                  <label className={`flex items-center gap-2 px-3 h-10 rounded-lg border-2 cursor-pointer ${formData.paymentType === 'percentage' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
                     <input
                       type="radio"
                       name="paymentType"
@@ -881,7 +881,7 @@ export default function ArtisanQuotes() {
                     />
                     Percentage (%)
                   </label>
-                  <label className={`flex items-center gap-2 px-3 h-10 rounded-lg border-2 cursor-pointer ${formData.paymentType === 'fixed' ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white'}`}>
+                  <label className={`flex items-center gap-2 px-3 h-10 rounded-lg border-2 cursor-pointer ${formData.paymentType === 'fixed' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
                     <input
                       type="radio"
                       name="paymentType"
@@ -914,7 +914,7 @@ export default function ArtisanQuotes() {
                     onBlur={() => handleBlur('upfrontValue')}
                     placeholder={formData.paymentType === 'percentage' ? 'e.g. 30' : 'e.g. 500'}
                     className={`h-10 rounded-xl border-2 focus:border-primary ${
-                      touched.upfrontValue && errors.upfrontValue ? 'border-red-500' : 'border-gray-200'
+                      touched.upfrontValue && errors.upfrontValue ? 'border-red-500' : 'border-border'
                     }`}
                   />
                   {touched.upfrontValue && errors.upfrontValue && (
@@ -922,7 +922,7 @@ export default function ArtisanQuotes() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm space-y-2">
+                <div className="rounded-xl border border-border bg-muted/50 p-3 text-sm space-y-2">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Upfront</span>
                     <span className="font-semibold text-foreground">
@@ -978,15 +978,19 @@ export default function ArtisanQuotes() {
                 >
                   <CheckCircle size={18} className="mr-2" /> Mark Approved
                 </Button>
-                <Button onClick={() => handleStatusChange(selectedQuote._id, 'rejected')} variant="destructive" className="rounded-xl">
-                  <XCircle size={18} className="mr-2" /> Mark Rejected
-                </Button>
+                <Button 
+                    onClick={() => handleStatusChange(selectedQuote._id, 'rejected')} 
+                    style={{ backgroundColor: '#dc2626', color: 'white' }}
+                    className="hover:bg-red-700 !text-white rounded-xl shadow-md border-0"
+                  >
+                    <XCircle size={18} className="mr-2 text-white" /> Mark Rejected
+                  </Button>
               </>
             )}
           </div>
         </div>
 
-        <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg print:shadow-none print:m-0 print:border">
+        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg print:shadow-none print:m-0 print:border">
           <div className="flex justify-between items-start mb-10 border-b-2 pb-6">
             <div>
               <h1 className="text-4xl font-bold text-primary mb-2">QUOTE</h1>
@@ -1014,13 +1018,13 @@ export default function ArtisanQuotes() {
             </div>
           </div>
 
-          <div className="mb-6 bg-gray-50 p-6 rounded-xl border">
+          <div className="mb-6 bg-muted/50 p-6 rounded-xl border">
             <h4 className="font-bold text-foreground mb-4">Description of Work / Items:</h4>
             <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{selectedQuote.description}</p>
           </div>
 
           {selectedQuote.paymentTerms && (
-            <div className="mb-10 bg-gray-50 p-6 rounded-xl border">
+            <div className="mb-10 bg-muted/50 p-6 rounded-xl border">
               <h4 className="font-bold text-foreground mb-4">Payment Terms:</h4>
               <p className="whitespace-pre-wrap text-muted-foreground">{selectedQuote.paymentTerms}</p>
             </div>
@@ -1028,15 +1032,15 @@ export default function ArtisanQuotes() {
 
           <div className="flex justify-end border-t-2 pt-6">
             <div className="w-full max-w-md space-y-3">
-              <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-3">
                 <p className="text-muted-foreground font-medium">Labor hand</p>
                 <p className="font-semibold text-foreground">{formatAmount(Number(selectedQuote.laborHand || selectedQuote.amount || 0))}</p>
               </div>
-              <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-3">
                 <p className="text-muted-foreground font-medium">Materials</p>
                 <p className="font-semibold text-foreground">{formatAmount(Number(selectedQuote.materialsAmount || 0))}</p>
               </div>
-              <div className="flex items-center justify-between rounded-lg border bg-primary px-4 py-3 text-white">
+              <div className="flex items-center justify-between rounded-lg border bg-primary dark:bg-blue-600 px-4 py-3 text-white">
                 <p className="font-medium">Total</p>
                 <p className="text-2xl font-bold">{formatAmount(Number(selectedQuote.amount || 0))}</p>
               </div>
@@ -1046,7 +1050,7 @@ export default function ArtisanQuotes() {
 
         {selectedQuote.status === 'approved' && !selectedQuote.hasInvoice && (
           <div ref={invoiceSectionRef}>
-            <Card className="p-5 bg-white rounded-2xl border border-green-200 shadow-sm">
+            <Card className="p-5 bg-card rounded-2xl border border-green-200 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h4 className="text-lg font-semibold text-foreground">Ready to generate invoice</h4>
@@ -1088,9 +1092,9 @@ export default function ArtisanQuotes() {
         <StatsCard label="Pending" value={quotes.filter(q => q.status === 'pending').length.toString()} icon={<Clock size={28} />} color="#F59E0B" subtitle="Awaiting response" />
       </div>
 
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-          <div className="flex-1 h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2">
+          <div className="flex-1 h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2">
             <Search className="text-muted-foreground shrink-0" size={18} />
             <Input
               placeholder="Search quotes..."
@@ -1100,7 +1104,7 @@ export default function ArtisanQuotes() {
             />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 lg:w-auto">
-            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+            <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
               <Filter className="text-muted-foreground shrink-0" size={16} />
               <select
                 value={statusFilter}
@@ -1114,7 +1118,7 @@ export default function ArtisanQuotes() {
                 <option value="rejected">Rejected</option>
               </select>
             </div>
-            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+            <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
               <select
                 value={invoiceFilter}
                 onChange={(e) => setInvoiceFilter(e.target.value as 'all' | 'withInvoice' | 'withoutInvoice')}
@@ -1134,13 +1138,13 @@ export default function ArtisanQuotes() {
         {isLoading ? (
           <div className="text-center py-10">Loading quotes...</div>
         ) : filteredQuotes.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-2xl shadow-lg border border-gray-100">
+          <div className="text-center py-10 bg-card rounded-2xl border border-border shadow-lg border border-border">
             <FileText className="mx-auto text-gray-300 mb-4" size={48} />
-            <p className="text-xl font-semibold text-gray-500">No quotes found.</p>
+            <p className="text-xl font-semibold text-muted-foreground">No quotes found.</p>
           </div>
         ) : (
           filteredQuotes.map((quote) => (
-            <Card key={quote._id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <Card key={quote._id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">

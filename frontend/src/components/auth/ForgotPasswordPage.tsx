@@ -101,7 +101,7 @@ export default function ForgotPasswordPage({ onBackToLogin, initialEmail }: Forg
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative" style={{ backgroundImage: "url('/construction-bg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
       <div className="absolute inset-0 bg-black/60" />
-      <Card className="w-full max-w-xl p-10 bg-white rounded-3xl shadow-2xl border-0 relative z-10">
+      <Card className="w-full max-w-xl p-10 bg-card rounded-3xl shadow-2xl border-0 relative z-10">
         <button
           onClick={step === 'method-choice' ? () => setStep('email-input') : onBackToLogin}
           className="flex items-center gap-2 mb-8 text-primary hover:text-primary/80 transition-colors font-medium"
@@ -136,7 +136,7 @@ export default function ForgotPasswordPage({ onBackToLogin, initialEmail }: Forg
                   placeholder="your@email.com"
                   autoComplete="email"
                   {...register('email')}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-gray-200'} focus:border-primary transition-colors bg-white`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
                 />
               </div>
               {errors.email && <p className="text-sm text-destructive font-medium">{errors.email.message}</p>}
@@ -157,7 +157,7 @@ export default function ForgotPasswordPage({ onBackToLogin, initialEmail }: Forg
             <button
               onClick={handleChooseEmail}
               disabled={loading}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-gray-100 hover:border-primary hover:bg-primary/5 transition-all text-left group"
+              className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
             >
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
                 <Mail size={22} className="text-primary" />
@@ -171,7 +171,7 @@ export default function ForgotPasswordPage({ onBackToLogin, initialEmail }: Forg
             <button
               onClick={handleChooseSms}
               disabled={loading}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-gray-100 hover:border-primary hover:bg-primary/5 transition-all text-left group"
+              className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
             >
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
                 <Smartphone size={22} className="text-primary" />
@@ -202,7 +202,7 @@ export default function ForgotPasswordPage({ onBackToLogin, initialEmail }: Forg
                 placeholder="000000"
                 value={smsCode}
                 onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ''))}
-                className="h-14 text-center text-2xl font-bold tracking-[0.5em] rounded-xl border-2 border-gray-200 focus:border-primary"
+                className="h-14 text-center text-2xl font-bold tracking-[0.5em] rounded-xl border-2 border-border focus:border-primary"
               />
             </div>
             <Button

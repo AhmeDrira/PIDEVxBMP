@@ -40,7 +40,7 @@ export default function AudioCall({
   return (
     <div 
       className="flex flex-col items-center justify-center relative overflow-hidden"
-      style={{ width: '100%', height: '100%', backgroundColor: '#111827', padding: '24px' }}
+      style={{ width: '100%', height: '100%', backgroundColor: 'var(--foreground)', padding: '24px' }}
     >
       {/* Enhanced Audio Waves Animation */}
       <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
@@ -53,7 +53,7 @@ export default function AudioCall({
         <div className="relative mb-8">
           <Avatar 
             className="shadow-2xl border-4"
-            style={{ width: '120px', height: '120px', borderColor: '#374151' }}
+            style={{ width: '120px', height: '120px', borderColor: 'var(--foreground)' }}
           >
             <AvatarFallback className="bg-blue-600 text-white text-4xl">
               {callState.remoteUser?.name?.charAt(0) || '?'}

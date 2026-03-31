@@ -79,7 +79,7 @@ export default function AddKnowledgePage({
         ['bold', 'italic', 'underline', 'strike'],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['link'],
-        [{ color: ['#1F3A8A', '#F59E0B', '#10B981', '#6B7280', '#DC2626'] }],
+        [{ color: ['#1F3A8A', '#F59E0B', '#10B981', 'var(--muted-foreground)', '#DC2626'] }],
         [{ size: ['normal', 'large', 'huge'] }],
         ['clean'],
       ],
@@ -241,7 +241,7 @@ export default function AddKnowledgePage({
         </Button>
       )}
 
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">{isEditMode ? 'Edit Knowledge Article' : 'Add Knowledge Article'}</h1>
           <p className="text-lg text-muted-foreground">
@@ -261,7 +261,7 @@ export default function AddKnowledgePage({
               placeholder="e.g., Modern Foundation Techniques"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="h-12 rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -275,7 +275,7 @@ export default function AddKnowledgePage({
               id="category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full h-12 px-4 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none"
+              className="w-full h-12 px-4 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
               required
             >
               <option value="">Select a category</option>
@@ -296,7 +296,7 @@ export default function AddKnowledgePage({
               placeholder="e.g., Dr. Karim Mansour"
               value={formData.authorName}
               onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="h-12 rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -312,7 +312,7 @@ export default function AddKnowledgePage({
               value={formData.summary}
               onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
               rows={4}
-              className="rounded-xl border-2 border-gray-200 focus:border-primary"
+              className="rounded-xl border-2 border-border focus:border-primary"
               required
             />
           </div>
@@ -325,7 +325,7 @@ export default function AddKnowledgePage({
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 placeholder="Add tag (press Enter)"
-                className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary"
+                className="h-12 rounded-xl border-2 border-border focus:border-primary"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -364,7 +364,7 @@ export default function AddKnowledgePage({
             <Label htmlFor="content" className="text-base font-semibold text-foreground">
               Full Content *
             </Label>
-            <div className="rounded-xl border-2 border-gray-200 overflow-hidden bg-white">
+            <div className="rounded-xl border-2 border-border overflow-hidden bg-card">
               <ReactQuill
                 key={articleToEdit?._id ?? 'new-quill'}
                 theme="snow"
@@ -385,7 +385,7 @@ export default function AddKnowledgePage({
             <Label className="text-base font-semibold text-foreground">
               Attachments (Optional)
             </Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-primary transition-colors bg-gray-50">
+            <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-primary transition-colors bg-muted/50">
               <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
               <p className="text-base font-medium text-foreground mb-2">
                 {newFiles.length
@@ -413,7 +413,7 @@ export default function AddKnowledgePage({
               <div className="mt-4 space-y-2">
                 <p className="text-sm text-muted-foreground font-medium">Existing files</p>
                 {existingAttachments.map((att) => (
-                  <div key={att.url || att.name} className="flex items-center justify-between p-3 rounded-xl bg-white border-2 border-gray-100">
+                  <div key={att.url || att.name} className="flex items-center justify-between p-3 rounded-xl bg-card border-2 border-border">
                     <div className="min-w-0">
                       <p className="text-sm text-foreground truncate">{att.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{att.type} {att.size ? `• ${att.size}` : ''}</p>
@@ -442,7 +442,7 @@ export default function AddKnowledgePage({
                 {newFiles.map((file, index) => (
                   <div
                     key={`${file.name}-${index}`}
-                    className="flex items-center justify-between p-3 rounded-xl bg-white border-2 border-gray-100"
+                    className="flex items-center justify-between p-3 rounded-xl bg-card border-2 border-border"
                   >
                     <div className="min-w-0">
                       <p className="text-sm text-foreground truncate">{file.name}</p>

@@ -73,12 +73,12 @@ export default function VoiceMessage({ url, duration, isSelf, messageId }: Voice
   };
 
   return (
-    <div className={`flex items-center gap-2 p-2 rounded-2xl shadow-sm ${isSelf ? 'text-white' : 'bg-white text-gray-800 border border-gray-100'}`} style={isSelf ? { backgroundColor: '#1E40AF' } : {}}>
+    <div className={`flex items-center gap-2 p-2 rounded-2xl shadow-sm ${isSelf ? 'text-white' : 'bg-card text-foreground border border-border'}`} style={isSelf ? { backgroundColor: '#1E40AF' } : {}}>
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className={`h-8 w-8 rounded-full flex-shrink-0 ${isSelf ? 'hover:bg-blue-800 text-white' : 'hover:bg-gray-100 text-gray-800'}`}
+        className={`h-8 w-8 rounded-full flex-shrink-0 ${isSelf ? 'hover:bg-blue-800 text-white' : 'hover:bg-muted text-foreground'}`}
         onClick={togglePlay}
       >
         {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}

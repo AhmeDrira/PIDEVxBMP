@@ -22,7 +22,7 @@ const roleColors: Record<string, string> = {
   expert: '#10B981',
   manufacturer: '#8B5CF6',
   admin: '#1F3A8A',
-  user: '#6B7280',
+  user: 'var(--muted-foreground)',
 };
 
 export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: string) => void } = {}) {
@@ -79,36 +79,36 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
       <ProfileCompletionBanner onNavigate={onNavigate} profileView="profile" />
 
       {loading && (
-        <Card className="p-6 bg-white">Loading analytics...</Card>
+        <Card className="p-6 bg-card">Loading analytics...</Card>
       )}
       {error && (
-        <Card className="p-6 bg-white text-red-600">{error}</Card>
+        <Card className="p-6 bg-card text-red-600">{error}</Card>
       )}
 
       {!loading && !error && stats && (
         <div className="grid md:grid-cols-4 gap-4">
-        <Card className="p-6 bg-white">
+        <Card className="p-6 bg-card">
           <Users size={32} style={{ color: '#1F3A8A' }} className="mb-2" />
-          <p className="text-3xl mb-1" style={{ color: '#111827' }}>{stats.totalUsers}</p>
-          <p style={{ color: '#6B7280' }}>Total Users</p>
+          <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.totalUsers}</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Total Users</p>
           <p className="text-sm mt-2" style={{ color: '#10B981' }}>{activeUserRate}% active</p>
         </Card>
-        <Card className="p-6 bg-white">
+        <Card className="p-6 bg-card">
           <FolderKanban size={32} style={{ color: '#F59E0B' }} className="mb-2" />
-          <p className="text-3xl mb-1" style={{ color: '#111827' }}>{stats.activeProjects}</p>
-          <p style={{ color: '#6B7280' }}>Active Projects</p>
+          <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.activeProjects}</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Active Projects</p>
           <p className="text-sm mt-2" style={{ color: '#10B981' }}>{stats.totalProjects} total</p>
         </Card>
-        <Card className="p-6 bg-white">
+        <Card className="p-6 bg-card">
           <ShoppingBag size={32} style={{ color: '#10B981' }} className="mb-2" />
-          <p className="text-3xl mb-1" style={{ color: '#111827' }}>{stats.totalInvoices}</p>
-          <p style={{ color: '#6B7280' }}>Total Invoices</p>
+          <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.totalInvoices}</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Total Invoices</p>
           <p className="text-sm mt-2" style={{ color: '#10B981' }}>Billing activity</p>
         </Card>
-        <Card className="p-6 bg-white">
+        <Card className="p-6 bg-card">
           <TrendingUp size={32} style={{ color: '#8B5CF6' }} className="mb-2" />
-          <p className="text-3xl mb-1" style={{ color: '#111827' }}>{stats.satisfaction}%</p>
-          <p style={{ color: '#6B7280' }}>User Satisfaction</p>
+          <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.satisfaction}%</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>User Satisfaction</p>
           <p className="text-sm mt-2" style={{ color: '#10B981' }}>Engagement score</p>
         </Card>
       </div>
@@ -116,8 +116,8 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
 
       {!loading && !error && stats && (
         <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="p-6 bg-white">
-          <h2 className="text-xl mb-6" style={{ color: '#111827' }}>User Growth</h2>
+        <Card className="p-6 bg-card">
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>User Growth</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={stats.userGrowth}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -129,8 +129,8 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6 bg-white">
-          <h2 className="text-xl mb-6" style={{ color: '#111827' }}>Project Activity</h2>
+        <Card className="p-6 bg-card">
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Project Activity</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.projectActivity}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -146,8 +146,8 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
 
       {!loading && !error && stats && (
         <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="p-6 bg-white">
-          <h2 className="text-xl mb-6" style={{ color: '#111827' }}>User Distribution</h2>
+        <Card className="p-6 bg-card">
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>User Distribution</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -169,8 +169,8 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6 bg-white">
-          <h2 className="text-xl mb-6" style={{ color: '#111827' }}>Key Metrics</h2>
+        <Card className="p-6 bg-card">
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Key Metrics</h2>
           <div className="space-y-4">
             {[
               { label: 'Avg Projects per Artisan', value: `${avgProjectsPerArtisan}`, trend: 'Live' },
@@ -185,8 +185,8 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
                 style={{ backgroundColor: '#F9FAFB' }}
               >
                 <div>
-                  <p className="text-sm mb-1" style={{ color: '#6B7280' }}>{metric.label}</p>
-                  <p className="text-xl" style={{ color: '#111827' }}>{metric.value}</p>
+                  <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{metric.label}</p>
+                  <p className="text-xl" style={{ color: 'var(--foreground)' }}>{metric.value}</p>
                 </div>
                 <span
                   className="px-3 py-1 rounded-full text-sm"

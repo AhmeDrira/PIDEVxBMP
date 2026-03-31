@@ -61,7 +61,7 @@ export default function ResetPasswordPage({ onBackToLogin, token }: ResetPasswor
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative" style={{ backgroundImage: "url('/construction-bg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
       <div className="absolute inset-0 bg-black/60" />
-      <Card className="w-full max-w-xl p-10 bg-white rounded-3xl shadow-2xl border-0 relative z-10">
+      <Card className="w-full max-w-xl p-10 bg-card rounded-3xl shadow-2xl border-0 relative z-10">
         <button
           onClick={onBackToLogin}
           className="flex items-center gap-2 mb-8 text-primary hover:text-primary/80 transition-colors font-medium"
@@ -101,7 +101,7 @@ export default function ResetPasswordPage({ onBackToLogin, token }: ResetPasswor
                   autoComplete="new-password"
                   {...register('password')}
                   error={!!errors.password}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-gray-200'} focus:border-primary transition-colors bg-white`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
                 />
               </div>
               {errors.password && <p className="text-sm text-destructive font-medium">{errors.password.message}</p>}
@@ -117,7 +117,7 @@ export default function ResetPasswordPage({ onBackToLogin, token }: ResetPasswor
                   autoComplete="new-password"
                   {...register('confirmPassword')}
                   error={!!errors.confirmPassword}
-                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'} focus:border-primary transition-colors bg-white`}
+                  className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.confirmPassword ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
                 />
               </div>
               {errors.confirmPassword && <p className="text-sm text-destructive font-medium">{errors.confirmPassword.message}</p>}

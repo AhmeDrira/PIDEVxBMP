@@ -294,7 +294,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
           <ArrowLeft size={18} className="mr-2" /> Back to Portfolio
         </Button>
 
-        <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
           <h1 className="text-3xl font-bold text-foreground mb-2">Add New Portfolio Project</h1>
           <p className="text-muted-foreground mb-8">Add an external project and upload local images/videos from your computer.</p>
 
@@ -362,8 +362,8 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
               {manualFiles.length > 0 && (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {manualFiles.map((file, index) => (
-                    <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-2">
-                      <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 mb-2">
+                    <div key={index} className="rounded-xl border border-border bg-muted/50 p-2">
+                      <div className="aspect-video rounded-lg overflow-hidden bg-muted mb-2">
                         {getFileType(file) === 'video' ? (
                           <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" controls />
                         ) : (
@@ -387,7 +387,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
               )}
             </div>
 
-            <Button type="submit" className="h-11 rounded-xl bg-primary text-white hover:bg-primary/90" disabled={submitting}>
+            <Button type="submit" className="h-11 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90" disabled={submitting}>
               {submitting ? 'Saving...' : 'Publish Portfolio Project'}
             </Button>
           </form>
@@ -403,7 +403,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
           <h1 className="text-3xl font-bold text-foreground mb-2">Your Portfolio Projects</h1>
           <p className="text-lg text-muted-foreground">Show your best completed work with strong visual proof.</p>
         </div>
-        <Button className="h-11 px-6 rounded-xl bg-primary text-white hover:bg-primary/90" onClick={() => {
+        <Button className="h-11 px-6 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90" onClick={() => {
           if (subLocked) { setShowSubPopup(true); return; }
           setViewMode('create');
         }}>
@@ -412,14 +412,14 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
       </div>
 
       {loading ? (
-        <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
           <p className="text-muted-foreground">Loading portfolio...</p>
         </Card>
       ) : portfolio.length === 0 ? (
-        <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg text-center">
+        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg text-center">
           <p className="text-lg font-semibold text-foreground mb-2">No portfolio project yet</p>
           <p className="text-muted-foreground mb-6">Add your first project to improve visibility for experts.</p>
-          <Button className="h-11 px-6 rounded-xl bg-primary text-white hover:bg-primary/90" onClick={() => {
+          <Button className="h-11 px-6 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90" onClick={() => {
             if (subLocked) { setShowSubPopup(true); return; }
             setViewMode('create');
           }}>
@@ -433,8 +433,8 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
             const coverMedia = item.media?.[0];
             const selectedFiles = draftFilesByItem[item._id] || [];
             return (
-              <Card key={item._id} className="overflow-hidden bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="aspect-video bg-gray-100 overflow-hidden">
+              <Card key={item._id} className="overflow-hidden bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-shadow">
+                <div className="aspect-video bg-muted overflow-hidden">
                   {coverMedia ? (
                     coverMedia.type === 'video' ? (
                       <video src={resolveMediaUrl(coverMedia.url)} className="w-full h-full object-cover" controls />

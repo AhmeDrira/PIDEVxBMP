@@ -223,10 +223,10 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
       )}
 
       {/* Profile Header */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-shrink-0">
-            <div style={{ width: 96, height: 96, borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '3px solid #f3f4f6' }}>
+            <div style={{ width: 96, height: 96, borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '3px solid var(--muted)' }}>
               <ImageWithFallback
                 src={artisan.profileImage}
                 alt={`${artisan.firstName} ${artisan.lastName}`}
@@ -304,7 +304,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Contact Information */}
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg lg:col-span-1">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg lg:col-span-1">
           <h2 className="text-xl font-bold text-foreground mb-6">Contact Information</h2>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
@@ -334,7 +334,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
         {/* Skills & Certifications */}
         <div className="lg:col-span-2 space-y-6">
           {/* Skills */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-xl font-bold text-foreground mb-4">Skills & Expertise</h2>
             {artisan.skills.length > 0 ? (
               <div className="flex flex-wrap gap-3">
@@ -350,7 +350,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
           </Card>
 
           {/* Certifications */}
-          <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
             <h2 className="text-xl font-bold text-foreground mb-4">Certifications</h2>
             {artisan.certifications.length > 0 ? (
               <div className="space-y-3">
@@ -369,7 +369,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
       </div>
 
       {/* Reviews & Ratings */}
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <h2 className="text-xl font-bold text-foreground mb-6">Reviews & Ratings</h2>
 
         {/* Rating summary */}
@@ -392,7 +392,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
         </div>
 
         {/* Submit review form */}
-        <div className="mb-8 p-5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
+        <div className="mb-8 p-5 rounded-xl border-2 border-dashed border-border bg-muted/50">
           <h3 className="text-base font-semibold text-foreground mb-1">Leave a Review</h3>
           <p className="text-xs text-muted-foreground mb-3">Select a rating — comment is optional</p>
           <div className="flex gap-1 mb-3">
@@ -421,7 +421,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
             value={newComment}
             onChange={e => setNewComment(e.target.value)}
             placeholder="Share your experience (optional)..."
-            className="w-full border-2 border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-primary"
+            className="w-full border-2 border-border rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-primary"
             rows={3}
           />
           {reviewError && <p className="text-sm text-red-500 mt-2">{reviewError}</p>}
@@ -443,7 +443,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
         ) : (
           <div className="space-y-4">
             {reviews.filter(review => review.expert).map(review => (
-              <div key={review._id} className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
+              <div key={review._id} className="p-4 rounded-xl border border-border bg-card shadow-sm">
                 <div className="flex items-start gap-3">
                   <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <span className="text-white text-sm font-bold">

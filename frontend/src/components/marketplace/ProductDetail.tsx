@@ -85,8 +85,8 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Image */}
         <div className="space-y-4">
-          <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
-            <div className="aspect-video bg-gray-100 flex items-center justify-center">
+          <Card className="p-0 bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
+            <div className="aspect-video bg-muted flex items-center justify-center">
               {images.length > 0 ? (
                 <ImageWithFallback
                   src={images[selectedImage]}
@@ -123,7 +123,7 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
 
         {/* Product Info */}
         <div className="space-y-6">
-          <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <Badge className="mb-4 bg-primary/10 text-primary border-0 px-3 py-1 text-sm">
               {product.category}
             </Badge>
@@ -137,7 +137,7 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
               <span className="text-4xl font-bold text-primary">{Number(product.price).toFixed(3)} TND</span>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 mb-6">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 mb-6">
               <span className="text-base font-medium text-muted-foreground">Stock Availability:</span>
               <div className="flex items-center gap-2">
                 {product.stock > 0 ? (

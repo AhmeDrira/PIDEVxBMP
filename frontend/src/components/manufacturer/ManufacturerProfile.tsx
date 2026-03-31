@@ -166,7 +166,7 @@ export default function ManufacturerProfile() {
 
   return (
     <div className="space-y-6">
-      <Card className="p-6 bg-white shadow-lg border-0 rounded-2xl">
+      <Card className="p-6 bg-card shadow-lg border-0 rounded-2xl">
         <div className="flex items-start justify-between mb-6 border-b pb-6">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -250,10 +250,10 @@ export default function ManufacturerProfile() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="font-semibold">Email <span className="text-xs font-normal text-gray-400">(Read-only)</span></Label>
+                <Label className="font-semibold">Email <span className="text-xs font-normal text-muted-foreground">(Read-only)</span></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                  <Input type="email" className="pl-10 h-12 rounded-xl border-2 bg-gray-50" value={formData.email} readOnly />
+                  <Input type="email" className="pl-10 h-12 rounded-xl border-2 bg-muted/50" value={formData.email} readOnly />
                 </div>
               </div>
               <div className="space-y-2">
@@ -269,7 +269,7 @@ export default function ManufacturerProfile() {
                   {TUNISIA_STATES.map((state) => (
                     <label
                       key={state}
-                      className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-foreground"
+                      className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm text-foreground"
                     >
                       <Checkbox
                         checked={selectedStates.includes(state)}
@@ -312,25 +312,25 @@ export default function ManufacturerProfile() {
             <div className="grid md:grid-cols-2 gap-8">
               
               {/* --- NOUVEAU CHAMP VIEW POUR FIRST/LAST NAME --- */}
-              <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="bg-muted/50 p-4 rounded-xl">
                 <p className="text-sm mb-1 text-muted-foreground flex items-center gap-2"><User size={16}/> Contact Person</p>
                 <p className="font-semibold text-foreground">{formData.firstName} {formData.lastName}</p>
               </div>
               {/* --------------------------------------------- */}
 
-              <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="bg-muted/50 p-4 rounded-xl">
                 <p className="text-sm mb-1 text-muted-foreground flex items-center gap-2"><Mail size={16}/> Email</p>
                 <p className="font-semibold text-foreground">{formData.email}</p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="bg-muted/50 p-4 rounded-xl">
                 <p className="text-sm mb-1 text-muted-foreground flex items-center gap-2"><Phone size={16}/> Phone</p>
                 <p className="font-semibold text-foreground">{formData.phone}</p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="bg-muted/50 p-4 rounded-xl">
                 <p className="text-sm mb-1 text-muted-foreground flex items-center gap-2"><MapPin size={16}/> Location</p>
                 <p className="font-semibold text-foreground">{formData.location || 'Not provided'}</p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-xl md:col-span-2">
+              <div className="bg-muted/50 p-4 rounded-xl md:col-span-2">
                 <p className="text-sm mb-1 text-muted-foreground flex items-center gap-2"><Building2 size={16}/> Certification Number</p>
                 <p className="font-semibold text-foreground">{formData.certificationNumber || 'Not provided'}</p>
               </div>
@@ -338,7 +338,7 @@ export default function ManufacturerProfile() {
             
             <div>
               <p className="text-sm mb-2 text-muted-foreground font-medium">Company Description</p>
-              <div className="bg-gray-50 p-6 rounded-xl text-foreground leading-relaxed whitespace-pre-wrap">
+              <div className="bg-muted/50 p-6 rounded-xl text-foreground leading-relaxed whitespace-pre-wrap">
                 {formData.description || 'No description provided yet.'}
               </div>
             </div>

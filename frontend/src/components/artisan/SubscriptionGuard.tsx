@@ -22,7 +22,7 @@ export function SubscriptionPopup({ onClose }: { onClose: () => void }) {
 
       {/* Card */}
       <div style={{
-        position: 'relative', background: '#ffffff', borderRadius: 20, width: '100%', maxWidth: 420,
+        position: 'relative', background: 'var(--card)', borderRadius: 20, width: '100%', maxWidth: 420,
         boxShadow: '0 24px 64px rgba(15,23,42,0.18)', overflow: 'hidden',
         animation: 'popIn 0.2s ease-out',
       }}>
@@ -71,7 +71,7 @@ export function SubscriptionPopup({ onClose }: { onClose: () => void }) {
             ].map((feat) => (
               <div key={feat} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <CheckCircle size={16} style={{ color: '#1e40af', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{feat}</span>
+                <span style={{ fontSize: 13, color: 'var(--foreground)', fontWeight: 500 }}>{feat}</span>
               </div>
             ))}
           </div>
@@ -92,8 +92,8 @@ export function SubscriptionPopup({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             style={{
-              width: '100%', height: 40, borderRadius: 12, border: '1.5px solid #e5e7eb',
-              background: '#f9fafb', color: '#6b7280', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              width: '100%', height: 40, borderRadius: 12, border: '1.5px solid var(--border)',
+              background: '#f9fafb', color: 'var(--muted-foreground)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
             }}
           >
             Not now

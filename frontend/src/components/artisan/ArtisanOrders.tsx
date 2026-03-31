@@ -98,14 +98,14 @@ export default function ArtisanOrders() {
       </div>
 
       {/* Search */}
-      <Card className="p-4 bg-white rounded-2xl border-0 shadow-sm">
+      <Card className="p-4 bg-card rounded-2xl border-0 shadow-sm">
         <div className="relative">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search orders by ID or product name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-11 rounded-xl border-2 border-gray-200 focus:border-primary"
+            className="pl-10 h-11 rounded-xl border-2 border-border focus:border-primary"
           />
         </div>
       </Card>
@@ -116,7 +116,7 @@ export default function ArtisanOrders() {
           <Loader2 size={32} className="animate-spin text-primary" />
         </div>
       ) : filtered.length === 0 ? (
-        <Card className="p-12 bg-white rounded-2xl border-0 shadow-lg text-center">
+        <Card className="p-12 bg-card rounded-2xl border border-border shadow-lg text-center">
           <ShoppingBag size={48} className="text-muted-foreground mx-auto mb-4 opacity-40" />
           <h3 className="text-xl font-bold text-foreground mb-2">No orders yet</h3>
           <p className="text-muted-foreground">Your material purchases will appear here after checkout.</p>
@@ -133,10 +133,10 @@ export default function ArtisanOrders() {
                 : '—';
 
             return (
-              <Card key={order._id} className="bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+              <Card key={order._id} className="bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
                 {/* Order Header */}
                 <div
-                  className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => toggleExpand(order._id)}
                 >
                   <div className="flex items-start gap-4">
@@ -167,11 +167,11 @@ export default function ArtisanOrders() {
 
                 {/* Expandable Items */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 px-6 pb-6 pt-4">
+                  <div className="border-t border-border px-6 pb-6 pt-4">
                     <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Items</h4>
                     <div className="space-y-3">
                       {(order.items || []).map((item: any, idx: number) => (
-                        <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-100">
+                        <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                               <Package size={16} className="text-primary" />

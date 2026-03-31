@@ -181,7 +181,7 @@ export default function ManufacturerProducts() {
     priceRange[1] < maxPrice,
   ].filter(Boolean).length;
 
-  const inputBorderClass = "border-slate-300 focus:border-primary focus:ring-primary";
+  const inputBorderClass = "border-border focus:border-primary focus:ring-primary";
 
   // --- VUE FORMULAIRE (ADD / EDIT) ---
   if (view === 'add' || view === 'edit') {
@@ -190,22 +190,22 @@ export default function ManufacturerProducts() {
         <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
           <ArrowRight size={20} className="mr-2 rotate-180" /> Back
         </Button>
-        <Card className="p-10 bg-white rounded-2xl shadow-lg border">
+        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg border">
           <HardHat size={40} className="text-primary mb-5"/>
-          <h2 className="text-3xl font-bold mb-8 text-slate-950">{view === 'add' ? 'Add New Material' : 'Edit Material'}</h2>
+          <h2 className="text-3xl font-bold mb-8 text-foreground">{view === 'add' ? 'Add New Material' : 'Edit Material'}</h2>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label className="font-semibold text-slate-800">Product Name</Label>
+              <Label className="font-semibold text-foreground">Product Name</Label>
               <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="e.g. Ciment Portland CPJ-45" />
             </div>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="font-semibold text-slate-800">Category</Label>
+                <Label className="font-semibold text-foreground">Category</Label>
                 <select 
                   value={formData.category} 
                   onChange={(e) => setFormData({...formData, category: e.target.value})} 
-                  className={`w-full h-12 px-4 border-2 rounded-xl bg-white ${inputBorderClass} outline-none`}
+                  className={`w-full h-12 px-4 border-2 rounded-xl bg-card ${inputBorderClass} outline-none`}
                 >
                   <optgroup label="🏗️ Gros Œuvre">
                     <option value="Maçonnerie">Maçonnerie</option>
@@ -224,44 +224,44 @@ export default function ManufacturerProducts() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label className="font-semibold text-slate-800">Price (TND)</Label>
+                <Label className="font-semibold text-foreground">Price (TND)</Label>
                 <Input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="0.000"/>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="font-semibold text-slate-800">Stock (Units)</Label>
+              <Label className="font-semibold text-foreground">Stock (Units)</Label>
               <Input type="number" value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="e.g. 500"/>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <Label className="font-semibold text-slate-800">Image (JPG, PNG)</Label>
-                    <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-2xl p-6 h-32 flex flex-col items-center justify-center cursor-pointer transition-colors ${selectedFile ? 'border-green-500 bg-green-50' : 'border-slate-300 hover:border-primary hover:bg-slate-50'}`}>
-                        {selectedFile ? <><CheckCircle size={32} className="text-green-500 mb-2" /><p className="text-xs text-green-700 font-medium truncate max-w-full">{selectedFile.name}</p></> : <><Upload size={32} className="text-slate-400 mb-2" /><p className="text-sm text-slate-600">Click to upload photo</p></>}
+                    <Label className="font-semibold text-foreground">Image (JPG, PNG)</Label>
+                    <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-2xl p-6 h-32 flex flex-col items-center justify-center cursor-pointer transition-colors ${selectedFile ? 'border-green-500 bg-green-50' : 'border-border hover:border-primary hover:bg-muted/50'}`}>
+                        {selectedFile ? <><CheckCircle size={32} className="text-green-500 mb-2" /><p className="text-xs text-green-700 font-medium truncate max-w-full">{selectedFile.name}</p></> : <><Upload size={32} className="text-muted-foreground mb-2" /><p className="text-sm text-muted-foreground">Click to upload photo</p></>}
                         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} />
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="font-semibold text-slate-800">Technical Sheet (PDF)</Label>
-                    <div onClick={() => pdfInputRef.current?.click()} className={`border-2 border-dashed rounded-2xl p-6 h-32 flex flex-col items-center justify-center cursor-pointer transition-colors ${selectedPdf ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'}`}>
-                        {selectedPdf ? <><FileText size={32} className="text-blue-500 mb-2" /><p className="text-xs text-blue-700 font-medium truncate max-w-full">{selectedPdf.name}</p></> : <><FileDown size={32} className="text-slate-400 mb-2" /><p className="text-sm text-slate-600">Click to attach PDF</p></>}
+                    <Label className="font-semibold text-foreground">Technical Sheet (PDF)</Label>
+                    <div onClick={() => pdfInputRef.current?.click()} className={`border-2 border-dashed rounded-2xl p-6 h-32 flex flex-col items-center justify-center cursor-pointer transition-colors ${selectedPdf ? 'border-blue-500 bg-blue-50' : 'border-border hover:border-blue-400 hover:bg-muted/50'}`}>
+                        {selectedPdf ? <><FileText size={32} className="text-blue-500 mb-2" /><p className="text-xs text-blue-700 font-medium truncate max-w-full">{selectedPdf.name}</p></> : <><FileDown size={32} className="text-muted-foreground mb-2" /><p className="text-sm text-muted-foreground">Click to attach PDF</p></>}
                         <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => e.target.files && setSelectedPdf(e.target.files[0])} />
                     </div>
                 </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="font-semibold text-slate-800">Description / Technical Details</Label>
+              <Label className="font-semibold text-foreground">Description / Technical Details</Label>
               <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={4} className={`rounded-xl border-2 ${inputBorderClass}`} placeholder="Enter product specifications, dimensions, usage instructions..."/>
             </div>
 
-            <div className="flex gap-4 pt-6 border-t border-slate-100">
-              <Button type="submit" disabled={isSubmitting} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 bg-primary text-white rounded-xl shadow-md hover:bg-primary/90 transition-all text-base font-semibold">
+            <div className="flex gap-4 pt-6 border-t border-border">
+              <Button type="submit" disabled={isSubmitting} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 bg-primary dark:bg-primary text-white dark:text-white rounded-xl shadow-md hover:bg-primary/90 transition-all text-base font-semibold">
                 {isSubmitting ? 'Publishing...' : 'Publish Material'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setView('list')} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 rounded-xl border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-semibold">Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setView('list')} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 rounded-xl border-2 border-border text-muted-foreground hover:bg-muted/50 dark:hover:bg-gray-800 text-base font-semibold">Cancel</Button>
             </div>
           </form>
         </Card>
@@ -282,8 +282,8 @@ export default function ManufacturerProducts() {
     return (
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Back */}
-        <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2 border-slate-200 h-10 px-5 font-semibold text-slate-600 hover:bg-slate-50">
-          <ArrowRight size={18} className="mr-2 rotate-180 text-slate-400" /> Back to Inventory
+        <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2 border-border h-10 px-5 font-semibold text-muted-foreground hover:bg-muted/50">
+          <ArrowRight size={18} className="mr-2 rotate-180 text-muted-foreground" /> Back to Inventory
         </Button>
 
         {/* Hero Banner */}
@@ -293,7 +293,7 @@ export default function ManufacturerProducts() {
             <div className="w-full md:w-56 bg-black/20 relative overflow-hidden flex-shrink-0" style={{ minHeight: 200, maxHeight: 220 }}>
               {imgUrl
                 ? <img src={imgUrl} className="w-full h-full object-cover opacity-90" alt={product.name} style={{ minHeight: 200, maxHeight: 220 }} />
-                : <div className="w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}><Package size={56} className="text-slate-600" /></div>
+                : <div className="w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}><Package size={56} className="text-muted-foreground" /></div>
               }
               {/* Status overlay */}
               <div className="absolute top-4 left-4">
@@ -311,20 +311,20 @@ export default function ManufacturerProducts() {
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold border border-primary/30">
                     <Tag size={12} /> {product.category}
                   </span>
-                  <span className="text-slate-500 text-xs font-mono flex items-center gap-1">
-                    <Hash size={11} className="text-slate-500" />{product._id.slice(-8).toUpperCase()}
+                  <span className="text-muted-foreground text-xs font-mono flex items-center gap-1">
+                    <Hash size={11} className="text-muted-foreground" />{product._id.slice(-8).toUpperCase()}
                   </span>
                 </div>
                 <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4">{product.name}</h1>
                 {product.description && (
-                  <p className="text-slate-400 text-sm leading-relaxed line-clamp-3">{product.description}</p>
+                  <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3">{product.description}</p>
                 )}
               </div>
               <div className="flex gap-3 mt-6">
-                <Button onClick={() => handleEditClick(product)} className="h-11 px-6 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-semibold shadow-md">
+                <Button onClick={() => handleEditClick(product)} className="h-11 px-6 rounded-xl bg-primary dark:bg-primary text-white dark:text-white hover:bg-primary/90 font-semibold shadow-md">
                   <Edit size={16} className="mr-2" /> Edit Material
                 </Button>
-                <Button onClick={() => confirmDelete(product)} className="h-11 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold">
+                <Button onClick={() => confirmDelete(product)} className="h-11 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-800/30 font-semibold">
                   <Trash2 size={16} />
                 </Button>
               </div>
@@ -334,61 +334,61 @@ export default function ManufacturerProducts() {
 
         {/* Stats row */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Card className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-sm">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <BarChart2 size={20} className="text-primary" />
               </div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Unit Price</p>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Unit Price</p>
             </div>
             <p className="text-3xl font-black text-primary">{Number(product.price).toFixed(3)}</p>
-            <p className="text-sm text-slate-400 font-medium mt-0.5">Tunisian Dinar</p>
+            <p className="text-sm text-muted-foreground font-medium mt-0.5">Tunisian Dinar</p>
           </Card>
 
-          <Card className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-sm">
             <div className="flex items-center gap-3 mb-2">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${product.stock > 10 ? 'bg-emerald-50' : product.stock > 0 ? 'bg-amber-50' : 'bg-red-50'}`}>
                 <Package size={20} className={product.stock > 10 ? 'text-emerald-500' : product.stock > 0 ? 'text-amber-500' : 'text-red-500'} />
               </div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Stock</p>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Stock</p>
             </div>
-            <p className={`text-3xl font-black ${product.stock > 10 ? 'text-slate-900' : product.stock > 0 ? 'text-amber-600' : 'text-red-600'}`}>{product.stock}</p>
-            <p className="text-sm text-slate-400 font-medium mt-0.5">Units available</p>
+            <p className={`text-3xl font-black ${product.stock > 10 ? 'text-foreground' : product.stock > 0 ? 'text-amber-600' : 'text-red-600'}`}>{product.stock}</p>
+            <p className="text-sm text-muted-foreground font-medium mt-0.5">Units available</p>
           </Card>
 
-          <Card className="col-span-2 md:col-span-1 p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <Card className="col-span-2 md:col-span-1 p-6 bg-card rounded-2xl border border-border shadow-sm">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                <Layers size={20} className="text-slate-500" />
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <Layers size={20} className="text-muted-foreground" />
               </div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Category</p>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Category</p>
             </div>
-            <p className="text-xl font-black text-slate-900">{product.category}</p>
-            <p className="text-sm text-slate-400 font-medium mt-0.5">Material type</p>
+            <p className="text-xl font-black text-foreground">{product.category}</p>
+            <p className="text-sm text-muted-foreground font-medium mt-0.5">Material type</p>
           </Card>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
           {/* Description */}
-          <Card className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                <Info size={16} className="text-slate-500" />
+              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                <Info size={16} className="text-muted-foreground" />
               </div>
-              <h3 className="font-bold text-slate-900 text-base">Technical Description</h3>
+              <h3 className="font-bold text-foreground text-base">Technical Description</h3>
             </div>
-            <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-line">
+            <p className="text-muted-foreground leading-relaxed text-sm whitespace-pre-line">
               {product.description || 'No detailed description provided for this material.'}
             </p>
           </Card>
 
           {/* PDF / Technical Sheet */}
-          <Card className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <Card className="p-6 bg-card rounded-2xl border border-border shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${pdfUrl ? 'bg-blue-100' : 'bg-slate-200'}`}>
-                <FileText size={16} className={pdfUrl ? 'text-blue-600' : 'text-slate-400'} />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${pdfUrl ? 'bg-blue-100' : 'bg-muted'}`}>
+                <FileText size={16} className={pdfUrl ? 'text-blue-600' : 'text-muted-foreground'} />
               </div>
-              <h3 className="font-bold text-slate-900 text-base">Technical Sheet</h3>
+              <h3 className="font-bold text-foreground text-base">Technical Sheet</h3>
             </div>
             {pdfUrl ? (
               <div className="space-y-3">
@@ -401,7 +401,7 @@ export default function ManufacturerProducts() {
                 </Button>
               </div>
             ) : (
-              <p className="text-sm text-slate-400">No technical sheet uploaded for this product.</p>
+              <p className="text-sm text-muted-foreground">No technical sheet uploaded for this product.</p>
             )}
           </Card>
         </div>
@@ -414,22 +414,22 @@ export default function ManufacturerProducts() {
     <div className="space-y-8">
       <div className="flex justify-between items-center gap-4">
         <div>
-          <p className="text-lg text-slate-600 mt-1">Manage and track your construction materials stock</p>
+          <p className="text-lg text-muted-foreground mt-1">Manage and track your construction materials stock</p>
         </div>
-        <Button onClick={() => { setFormData({name:'', category:'Maçonnerie', price:'', stock:'', description:''}); setView('add'); setSelectedFile(null); setSelectedPdf(null); }} className="bg-primary text-white rounded-xl h-12 px-6 shadow-lg hover:bg-primary/90 transition-all font-semibold whitespace-nowrap">
+        <Button onClick={() => { setFormData({name:'', category:'Maçonnerie', price:'', stock:'', description:''}); setView('add'); setSelectedFile(null); setSelectedPdf(null); }} className="bg-primary dark:bg-blue-600 text-white rounded-xl h-12 px-6 shadow-lg hover:bg-primary/90 transition-all font-semibold whitespace-nowrap">
           <Plus size={20} className="mr-2" /> Add New Material
         </Button>
       </div>
       
-      <Card className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
+      <Card className="p-3 bg-card rounded-2xl border border-border shadow-sm">
         <div className="flex gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search materials by name or category..." className="pl-12 h-12 rounded-xl border-slate-200 focus:border-primary focus:ring-primary text-base" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search materials by name or category..." className="pl-12 h-12 rounded-xl border-border focus:border-primary focus:ring-primary text-base" />
           </div>
           <Button
             variant={showFilters ? 'default' : 'outline'}
-            className={`h-12 px-5 rounded-xl border-2 transition-all whitespace-nowrap relative ${showFilters ? 'bg-primary text-white shadow-md' : 'hover:bg-slate-50'}`}
+            className={`h-12 px-5 rounded-xl border-2 transition-all whitespace-nowrap relative ${showFilters ? 'bg-primary dark:bg-blue-600 text-white shadow-md' : 'hover:bg-muted/50'}`}
             onClick={() => setShowFilters(v => !v)}
           >
             <SlidersHorizontal size={18} className="mr-2" /> Filters
@@ -444,12 +444,12 @@ export default function ManufacturerProducts() {
         {/* Filter Sidebar */}
         {showFilters && (
           <div className="lg:w-72 flex-shrink-0">
-            <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg sticky top-8 border-t-4 border-t-primary">
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg sticky top-8 border-t-4 border-t-primary">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                   <SlidersHorizontal size={18} className="text-primary" /> Filters
                 </h3>
-                <Button variant="ghost" size="sm" onClick={() => { setSelectedCategory('all'); setSelectedStatus('all'); setInStockOnly(false); setPriceRange([0, maxPrice]); }} className="text-slate-400 hover:text-primary text-xs">
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedCategory('all'); setSelectedStatus('all'); setInStockOnly(false); setPriceRange([0, maxPrice]); }} className="text-muted-foreground hover:text-primary text-xs">
                   Clear All
                 </Button>
               </div>
@@ -457,16 +457,16 @@ export default function ManufacturerProducts() {
               <div className="space-y-6">
                 {/* Category */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Category</Label>
-                  <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-primary focus:bg-white outline-none cursor-pointer text-sm">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Category</Label>
+                  <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card outline-none cursor-pointer text-sm">
                     {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
                   </select>
                 </div>
 
                 {/* Status */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</Label>
-                  <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-primary focus:bg-white outline-none cursor-pointer text-sm">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</Label>
+                  <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card outline-none cursor-pointer text-sm">
                     <option value="all">All Statuses</option>
                     <option value="active">Active</option>
                     <option value="low-stock">Low Stock</option>
@@ -476,24 +476,24 @@ export default function ManufacturerProducts() {
 
                 {/* Price Range */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex justify-between">
                     <span>Max Price</span>
                     <span className="text-primary font-bold">{priceRange[1]} TND</span>
                   </Label>
                   <input type="range" min={0} max={maxPrice} value={priceRange[1]} onChange={e => setPriceRange([0, Number(e.target.value)])} className="w-full accent-primary" />
-                  <div className="flex justify-between text-xs text-slate-400">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>0</span><span>{maxPrice} TND</span>
                   </div>
                 </div>
 
                 {/* In Stock Only */}
-                <div className="pt-4 border-t border-slate-100">
+                <div className="pt-4 border-t border-border">
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${inStockOnly ? 'bg-primary border-primary' : 'border-slate-300 group-hover:border-primary'}`}>
+                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${inStockOnly ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'}`}>
                       {inStockOnly && <CheckCircle size={14} className="text-white" />}
                     </div>
                     <input type="checkbox" checked={inStockOnly} onChange={e => setInStockOnly(e.target.checked)} className="hidden" />
-                    <span className="text-sm font-semibold text-slate-700 select-none">In Stock Only</span>
+                    <span className="text-sm font-semibold text-muted-foreground select-none">In Stock Only</span>
                   </label>
                 </div>
               </div>
@@ -504,31 +504,31 @@ export default function ManufacturerProducts() {
         {/* Product Grid */}
         <div className="flex-1">
       {isLoading ? (
-        <div className="text-center py-20 text-slate-500 flex flex-col items-center gap-3">
-            <Package size={40} className='animate-pulse text-slate-300'/>
+        <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-3">
+            <Package size={40} className='animate-pulse text-muted-foreground'/>
             Loading inventory...
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 flex flex-col items-center gap-4">
-            <Package size={50} className='text-slate-300'/>
+        <div className="text-center py-20 bg-card rounded-2xl border-2 border-dashed border-border text-muted-foreground flex flex-col items-center gap-4">
+            <Package size={50} className='text-muted-foreground'/>
             <div>
-                <h3 className='text-xl font-bold text-slate-800'>No materials found</h3>
-                <p className='text-slate-600 mt-1'>{searchQuery || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Start by adding your first material to the inventory.'}</p>
+                <h3 className='text-xl font-bold text-foreground'>No materials found</h3>
+                <p className='text-muted-foreground mt-1'>{searchQuery || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Start by adding your first material to the inventory.'}</p>
             </div>
-            {!searchQuery && activeFilterCount === 0 && <Button onClick={() => setView('add')} className="bg-primary text-white rounded-lg mt-2"><Plus size={18} className='mr-1.5'/> Add First Material</Button>}
+            {!searchQuery && activeFilterCount === 0 && <Button onClick={() => setView('add')} className="bg-primary dark:bg-blue-600 text-white rounded-lg mt-2"><Plus size={18} className='mr-1.5'/> Add First Material</Button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((product) => (
-            <Card key={product._id} className="p-5 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200 group flex flex-col h-full relative">
+            <Card key={product._id} className="p-5 bg-card rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-border group flex flex-col h-full relative">
               
               {/* HEADER : Image + Badge Statut */}
               <div className="flex justify-between items-start mb-4">
-                <div className="w-16 h-16 rounded-xl bg-slate-50 overflow-hidden flex items-center justify-center border border-slate-100 shadow-inner flex-shrink-0">
+                <div className="w-16 h-16 rounded-xl bg-muted/50 overflow-hidden flex items-center justify-center border border-border shadow-inner flex-shrink-0">
                   {product.documentUrl ? (
                     <img src={getImageUrl(product.documentUrl)!} className="w-full h-full object-cover" alt={product.name} />
                   ) : (
-                    <Package size={28} className="text-slate-300" />
+                    <Package size={28} className="text-muted-foreground" />
                   )}
                 </div>
                 
@@ -540,33 +540,33 @@ export default function ManufacturerProducts() {
 
               {/* TITRE ET CATÉGORIE (Alignés à gauche) */}
               <div className="mb-5 flex-1">
-                <h3 className="font-bold text-lg text-slate-900 leading-tight mb-1 line-clamp-2 group-hover:text-primary transition-colors" title={product.name}>
+                <h3 className="font-bold text-lg text-foreground leading-tight mb-1 line-clamp-2 group-hover:text-primary transition-colors" title={product.name}>
                   {product.name}
                 </h3>
-                <p className="text-sm text-slate-500 font-medium flex items-center gap-1.5">
+                <p className="text-sm text-muted-foreground font-medium flex items-center gap-1.5">
                   <Tag size={14} className="text-primary" />
                   {product.category}
                 </p>
               </div>
               
               {/* PRIX ET STOCK (Design unifié) */}
-              <div className="grid grid-cols-2 gap-3 mb-5 p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="grid grid-cols-2 gap-3 mb-5 p-3 bg-muted/50 rounded-xl border border-border">
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Price</span>
+                  <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Price</span>
                   <span className="font-black text-lg text-primary leading-none">
                     {Number(product.price).toFixed(3)} <span className="text-xs font-semibold">TND</span>
                   </span>
                 </div>
-                <div className="flex flex-col border-l border-slate-200 pl-3">
-                  <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Stock</span>
-                  <span className={`font-black text-lg leading-none ${product.stock > 10 ? 'text-slate-800' : product.stock > 0 ? 'text-amber-600' : 'text-red-600'}`}>
-                    {product.stock} <span className="text-xs font-semibold text-slate-500">units</span>
+                <div className="flex flex-col border-l border-border pl-3">
+                  <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Stock</span>
+                  <span className={`font-black text-lg leading-none ${product.stock > 10 ? 'text-foreground' : product.stock > 0 ? 'text-amber-600' : 'text-red-600'}`}>
+                    {product.stock} <span className="text-xs font-semibold text-muted-foreground">units</span>
                   </span>
                 </div>
               </div>
               
               {/* BOUTONS D'ACTION */}
-              <div className="flex gap-2 pt-4 border-t border-slate-100">
+              <div className="flex gap-2 pt-4 border-t border-border">
                 <Button 
                   onClick={() => { setSelectedProductId(product._id); setView('detail'); }} 
                   className="flex-1 rounded-lg h-10 !bg-emerald-600 hover:!bg-emerald-700 text-white font-medium text-sm transition-colors"
@@ -576,14 +576,14 @@ export default function ManufacturerProducts() {
                 <Button 
                   onClick={() => handleEditClick(product)} 
                   variant="outline" 
-                  className="rounded-lg h-10 w-10 p-0 border-slate-200 text-slate-600 hover:text-primary hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                  className="rounded-lg h-10 w-10 p-0 border-border text-muted-foreground hover:text-primary hover:bg-muted/50 hover:border-border transition-colors"
                 >
                   <Edit size={16} />
                 </Button>
                 <Button 
                   onClick={() => confirmDelete(product)} 
                   variant="outline" 
-                  className="rounded-lg h-10 w-10 p-0 border-slate-200 text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
+                  className="rounded-lg h-10 w-10 p-0 border-border text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
                 >
                   <Trash2 size={16} />
                 </Button>
@@ -603,20 +603,20 @@ export default function ManufacturerProducts() {
           onClick={() => setShowDeleteModal(false)}
         >
           <div
-            style={{ backgroundColor: '#fff', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            style={{ backgroundColor: 'var(--card)', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Trash2 size={28} style={{ color: '#ef4444' }} />
             </div>
-            <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1f2937', textAlign: 'center', margin: '0 0 8px' }}>Delete Product</h3>
-            <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>
-              Are you sure you want to delete <strong style={{ color: '#1f2937' }}>{productToDelete.name}</strong>? This action cannot be undone.
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--foreground)', textAlign: 'center', margin: '0 0 8px' }}>Delete Product</h3>
+            <p style={{ fontSize: 14, color: 'var(--muted-foreground)', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>
+              Are you sure you want to delete <strong style={{ color: 'var(--foreground)' }}>{productToDelete.name}</strong>? This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 12 }}>
               <button
                 onClick={() => setShowDeleteModal(false)}
-                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid #e5e7eb', backgroundColor: '#fff', color: '#374151', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancel
               </button>

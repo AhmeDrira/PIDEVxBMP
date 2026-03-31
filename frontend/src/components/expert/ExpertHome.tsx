@@ -34,8 +34,8 @@ function StarRating({ rating }: { rating: number }) {
           key={s}
           size={13}
           style={{
-            fill: s <= filled ? '#f59e0b' : '#e5e7eb',
-            color: s <= filled ? '#f59e0b' : '#e5e7eb',
+            fill: s <= filled ? '#f59e0b' : 'var(--border)',
+            color: s <= filled ? '#f59e0b' : 'var(--border)',
           }}
         />
       ))}
@@ -152,62 +152,62 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
       </div>
 
       {/* Top row: Manufacturers + Top Artisans */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mt-8">
 
         {/* ── Top Manufacturers ── */}
-        <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+        <Card className="p-0 bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
           {/* White header */}
-          <div className="px-6 pt-5 pb-4 bg-white" style={{ borderBottom: '1px solid #e5e7eb' }}>
+          <div className="px-6 pt-6 pb-5 bg-card" style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl" style={{ background: '#eff6ff' }}>
+                <div className="p-2.5 rounded-xl" style={{ background: 'rgba(37,99,235,0.1)' }}>
                   <Package size={20} style={{ color: '#1e40af' }} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Top Manufacturers</h2>
-                  <p className="text-xs mt-0.5 text-gray-400">Your most loyal suppliers</p>
+                  <h2 className="text-lg font-bold text-foreground">Top Manufacturers</h2>
+                  <p className="text-xs mt-0.5 text-muted-foreground">Your most loyal suppliers</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/50">
                 <TrendingUp size={13} style={{ color: '#1e40af' }} />
                 <span className="text-xs font-semibold" style={{ color: '#1e40af' }}>By orders</span>
               </div>
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-6">
             {loading ? (
               <div className="flex justify-center py-10"><Loader2 size={28} className="animate-spin text-blue-500" /></div>
             ) : topManufacturers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <ShoppingBag size={36} className="text-gray-200" />
-                <p className="text-sm text-gray-400 font-medium">No purchases yet</p>
+                <p className="text-sm text-muted-foreground font-medium">No purchases yet</p>
                 <Button size="sm" variant="outline" className="mt-1 rounded-xl text-xs" onClick={() => onNavigate('marketplace')}>
                   Browse Marketplace
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-4">
                 {topManufacturers.map((mfr, index) => {
                   const medalEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
                   return (
                     <div
                       key={mfr.id}
-                      className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-transparent transition-all group bg-white"
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#e5e7eb'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
+                      className="flex items-center gap-4 p-4 rounded-2xl border-2 border-transparent transition-all group bg-card"
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}
                     >
                       {/* Rank */}
                       <div className="shrink-0 w-8 text-center">
                         {medalEmoji
                           ? <span className="text-xl leading-none">{medalEmoji}</span>
-                          : <span className="text-sm font-bold text-gray-400">#{index + 1}</span>
+                          : <span className="text-sm font-bold text-muted-foreground">#{index + 1}</span>
                         }
                       </div>
 
-                      {/* Avatar circle */}
+                      {/* Avatar circle - perfectly round */}
                       <div
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md shrink-0 border-2 border-white"
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md shrink-0 border-2 border-white dark:border-gray-700 aspect-square"
                         style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
                       >
                         {mfr.initials}
@@ -215,19 +215,19 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-800 truncate text-sm">{mfr.name}</p>
+                        <p className="font-bold text-foreground truncate text-sm">{mfr.name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#eff6ff', color: '#1e40af' }}>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(37,99,235,0.1)', color: '#1e40af' }}>
                             {mfr.orders} order{mfr.orders !== 1 ? 's' : ''}
                           </span>
-                          <span className="text-xs text-gray-400">{mfr.totalItems} items</span>
+                          <span className="text-xs text-muted-foreground">{mfr.totalItems} items</span>
                         </div>
                       </div>
 
                       {/* Amount */}
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-extrabold" style={{ color: '#1e40af' }}>{mfr.totalAmount.toFixed(0)}</p>
-                        <p className="text-xs text-gray-400 font-medium">TND spent</p>
+                        <p className="text-xs text-muted-foreground font-medium">TND spent</p>
                       </div>
                     </div>
                   );
@@ -238,36 +238,35 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
         </Card>
 
         {/* ── Top Artisans ── */}
-        <Card className="p-0 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+        <Card className="p-0 bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
           {/* White header */}
-          <div className="px-6 pt-5 pb-4 bg-white" style={{ borderBottom: '1px solid #e5e7eb' }}>
+          <div className="px-6 pt-6 pb-5 bg-card" style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl" style={{ background: '#fffbeb' }}>
+                <div className="p-2.5 rounded-xl" style={{ background: 'rgba(217,119,6,0.1)' }}>
                   <Award size={20} style={{ color: '#d97706' }} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Top Artisans</h2>
-                  <p className="text-xs mt-0.5 text-gray-400">Highest rated professionals</p>
+                  <h2 className="text-lg font-bold text-foreground">Top Artisans</h2>
+                  <p className="text-xs mt-0.5 text-muted-foreground">Highest rated professionals</p>
                 </div>
               </div>
               <button
                 onClick={() => onNavigate('directory')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 bg-gray-50 hover:border-amber-300 transition-colors"
-                style={{ color: '#6b7280' }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border bg-muted/50 hover:border-amber-300 dark:hover:bg-gray-800 transition-colors text-muted-foreground dark:text-gray-300"
               >
                 View all <ChevronRight size={13} />
               </button>
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-6">
             {loading ? (
               <div className="flex justify-center py-10"><Loader2 size={28} className="animate-spin" style={{ color: '#f59e0b' }} /></div>
             ) : topArtisans.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <Users size={36} className="text-gray-200" />
-                <p className="text-sm text-gray-400 font-medium">No artisans found</p>
+                <p className="text-sm text-muted-foreground font-medium">No artisans found</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -279,13 +278,13 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                   const reviews = artisan.reviewCount || 0;
                   const domain = artisan.domain || artisan.specialty || '';
                   const completed = artisan.completedProjects || 0;
-                  const rankColors = ['#f59e0b', '#6b7280', '#b45309', '#1e40af', '#059669'];
+                  const rankColors = ['#f59e0b', 'var(--muted-foreground)', '#b45309', '#1e40af', '#059669'];
 
                   return (
                     <button
                       key={artisanId}
                       onClick={() => setViewingArtisanId(artisanId)}
-                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-transparent hover:border-gray-200 hover:shadow-md transition-all group text-left bg-white"
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-transparent hover:border-border hover:shadow-md transition-all group text-left bg-card"
                     >
                       {/* Rank circle */}
                       <div
@@ -297,7 +296,7 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
 
                       {/* Avatar — fixed 44×44 px, strictly clipped */}
                       <div
-                        className="shrink-0 border-2 border-gray-100"
+                        className="shrink-0 border-2 border-border"
                         style={{
                           width: 44, height: 44, borderRadius: '50%',
                           overflow: 'hidden', position: 'relative',
@@ -314,16 +313,16 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-800 text-sm truncate group-hover:text-blue-700 transition-colors leading-tight">
+                        <p className="font-bold text-foreground text-sm truncate group-hover:text-blue-700 transition-colors leading-tight">
                           {name}
                         </p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <StarRating rating={rating} />
                           <span className="text-xs font-bold" style={{ color: '#d97706' }}>{rating.toFixed(1)}</span>
-                          <span className="text-xs text-gray-400">· {reviews} review{reviews !== 1 ? 's' : ''}</span>
+                          <span className="text-xs text-muted-foreground">· {reviews} review{reviews !== 1 ? 's' : ''}</span>
                         </div>
                         {domain && (
-                          <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#eff6ff', color: '#1e40af' }}>
+                          <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(37,99,235,0.1)', color: '#1e40af' }}>
                             {domain}
                           </span>
                         )}
@@ -332,7 +331,7 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                       {/* Right */}
                       <div className="shrink-0 flex flex-col items-end gap-1">
                         {completed > 0 && (
-                          <div className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#f0fdf4', color: '#15803d' }}>
+                          <div className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(5,150,105,0.1)', color: '#15803d' }}>
                             {completed} done
                           </div>
                         )}
@@ -352,7 +351,7 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
       </div>
 
       {/* Recent Conversations */}
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Recent Conversations</h2>
@@ -375,7 +374,7 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
             {recentConnections.map((connection, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 hover:border-primary/20 hover:shadow-md transition-all"
+                className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-border hover:border-primary/20 hover:shadow-md transition-all"
               >
                 <div className="flex items-center gap-4">
                   <div

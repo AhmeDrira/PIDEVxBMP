@@ -53,7 +53,7 @@ export default function KnowledgeDetailPage({
 
   if (loading || !article) {
     return (
-      <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <p className="text-muted-foreground">Loading article...</p>
       </Card>
     );
@@ -134,7 +134,7 @@ export default function KnowledgeDetailPage({
           <div className="flex gap-3">
             <Button
               onClick={() => setIsEditing(true)}
-              className="h-11 px-6 rounded-xl text-white bg-primary hover:bg-primary/90 shadow-md"
+              className="h-11 px-6 rounded-xl text-white bg-primary dark:bg-blue-600 hover:bg-primary/90 shadow-md"
               disabled={isSaving}
             >
               <Edit size={18} className="mr-2" />
@@ -155,7 +155,7 @@ export default function KnowledgeDetailPage({
       <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
         <main className="flex-1 min-w-0 space-y-6">
           {/* Article Header */}
-          <Card className="p-8 lg:p-10 bg-white rounded-2xl border-0 shadow-lg">
+          <Card className="p-8 lg:p-10 bg-card rounded-2xl border border-border shadow-lg">
             <Badge className="mb-4 bg-primary/10 text-primary border-0 px-3 py-1 text-sm">
               {article.category}
             </Badge>
@@ -166,7 +166,7 @@ export default function KnowledgeDetailPage({
 
             <div className="flex flex-wrap items-center gap-6 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-primary dark:bg-blue-600 flex items-center justify-center">
                   <span className="text-white font-semibold text-lg">{(article.authorName || 'Admin').substring(0, 2).toUpperCase()}</span>
                 </div>
                 <div>
@@ -199,11 +199,11 @@ export default function KnowledgeDetailPage({
           </Card>
 
           {/* Article Content */}
-          <Card className="p-8 lg:p-12 bg-white rounded-2xl border-0 shadow-lg overflow-hidden">
+          <Card className="p-8 lg:p-12 bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
             <div 
               className="prose prose-lg max-w-full break-words whitespace-normal overflow-x-auto [&_*]:max-w-full [&_img]:max-w-full [&_img]:h-auto [&_table]:block [&_table]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_code]:whitespace-pre-wrap [&_code]:break-all"
               style={{
-                color: '#374151',
+                color: 'var(--foreground)',
                 lineHeight: '1.75',
                 overflowWrap: 'break-word',
                 wordWrap: 'break-word',
@@ -216,13 +216,13 @@ export default function KnowledgeDetailPage({
 
           {/* Tags */}
           {tags.length > 0 && (
-            <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
               <h2 className="text-2xl font-bold text-foreground mb-6">Tags</h2>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag, idx) => (
                   <Badge
                     key={`${tag}-${idx}`}
-                    className="bg-gray-100 text-foreground px-4 py-2 text-sm border-0 hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors"
+                    className="bg-muted text-foreground px-4 py-2 text-sm border-0 hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors"
                   >
                     {tag}
                   </Badge>
@@ -235,13 +235,13 @@ export default function KnowledgeDetailPage({
         {/* Sidebar: Attachments only */}
         <aside className="w-full lg:w-96 flex-shrink-0 space-y-6">
           {attachmentList.length > 0 && (
-            <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
               <h2 className="text-2xl font-bold text-foreground mb-6">Attachments</h2>
               <div className="space-y-4">
                 {attachmentList.map((attachment, idx) => (
                   <Card 
                     key={idx}
-                    className="p-6 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-primary hover:shadow-md transition-all cursor-pointer group"
+                    className="p-6 bg-muted/50 rounded-xl border-2 border-border hover:border-primary hover:shadow-md transition-all cursor-pointer group"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">

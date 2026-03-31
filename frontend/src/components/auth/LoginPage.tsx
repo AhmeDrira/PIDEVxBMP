@@ -104,7 +104,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Left side - Premium Branding */}
-      <div className="lg:w-1/2 relative overflow-hidden bg-primary">
+      <div className="lg:w-1/2 relative overflow-hidden bg-primary dark:bg-blue-900">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
           <ImageWithFallback
@@ -166,7 +166,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
       {/* Right side - Modern Login Form */}
       <div className="lg:w-1/2 flex items-start lg:items-center justify-center p-8 lg:p-12 bg-background overflow-y-auto min-h-screen lg:min-h-0">
         <div className="w-full max-w-xl py-6 lg:py-0">
-          <Card className="p-8 bg-white rounded-3xl shadow-2xl border-0">
+          <Card className="p-8 bg-card rounded-3xl shadow-2xl border-0">
             <div className="mb-6">
               <h2 className="text-3xl font-bold text-foreground mb-3">Welcome Back</h2>
               <p className="text-muted-foreground text-lg">Sign in to continue to your account</p>
@@ -183,7 +183,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
                     placeholder="your@email.com"
                     autoComplete="email"
                     {...register('email')}
-                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-gray-200'} focus:border-primary transition-colors bg-white`}
+                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.email ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
                   />
                 </div>
                 {errors.email && <p className="text-sm text-destructive font-medium">{errors.email.message}</p>}
@@ -199,7 +199,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
                     autoComplete="current-password"
                     {...register('password')}
                     error={!!errors.password}
-                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-gray-200'} focus:border-primary transition-colors bg-white`}
+                    className={`pl-12 h-14 text-base rounded-xl border-2 ${errors.password ? 'border-red-500' : 'border-border'} focus:border-primary transition-colors bg-card`}
                   />
                 </div>
                 {errors.password && <p className="text-sm text-destructive font-medium">{errors.password.message}</p>}
@@ -210,7 +210,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
                   <div className="relative flex items-center shrink-0">
                     <input
                       type="checkbox"
-                      className="peer appearance-none w-6 h-6 rounded-lg border-2 border-gray-200 checked:border-primary checked:bg-primary transition-all duration-200 cursor-pointer"
+                      className="peer appearance-none w-6 h-6 rounded-lg border-2 border-border checked:border-primary checked:bg-primary transition-all duration-200 cursor-pointer"
                     />
                     <Check
                       size={14}

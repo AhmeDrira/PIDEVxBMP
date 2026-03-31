@@ -181,7 +181,7 @@ export default function AdminProfile() {
 
   return (
     <div className="space-y-8">
-      <Card className="p-8 bg-white rounded-3xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-3xl border-0 shadow-lg">
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex flex-col items-center">
             <div className="relative">
@@ -237,7 +237,7 @@ export default function AdminProfile() {
         </div>
       </Card>
 
-      <Card className="p-8 bg-white rounded-3xl border-0 shadow-lg">
+      <Card className="p-8 bg-card rounded-3xl border-0 shadow-lg">
         <form onSubmit={handleSave} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -274,7 +274,7 @@ export default function AdminProfile() {
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                <Input id="email" value={formData.email} disabled className="pl-10 bg-gray-50" />
+                <Input id="email" value={formData.email} disabled className="pl-10 bg-muted/50" />
               </div>
               <p className="text-xs text-muted-foreground">Email updates are handled by the platform owner.</p>
             </div>

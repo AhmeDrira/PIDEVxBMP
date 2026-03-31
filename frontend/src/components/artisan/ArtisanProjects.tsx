@@ -90,14 +90,14 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
           setTimeout(() => setShowSuggestions(false), 200);
         }}
         placeholder="Entrez une ville ou un lieu en Tunisie"
-        className={`h-12 rounded-xl border-2 focus:border-primary ${error ? 'border-red-500' : 'border-gray-200'}`}
+        className={`h-12 rounded-xl border-2 focus:border-primary ${error ? 'border-red-500' : 'border-border'}`}
       />
       {showSuggestions && suggestions.length > 0 && (
-        <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+        <ul className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
           {suggestions.map((suggestion) => (
             <li
               key={suggestion.place_id}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+              className="px-4 py-2 hover:bg-muted cursor-pointer"
               onClick={() => handleSelect(suggestion)}
             >
               {suggestion.display_name}
@@ -106,11 +106,11 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
         </ul>
       )}
       {showSuggestions && !loading && value.length >= 3 && suggestions.length === 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 text-sm text-muted-foreground">
+        <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg px-4 py-3 text-sm text-muted-foreground">
           Aucune ville trouvee pour vos gouvernorats de profil.
         </div>
       )}
-      {loading && <div className="absolute right-3 top-3 text-sm text-gray-400">Chargement...</div>}
+      {loading && <div className="absolute right-3 top-3 text-sm text-muted-foreground">Chargement...</div>}
     </div>
   );
 };
@@ -549,7 +549,7 @@ export default function ArtisanProjects() {
       case 'completed':
         return 'bg-primary/10 text-primary border-primary/20';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+        return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -562,7 +562,7 @@ export default function ArtisanProjects() {
       case 'low':
         return 'bg-green-100 text-green-700 border-green-200';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+        return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -590,7 +590,7 @@ export default function ArtisanProjects() {
           <ArrowRight size={20} className="mr-2 rotate-180" />
           Retour aux projets
         </Button>
-        <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
           <h2 className="text-3xl font-bold text-foreground mb-8">Créer un nouveau projet</h2>
           <form className="space-y-6" onSubmit={handleCreateProject}>
             {/* Titre */}
@@ -607,7 +607,7 @@ export default function ArtisanProjects() {
                 }}
                 onBlur={() => handleBlur('title')}
                 placeholder="Entrez le titre du projet"
-                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.title && errors.title ? 'border-red-500' : 'border-gray-200'}`}
+                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.title && errors.title ? 'border-red-500' : 'border-border'}`}
               />
               {touched.title && errors.title && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.title}</p>}
             </div>
@@ -627,7 +627,7 @@ export default function ArtisanProjects() {
                 onBlur={() => handleBlur('description')}
                 placeholder="Décrivez votre projet (minimum 10 caractères)"
                 rows={4}
-                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-gray-200'}`}
+                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
               />
               {touched.description && errors.description && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>}
             </div>
@@ -680,7 +680,7 @@ export default function ArtisanProjects() {
                     }
                   }}
                   onBlur={() => handleBlur('startDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-gray-200'}`}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
                 />
                 {touched.startDate && errors.startDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.startDate}</p>}
               </div>
@@ -699,7 +699,7 @@ export default function ArtisanProjects() {
                     if (touched.endDate) setErrors((prev) => ({ ...prev, endDate: validateField('endDate', e.target.value) }));
                   }}
                   onBlur={() => handleBlur('endDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-gray-200'}`}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
                 />
                 {touched.endDate && errors.endDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.endDate}</p>}
               </div>
@@ -732,7 +732,7 @@ export default function ArtisanProjects() {
           <ArrowRight size={20} className="mr-2 rotate-180" />
           Retour au projet
         </Button>
-        <Card className="p-10 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
           <h2 className="text-3xl font-bold text-foreground mb-8">Modifier le projet</h2>
           <form className="space-y-6" onSubmit={handleUpdateProject}>
             {/* Titre */}
@@ -749,7 +749,7 @@ export default function ArtisanProjects() {
                 }}
                 onBlur={() => handleBlur('title')}
                 placeholder="Entrez le titre du projet"
-                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.title && errors.title ? 'border-red-500' : 'border-gray-200'}`}
+                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.title && errors.title ? 'border-red-500' : 'border-border'}`}
               />
               {touched.title && errors.title && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.title}</p>}
             </div>
@@ -769,7 +769,7 @@ export default function ArtisanProjects() {
                 onBlur={() => handleBlur('description')}
                 placeholder="Décrivez votre projet (minimum 10 caractères)"
                 rows={4}
-                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-gray-200'}`}
+                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
               />
               {touched.description && errors.description && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>}
             </div>
@@ -821,7 +821,7 @@ export default function ArtisanProjects() {
                     }
                   }}
                   onBlur={() => handleBlur('startDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-gray-200'}`}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
                 />
                 {touched.startDate && errors.startDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.startDate}</p>}
               </div>
@@ -840,7 +840,7 @@ export default function ArtisanProjects() {
                     if (touched.endDate) setErrors((prev) => ({ ...prev, endDate: validateField('endDate', e.target.value) }));
                   }}
                   onBlur={() => handleBlur('endDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-gray-200'}`}
+                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
                 />
                 {touched.endDate && errors.endDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.endDate}</p>}
               </div>
@@ -883,7 +883,7 @@ export default function ArtisanProjects() {
         </Button>
         <div className="grid lg:grid-cols-1 gap-6">
           <div className="space-y-6">
-            <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+            <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
               <div className="flex items-start justify-between mb-6">
                 <div>
                   <h2 className="text-3xl font-bold text-foreground mb-3">{selectedProject.title}</h2>
@@ -911,7 +911,7 @@ export default function ArtisanProjects() {
                   <p className="text-muted-foreground leading-relaxed">{selectedProject.description}</p>
                 </div>
 
-                <div className="pt-6 border-t-2 border-gray-100">
+                <div className="pt-6 border-t-2 border-border">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-semibold text-foreground">Project Progress</h4>
                     <span className="text-4xl font-bold text-primary">{progress}%</span>
@@ -921,18 +921,18 @@ export default function ArtisanProjects() {
                   </div>
                 </div>
 
-                <div className="pt-6 border-t-2 border-gray-100 space-y-4">
+                <div className="pt-6 border-t-2 border-border space-y-4">
                   <h4 className="text-lg font-semibold text-foreground">Tasks</h4>
                   <div className="flex flex-col md:flex-row gap-3">
                     <Input
                       value={newTaskTitle}
                       onChange={(e) => setNewTaskTitle(e.target.value)}
                       placeholder="Add a new task..."
-                      className="h-11 rounded-xl border-2 border-gray-200"
+                      className="h-11 rounded-xl border-2 border-border"
                     />
                     <Button
                       type="button"
-                      className="h-11 px-6 rounded-xl bg-primary text-white hover:bg-primary/90"
+                      className="h-11 px-6 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90"
                       onClick={handleAddTask}
                       disabled={!newTaskTitle.trim()}
                     >
@@ -946,18 +946,18 @@ export default function ArtisanProjects() {
                       <p className="text-sm text-muted-foreground">No tasks in To Do.</p>
                     ) : (
                       todoTasks.map((task) => (
-                        <div key={task._id} className="p-4 rounded-xl border border-gray-200 bg-gray-50/60">
+                        <div key={task._id} className="p-4 rounded-xl border border-border bg-muted/50">
                           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                             {editingTaskId === task._id ? (
                               <Input
                                 value={editingTaskTitle}
                                 onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                className="h-10 rounded-lg border-2 border-gray-200"
+                                className="h-10 rounded-lg border-2 border-border"
                               />
                             ) : (
                               <div className="flex items-center gap-3">
                                 <p className="font-medium text-foreground">{task.title}</p>
-                                <Badge className="bg-gray-100 text-gray-700 border border-gray-200">
+                                <Badge className="bg-muted text-foreground border border-border">
                                   {task.status === 'in_progress' ? 'In Progress' : 'To Do'}
                                 </Badge>
                               </div>
@@ -1012,7 +1012,7 @@ export default function ArtisanProjects() {
                               <Input
                                 value={editingTaskTitle}
                                 onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                className="h-10 rounded-lg border-2 border-gray-200"
+                                className="h-10 rounded-lg border-2 border-border"
                               />
                             ) : (
                               <div className="flex items-center gap-3">
@@ -1168,7 +1168,7 @@ export default function ArtisanProjects() {
             </span>
           )}
         </div>
-        <Card className="p-8 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
           {groupedMaterials.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No materials added to this project yet.</p>
           ) : (
@@ -1192,10 +1192,10 @@ export default function ArtisanProjects() {
                       {/* Quantity adjuster */}
                       <div className="flex items-center gap-2 mt-3">
                         <span className="text-xs text-muted-foreground">Qty:</span>
-                        <div className="flex items-center gap-1 rounded-xl border-2 border-gray-200 overflow-hidden">
+                        <div className="flex items-center gap-1 rounded-xl border-2 border-border overflow-hidden">
                           <button
                             type="button"
-                            className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-gray-100 transition-colors disabled:opacity-40"
+                            className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors disabled:opacity-40"
                             disabled={(localQuantities[materialId] ?? quantity) <= 1}
                             onClick={() => handleAdjustLocalQuantity(materialId, -1)}
                           >
@@ -1206,7 +1206,7 @@ export default function ArtisanProjects() {
                           </div>
                           <button
                             type="button"
-                            className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-gray-100 transition-colors"
+                            className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors"
                             onClick={() => handleAdjustLocalQuantity(materialId, 1)}
                           >
                             +
@@ -1226,7 +1226,7 @@ export default function ArtisanProjects() {
                       disabled={confirmingMaterialId === materialId || (localQuantities[materialId] ?? quantity) === quantity}
                       onClick={() => confirmMaterialQuantity(materialId)}
                       className="flex-1 rounded-xl py-2 text-sm font-semibold border border-emerald-600 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                      style={{ backgroundColor: (localQuantities[materialId] ?? quantity) !== quantity ? '#10b981' : '#d1fae5', color: (localQuantities[materialId] ?? quantity) !== quantity ? 'white' : '#065f46' }}
+                      style={{ backgroundColor: (localQuantities[materialId] ?? quantity) !== quantity ? '#10b981' : 'rgba(16,185,129,0.15)', color: (localQuantities[materialId] ?? quantity) !== quantity ? 'white' : '#065f46' }}
                     >
                       {confirmingMaterialId === materialId ? 'Saving…' : (localQuantities[materialId] ?? quantity) !== quantity ? '✓ Confirm Qty' : '✓ Saved'}
                     </button>
@@ -1267,9 +1267,9 @@ export default function ArtisanProjects() {
         </Button>
       </div>
 
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-          <div className="flex-1 h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2">
+          <div className="flex-1 h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2">
             <Search className="text-muted-foreground shrink-0" size={18} />
             <Input
               placeholder="Search projects..."
@@ -1279,7 +1279,7 @@ export default function ArtisanProjects() {
             />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 lg:w-auto">
-            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+            <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
               <Filter className="text-muted-foreground shrink-0" size={16} />
               <select
                 value={statusFilter}
@@ -1293,7 +1293,7 @@ export default function ArtisanProjects() {
                 <option value="completed">Completed</option>
               </select>
             </div>
-            <div className="h-12 rounded-xl border-2 border-gray-200 bg-white px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-gray-300 transition-colors">
+            <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value as 'all' | 'low' | 'medium' | 'high')}
@@ -1313,10 +1313,10 @@ export default function ArtisanProjects() {
       {isLoading ? (
         <div className="text-center py-10 text-muted-foreground">Loading your projects...</div>
       ) : filteredProjects.length === 0 ? (
-        <div className="text-center py-10 bg-white rounded-2xl shadow-lg border border-gray-100">
+        <div className="text-center py-10 bg-card rounded-2xl border border-border shadow-lg border border-border">
           <FolderKanban className="mx-auto text-gray-300 mb-4" size={48} />
-          <p className="text-xl font-semibold text-gray-500">No projects found.</p>
-          <p className="text-gray-400 mt-2">Click "Create Project" to get started!</p>
+          <p className="text-xl font-semibold text-muted-foreground">No projects found.</p>
+          <p className="text-muted-foreground mt-2">Click "Create Project" to get started!</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
@@ -1327,7 +1327,7 @@ export default function ArtisanProjects() {
             const isProjectCompleted = status === 'completed' || projectProgress >= 100;
             
             return (
-              <Card key={project._id} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <Card key={project._id} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-foreground mb-3">{project.title}</h3>
@@ -1373,7 +1373,7 @@ export default function ArtisanProjects() {
                 {isProjectCompleted && (
                   <Button
                     type="button"
-                    className="w-full h-10 rounded-xl bg-primary text-white hover:bg-primary/90 mb-4"
+                    className="w-full h-10 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90 mb-4"
                     onClick={() => guard(() => handleAddProjectToPortfolio(project._id))}
                     disabled={addingToPortfolio}
                   >

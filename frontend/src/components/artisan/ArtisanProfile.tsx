@@ -191,7 +191,7 @@ export default function ArtisanProfile() {
   return (
     <div className="space-y-6">
       {/* Profile Header */}
-      <Card className="p-6 bg-white">
+      <Card className="p-6 bg-card">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex flex-col items-center">
             <div className="relative">
@@ -214,17 +214,17 @@ export default function ArtisanProfile() {
                 <Camera size={20} />
               </button>
             </div>
-            <p className="text-sm mt-2" style={{ color: '#6B7280' }}>Click to change photo</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--muted-foreground)' }}>Click to change photo</p>
           </div>
 
           <div className="flex-1">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-2xl mb-1" style={{ color: '#111827' }}>{fullName}</h2>
-                <p className="flex items-center gap-2 mb-1" style={{ color: '#6B7280' }}>
+                <h2 className="text-2xl mb-1" style={{ color: 'var(--foreground)' }}>{fullName}</h2>
+                <p className="flex items-center gap-2 mb-1" style={{ color: 'var(--muted-foreground)' }}>
                   <Briefcase size={16} /> {formData.domain || '—'}
                 </p>
-                <p className="flex items-center gap-2" style={{ color: '#6B7280' }}>
+                <p className="flex items-center gap-2" style={{ color: 'var(--muted-foreground)' }}>
                   <MapPin size={16} /> {formData.location || '—'}
                 </p>
               </div>
@@ -242,8 +242,8 @@ export default function ArtisanProfile() {
       </Card>
 
       {/* Profile Information */}
-      <Card className="p-6 bg-white">
-        <h3 className="text-xl mb-6" style={{ color: '#111827' }}>Profile Information</h3>
+      <Card className="p-6 bg-card">
+        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Profile Information</h3>
 
         {isEditing ? (
           <form onSubmit={handleSave} className="space-y-6">
@@ -252,7 +252,7 @@ export default function ArtisanProfile() {
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
                   <Input id="firstName" placeholder="First name" value={formData.firstName}
                     onChange={e => setFormData({ ...formData, firstName: e.target.value })} className="pl-10" />
                 </div>
@@ -262,7 +262,7 @@ export default function ArtisanProfile() {
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
                   <Input id="lastName" placeholder="Last name" value={formData.lastName}
                     onChange={e => setFormData({ ...formData, lastName: e.target.value })} className="pl-10" />
                 </div>
@@ -272,7 +272,7 @@ export default function ArtisanProfile() {
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: '#6B7280' }} />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
                   <Input id="phone" placeholder="+216 XX XXX XXX" value={formData.phone}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })} className="pl-10" />
                 </div>
@@ -289,12 +289,12 @@ export default function ArtisanProfile() {
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="domain">Specialization</Label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={18} style={{ color: '#6B7280' }} />
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={18} style={{ color: 'var(--muted-foreground)' }} />
                   <select
                     id="domain"
                     value={formData.domain}
                     onChange={e => setFormData({ ...formData, domain: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-white"
+                    className="w-full pl-10 pr-4 py-2 border-2 border-border rounded-xl text-sm focus:outline-none focus:border-primary bg-card"
                   >
                     <option value="">Select a specialization…</option>
                     {SPECIALIZATIONS.map(s => (
@@ -309,7 +309,7 @@ export default function ArtisanProfile() {
                 <Label>Location (Tunisia)</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {TUNISIA_STATES.map(state => (
-                    <label key={state} className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-foreground cursor-pointer">
+                    <label key={state} className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm text-foreground cursor-pointer">
                       <Checkbox
                         checked={selectedStates.includes(state)}
                         onCheckedChange={checked => {
@@ -363,7 +363,7 @@ export default function ArtisanProfile() {
               <Label>Certifications</Label>
               <div className="flex flex-col gap-2 mb-2">
                 {certifications.map((cert, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-3 rounded-xl bg-accent/5 border border-gray-100">
+                  <div key={idx} className="flex items-center gap-2 p-3 rounded-xl bg-accent/5 border border-border">
                     <Award size={16} className="text-accent flex-shrink-0" />
                     <span className="flex-1 text-sm font-medium text-foreground">{cert}</span>
                     <button type="button" onClick={() => setCertifications(prev => prev.filter((_, i) => i !== idx))} className="hover:text-red-500">
@@ -395,39 +395,39 @@ export default function ArtisanProfile() {
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Full Name</p>
-                <p style={{ color: '#111827' }}>{fullName}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Full Name</p>
+                <p style={{ color: 'var(--foreground)' }}>{fullName}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Email Address</p>
-                <p style={{ color: '#111827' }}>{formData.email} <span className="text-xs bg-gray-100 px-2 py-1 rounded ml-2">(Read-only)</span></p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Email Address</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.email} <span className="text-xs bg-muted px-2 py-1 rounded ml-2">(Read-only)</span></p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Phone Number</p>
-                <p style={{ color: '#111827' }}>{formData.phone || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Phone Number</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.phone || 'Not provided'}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Location</p>
-                <p style={{ color: '#111827' }}>{formData.location || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Location</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.location || 'Not provided'}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Specialization</p>
-                <p style={{ color: '#111827' }}>{formData.domain || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Specialization</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.domain || 'Not provided'}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Experience</p>
-                <p style={{ color: '#111827' }}>{formData.yearsExperience ? `${formData.yearsExperience} years` : 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Experience</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.yearsExperience ? `${formData.yearsExperience} years` : 'Not provided'}</p>
               </div>
             </div>
 
             <div>
-              <p className="text-sm mb-1" style={{ color: '#6B7280' }}>Bio</p>
-              <p style={{ color: '#111827' }}>{formData.bio || 'No bio written yet.'}</p>
+              <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Bio</p>
+              <p style={{ color: 'var(--foreground)' }}>{formData.bio || 'No bio written yet.'}</p>
             </div>
 
             {skills.length > 0 && (
               <div>
-                <p className="text-sm mb-2" style={{ color: '#6B7280' }}>Skills & Expertise</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--muted-foreground)' }}>Skills & Expertise</p>
                 <div className="flex flex-wrap gap-2">
                   {skills.map((skill, idx) => (
                     <Badge key={idx} className="bg-primary/10 text-primary border-0 px-3 py-1 text-sm">{skill}</Badge>
@@ -438,7 +438,7 @@ export default function ArtisanProfile() {
 
             {certifications.length > 0 && (
               <div>
-                <p className="text-sm mb-2" style={{ color: '#6B7280' }}>Certifications</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--muted-foreground)' }}>Certifications</p>
                 <div className="space-y-2">
                   {certifications.map((cert, idx) => (
                     <div key={idx} className="flex items-center gap-2 p-3 rounded-xl bg-accent/5">
@@ -454,20 +454,20 @@ export default function ArtisanProfile() {
       </Card>
 
       {/* Security Settings */}
-      <Card className="p-6 bg-white">
-        <h3 className="text-xl mb-6" style={{ color: '#111827' }}>Security Settings</h3>
+      <Card className="p-6 bg-card">
+        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Security Settings</h3>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p style={{ color: '#111827' }}>Change Password</p>
-              <p className="text-sm" style={{ color: '#6B7280' }}>Update your password regularly for security</p>
+              <p style={{ color: 'var(--foreground)' }}>Change Password</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Update your password regularly for security</p>
             </div>
             <Button variant="outline">Change</Button>
           </div>
           <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid #E5E7EB' }}>
             <div>
-              <p style={{ color: '#111827' }}>Two-Factor Authentication</p>
-              <p className="text-sm" style={{ color: '#6B7280' }}>Add an extra layer of security</p>
+              <p style={{ color: 'var(--foreground)' }}>Two-Factor Authentication</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Add an extra layer of security</p>
             </div>
             <Button variant="outline">Enable</Button>
           </div>

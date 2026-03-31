@@ -144,7 +144,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
             Back to Profile
           </Button>
         )}
-        <Card className="p-12 bg-white rounded-2xl border-0 shadow-lg text-center">
+        <Card className="p-12 bg-card rounded-2xl border border-border shadow-lg text-center">
           <div className="flex flex-col items-center justify-center">
             <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4">
               <MessageSquare size={32} className="text-red-400" />
@@ -178,7 +178,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
       {/* Summary Cards */}
       <div className="grid md:grid-cols-3 gap-6">
         {/* Average Rating */}
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary/20 to-secondary/30 flex items-center justify-center">
               <Star size={24} className="text-secondary fill-secondary" />
@@ -197,7 +197,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
         </Card>
 
         {/* Total Reviews */}
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/30 flex items-center justify-center">
               <MessageSquare size={24} className="text-primary" />
@@ -211,7 +211,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
         </Card>
 
         {/* Recommendation Rate */}
-        <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/30 flex items-center justify-center">
               <TrendingUp size={24} className="text-accent" />
@@ -226,7 +226,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
       </div>
 
       {/* Rating Breakdown */}
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <h2 className="text-xl font-bold text-foreground mb-6">Rating Breakdown</h2>
         <div className="space-y-4">
           {ratingBreakdown.map(({ stars, count, percentage }) => (
@@ -235,7 +235,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
                 <span className="text-sm font-medium text-foreground">{stars}</span>
                 <Star size={16} className="text-secondary fill-secondary" />
               </div>
-              <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-secondary to-secondary/80 rounded-full"
                   style={{ width: `${percentage}%` }}
@@ -250,7 +250,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
       </Card>
 
       {/* Filters and Sort */}
-      <Card className="p-6 bg-white rounded-2xl border-0 shadow-lg">
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-2">Filter by rating</p>
@@ -302,10 +302,10 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
         
         {filteredReviews.length === 0 ? (
           // Empty State
-          <Card className="p-12 bg-white rounded-2xl border-0 shadow-lg text-center">
+          <Card className="p-12 bg-card rounded-2xl border border-border shadow-lg text-center">
             <div className="flex flex-col items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                <MessageSquare size={32} className="text-gray-400" />
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                <MessageSquare size={32} className="text-muted-foreground" />
               </div>
               <h3 className="text-xl font-bold text-foreground mb-2">No reviews yet</h3>
               <p className="text-muted-foreground max-w-md">
@@ -316,7 +316,7 @@ export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
         ) : (
           <div className="space-y-4">
             {filteredReviews.map((review, idx) => (
-              <Card key={review.id || idx} className="p-6 bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <Card key={review.id || idx} className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-shadow">
                 <div className="flex items-start gap-4">
                   {/* Expert Avatar */}
                   <div className="flex-shrink-0">

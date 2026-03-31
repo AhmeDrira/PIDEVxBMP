@@ -21,7 +21,7 @@ export default function LanguageSwitcher() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="p-2 lg:p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-1.5 transition-colors"
+        className="p-2 lg:p-3 rounded-xl hover:bg-muted dark:hover:bg-gray-800 flex items-center gap-1.5 transition-colors"
         aria-label="Change language"
       >
         <Globe size={20} className="text-muted-foreground" />
@@ -31,7 +31,7 @@ export default function LanguageSwitcher() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-40 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-40 bg-card dark:bg-gray-900 border border-border dark:border-gray-700 rounded-xl shadow-lg overflow-hidden z-50">
           {(Object.entries(LANGUAGE_LABELS) as [Language, typeof LANGUAGE_LABELS[Language]][]).map(
             ([code, info]) => (
               <button
@@ -40,7 +40,7 @@ export default function LanguageSwitcher() {
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors
                   ${language === code
                     ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-foreground hover:bg-gray-50 dark:hover:bg-gray-800'
+                    : 'text-foreground hover:bg-muted/50 dark:hover:bg-gray-800'
                   }`}
               >
                 <span className="text-base">{info.flag}</span>

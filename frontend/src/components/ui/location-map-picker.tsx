@@ -84,9 +84,9 @@ export function LocationMapPicker({ value, onChange, height = 320 }: LocationMap
   };
 
   return (
-    <div className="w-full rounded-xl overflow-hidden border-2 border-gray-200 focus-within:border-primary transition-colors">
+    <div className="w-full rounded-xl overflow-hidden border-2 border-border focus-within:border-primary transition-colors">
       {/* Instruction bar */}
-      <div className="px-3 py-2 bg-primary/5 border-b border-gray-200 flex items-center gap-2">
+      <div className="px-3 py-2 bg-primary/5 border-b border-border flex items-center gap-2">
         <MapPin size={14} className="text-primary flex-shrink-0" />
         <p className="text-xs text-muted-foreground">
           Click anywhere on the map to set your location
@@ -115,7 +115,7 @@ export function LocationMapPicker({ value, onChange, height = 320 }: LocationMap
       </div>
 
       {/* Selected address display */}
-      <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 min-h-[36px] flex items-center gap-2">
+      <div className="px-3 py-2 bg-muted/50 border-t border-border min-h-[36px] flex items-center gap-2">
         {isResolving ? (
           <>
             <Loader2 size={14} className="animate-spin text-primary flex-shrink-0" />

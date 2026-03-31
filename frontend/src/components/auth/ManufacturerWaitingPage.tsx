@@ -17,7 +17,7 @@ export default function ManufacturerWaitingPage({ onBackToLogin }: ManufacturerW
       {/* Right Section - Waiting Message */}
       <div className="lg:w-1/2 flex items-center justify-center p-8 lg:p-16 bg-background">
         <div className="w-full max-w-xl text-center">
-          <Card className="p-10 bg-white rounded-3xl shadow-2xl border-0">
+          <Card className="p-10 bg-card rounded-3xl shadow-2xl border-0">
             <div className="mb-10 flex flex-col items-center">
               <div className="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mb-6">
                 <Clock size={40} className="text-secondary animate-pulse" />
@@ -29,7 +29,7 @@ export default function ManufacturerWaitingPage({ onBackToLogin }: ManufacturerW
             </div>
 
             <div className="space-y-6 text-left mb-10">
-              <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50 border-2 border-gray-100">
+              <div className="flex items-start gap-4 p-4 rounded-2xl bg-muted/50 border-2 border-border">
                 <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
                   <CheckCircle2 size={20} className="text-accent" />
                 </div>
@@ -39,7 +39,7 @@ export default function ManufacturerWaitingPage({ onBackToLogin }: ManufacturerW
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50 border-2 border-gray-100">
+              <div className="flex items-start gap-4 p-4 rounded-2xl bg-muted/50 border-2 border-border">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <CheckCircle2 size={20} className="text-primary" />
                 </div>

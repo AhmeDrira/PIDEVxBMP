@@ -126,9 +126,9 @@ function computeCompletion(user: UserData, fields: Field[]) {
 }
 
 function palette(pct: number) {
-  if (pct >= 100) return { bar: 'linear-gradient(90deg,#10b981,#34d399)', glow: 'rgba(16,185,129,0.22)', accent: '#10b981', bg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '#bbf7d0' };
-  if (pct >= 70)  return { bar: 'linear-gradient(90deg,#1e40af,#3b82f6)', glow: 'rgba(59,130,246,0.20)', accent: '#1e40af', bg: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '#bfdbfe' };
-  if (pct >= 40)  return { bar: 'linear-gradient(90deg,#d97706,#f59e0b)', glow: 'rgba(245,158,11,0.20)', accent: '#d97706', bg: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '#fde68a' };
+  if (pct >= 100) return { bar: 'linear-gradient(90deg,#10b981,#34d399)', glow: 'rgba(16,185,129,0.22)', accent: '#10b981', bg: 'linear-gradient(135deg,rgba(5,150,105,0.1),#dcfce7)', border: '#bbf7d0' };
+  if (pct >= 70)  return { bar: 'linear-gradient(90deg,#1e40af,#3b82f6)', glow: 'rgba(59,130,246,0.20)', accent: '#1e40af', bg: 'linear-gradient(135deg,rgba(37,99,235,0.1),rgba(37,99,235,0.2))', border: 'rgba(37,99,235,0.3)' };
+  if (pct >= 40)  return { bar: 'linear-gradient(90deg,#d97706,#f59e0b)', glow: 'rgba(245,158,11,0.20)', accent: '#d97706', bg: 'linear-gradient(135deg,rgba(217,119,6,0.1),rgba(245,158,11,0.15))', border: 'rgba(245,158,11,0.3)' };
   return              { bar: 'linear-gradient(90deg,#ef4444,#f97316)',     glow: 'rgba(239,68,68,0.20)',  accent: '#ef4444', bg: 'linear-gradient(135deg,#fff7ed,#fee2e2)', border: '#fecaca' };
 }
 
@@ -234,7 +234,7 @@ export default function ProfileCompletionBanner({
               ? <Sparkles size={15} style={{ color: c.accent, flexShrink: 0 }} />
               : <Zap size={14} style={{ color: c.accent, flexShrink: 0 }} />
             }
-            <span style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--foreground)' }}>
               {isComplete ? 'Profile Complete!' : `Profile ${score}% complete`}
             </span>
             <span style={{ fontSize: 11, fontWeight: 700, color: c.accent, background: `${c.accent}18`, borderRadius: 20, padding: '2px 8px' }}>
@@ -243,7 +243,7 @@ export default function ProfileCompletionBanner({
           </div>
 
           {/* Motivation text */}
-          <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 10px', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.5 }}>
             {motivation(score, missing)}
           </p>
 

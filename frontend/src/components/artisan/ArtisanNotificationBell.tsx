@@ -112,7 +112,7 @@ export default function ArtisanNotificationBell() {
     <div className="relative z-50" ref={dropdownRef}>
       <button
         onClick={() => setOpen(!open)}
-        className={`p-3 rounded-xl relative overflow-visible transition-colors ${open ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+        className={`p-3 rounded-xl relative overflow-visible transition-colors ${open ? 'bg-muted' : 'hover:bg-muted'}`}
         aria-label="Notifications"
       >
         <Bell size={20} className={`transition-colors ${open ? 'text-foreground' : 'text-muted-foreground'}`} />
@@ -127,8 +127,8 @@ export default function ArtisanNotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-4 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
+        <div className="absolute right-0 top-full mt-4 w-80 sm:w-96 bg-card rounded-3xl shadow-2xl border border-border z-50 overflow-hidden">
+          <div className="px-6 py-5 border-b border-border flex items-center justify-between bg-card">
             <div>
               <h3 className="font-bold text-foreground text-lg tracking-tight">Notifications</h3>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">
@@ -147,7 +147,7 @@ export default function ArtisanNotificationBell() {
             )}
           </div>
 
-          <div className="max-h-[420px] overflow-y-auto bg-white">
+          <div className="max-h-[420px] overflow-y-auto bg-card">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 px-6 text-center text-muted-foreground">
                 <Bell size={24} className="mb-3 text-gray-300" />
@@ -161,23 +161,23 @@ export default function ArtisanNotificationBell() {
                     onClick={() => !n.read && markRead(n._id)}
                     className={`group relative flex items-start gap-3 p-4 rounded-2xl transition-all duration-300 border ${
                       !n.read
-                        ? 'bg-white border-blue-100 shadow-sm cursor-pointer hover:shadow-md'
-                        : 'bg-white/50 border-transparent hover:bg-white hover:border-gray-100'
+                        ? 'bg-card border-blue-100 shadow-sm cursor-pointer hover:shadow-md'
+                        : 'bg-card/50 border-transparent hover:bg-card hover:border-border'
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${!n.read ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-400'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${!n.read ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                       {renderNotificationIcon(n.icon)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-2 mb-1">
-                        <h4 className={`text-sm font-bold ${!n.read ? 'text-gray-900' : 'text-gray-700'}`}>
+                        <h4 className={`text-sm font-bold ${!n.read ? 'text-foreground' : 'text-foreground'}`}>
                           {n.title}
                         </h4>
-                        <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">
+                        <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
                           {getTimeAgo(n.createdAt)}
                         </span>
                       </div>
-                      <p className="text-xs leading-relaxed text-gray-500">{n.message}</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">{n.message}</p>
                     </div>
                   </div>
                 ))}
@@ -185,7 +185,7 @@ export default function ArtisanNotificationBell() {
             )}
           </div>
 
-          <div className="p-3 border-t border-gray-100 bg-gray-50/80 text-center">
+          <div className="p-3 border-t border-border bg-muted/50 text-center">
             <button
               onClick={() => setOpen(false)}
               className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors py-1 px-3 rounded-lg hover:bg-primary/5"
