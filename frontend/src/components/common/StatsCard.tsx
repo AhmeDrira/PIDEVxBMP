@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '../ui/card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface StatsCardProps {
   label: string;
   value: string | number;
@@ -25,6 +26,8 @@ export default function StatsCard({
   onClick,
   isActive 
 }: StatsCardProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   return (
     <Card 
       onClick={onClick}

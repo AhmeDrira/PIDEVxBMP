@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { Button } from '../ui/button';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface VoiceMessageProps {
   url: string;
   duration: number;
@@ -10,7 +11,9 @@ interface VoiceMessageProps {
 }
 
 export default function VoiceMessage({ url, duration, isSelf, messageId }: VoiceMessageProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import LoginPage from './components/auth/LoginPage';
 import AdminLoginPage from './components/auth/AdminLoginPage';
-import SubAdminRegisterPage from './components/auth/SubAdminRegisterPage';
 import SubAdminLoginPage from './components/auth/SubAdminLoginPage';
 import SubAdminForgotPasswordPage from './components/auth/SubAdminForgotPasswordPage';
 import RegisterPage from './components/auth/RegisterPage';
@@ -31,8 +30,7 @@ type AuthView =
   | 'manufacturer-waiting'
   | 'admin-login'
   | 'sub-admin-login'
-  | 'sub-admin-forgot'
-  | 'sub-admin-register';
+  | 'sub-admin-forgot';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserRole>(null);
@@ -156,12 +154,6 @@ export default function App() {
     }
   };
 
-  const handleSubAdminEmailSent = (email: string) => {
-    setRegisteredEmail(email);
-    setEmailSentTarget('admin-login');
-    setAuthView('email-sent');
-  };
-
   const handleEmailSentBack = () => {
     if (emailSentTarget === 'admin-login') {
       navigateToAdminLogin();
@@ -197,7 +189,6 @@ export default function App() {
           {authView === 'admin-login' && (
             <AdminLoginPage
               onLogin={(role) => handleLogin(role)}
-              onCreateSubAdmin={() => setAuthView('sub-admin-register')}
             />
           )}
           {authView === 'sub-admin-login' && (
@@ -209,12 +200,6 @@ export default function App() {
           {authView === 'sub-admin-forgot' && (
             <SubAdminForgotPasswordPage
               onBackToLogin={navigateToSubAdminLogin}
-            />
-          )}
-          {authView === 'sub-admin-register' && (
-            <SubAdminRegisterPage
-              onBackToAdminLogin={navigateToAdminLogin}
-              onEmailSent={handleSubAdminEmailSent}
             />
           )}
           {authView === 'register' && (

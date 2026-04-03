@@ -12,6 +12,7 @@ import authService from '../../services/authService';
 import { toast } from 'sonner';
 import { subAdminSchema, SubAdminFormValues } from '../../lib/validations';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface SubAdminRegisterPageProps {
   onBackToAdminLogin: () => void;
   onEmailSent: (email: string) => void;
@@ -26,7 +27,9 @@ const defaultPermissions = {
 };
 
 export default function SubAdminRegisterPage({ onBackToAdminLogin, onEmailSent }: SubAdminRegisterPageProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     register,
     handleSubmit,

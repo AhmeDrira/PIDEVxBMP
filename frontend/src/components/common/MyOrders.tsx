@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
+import { useLanguage } from '../../context/LanguageContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -20,19 +21,22 @@ const getToken = () => {
   return token;
 };
 
-const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  pending:    { label: 'Pending',    color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200',   icon: Clock },
-  paid:       { label: 'Confirmed',  color: 'text-green-700',  bg: 'bg-green-50 border-green-200',     icon: CheckCircle },
-  processing: { label: 'Processing', color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',       icon: Package },
-  shipped:    { label: 'Shipped',    color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200',   icon: Truck },
-  delivered:  { label: 'Delivered',  color: 'text-emerald-700',bg: 'bg-emerald-50 border-emerald-200', icon: PackageCheck },
-  cancelled:  { label: 'Cancelled',  color: 'text-red-700',    bg: 'bg-red-50 border-red-200',         icon: XCircle },
-  failed:     { label: 'Failed',     color: 'text-red-700',    bg: 'bg-red-50 border-red-200',         icon: XCircle },
-};
+const getStatusConfig = (t: (key: string) => string): Record<string, { label: string; color: string; bg: string; icon: any }> => ({
+  pending:    { label: t('orders.pending'),    color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200',   icon: Clock },
+  paid:       { label: t('orders.confirmed'),  color: 'text-green-700',  bg: 'bg-green-50 border-green-200',     icon: CheckCircle },
+  processing: { label: t('orders.processing'), color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',       icon: Package },
+  shipped:    { label: t('orders.shipped'),    color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200',   icon: Truck },
+  delivered:  { label: t('orders.delivered'),  color: 'text-emerald-700',bg: 'bg-emerald-50 border-emerald-200', icon: PackageCheck },
+  cancelled:  { label: t('orders.cancelled'),  color: 'text-red-700',    bg: 'bg-red-50 border-red-200',         icon: XCircle },
+  failed:     { label: t('orders.failed'),     color: 'text-red-700',    bg: 'bg-red-50 border-red-200',         icon: XCircle },
+});
 
 const timelineSteps = ['paid', 'processing', 'shipped', 'delivered'];
 
 export default function MyOrders() {
+  const { t, language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const statusConfig = getStatusConfig(t);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -98,9 +102,9 @@ export default function MyOrders() {
     const currentStepIndex = timelineSteps.indexOf(order.status);
 
     return (
-      <div className="space-y-6">
+      <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-6">
         <Button variant="outline" onClick={() => setSelectedOrder(null)} className="rounded-xl border-2">
-          <ArrowLeft size={18} className="mr-2" /> Back to Orders
+          <ArrowLeft size={18} className="mr-2" /> {t('orders.backToOrders')}
         </Button>
 
         {isLoadingDetail ? (
@@ -113,10 +117,10 @@ export default function MyOrders() {
             <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Order</p>
+                  <p className="text-sm text-muted-foreground font-medium">{t('orders.order')}</p>
                   <h2 className="text-2xl font-bold text-foreground">{order.orderNumber || `#${String(order.id).slice(-8).toUpperCase()}`}</h2>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Placed on {new Date(order.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} at {new Date(order.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                    {t('orders.placedOn')} {new Date(order.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} {t('orders.at')} {new Date(order.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
                 <Badge className={`${status.bg} ${status.color} border flex items-center gap-1.5 px-4 py-2 text-sm`}>
@@ -128,7 +132,7 @@ export default function MyOrders() {
 
             {/* Delivery Timeline */}
             <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-              <h3 className="text-lg font-bold text-foreground mb-6">Delivery Timeline</h3>
+              <h3 className="text-lg font-bold text-foreground mb-6">{t('orders.deliveryTimeline')}</h3>
 
               {/* Visual Progress Bar */}
               <div className="relative mb-8">
@@ -212,7 +216,7 @@ export default function MyOrders() {
               {/* Items */}
               <div className="lg:col-span-2">
                 <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-                  <h3 className="text-lg font-bold text-foreground mb-4">Order Items</h3>
+                  <h3 className="text-lg font-bold text-foreground mb-4">{t('orders.orderDetails')}</h3>
                   <div className="space-y-3">
                     {(order.items || []).map((item: any, idx: number) => (
                       <div key={idx} className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 border border-border">
@@ -234,15 +238,15 @@ export default function MyOrders() {
                   </div>
                   <div className="mt-4 pt-4 border-t border-border space-y-2">
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Subtotal</span>
+                      <span>{tr("Subtotal", "Sous-total", "الإجمالي الفرعي")}</span>
                       <span>{((order.totalAmount || 0) - (order.shippingAmount || 0)).toFixed(2)} DT</span>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Shipping</span>
+                      <span>{tr("Shipping", "Expédition", "الشحن")}</span>
                       <span>{(order.shippingAmount || 0).toFixed(2)} DT</span>
                     </div>
                     <div className="flex justify-between font-bold text-foreground pt-2 border-t border-border">
-                      <span>Total</span>
+                      <span>{tr("Total", "Total", "الإجمالي")}</span>
                       <span className="text-primary text-lg">{(order.totalAmount || 0).toFixed(2)} DT</span>
                     </div>
                   </div>
@@ -269,7 +273,7 @@ export default function MyOrders() {
 
                 {order.contactInfo && (
                   <Card className="p-5 bg-card rounded-2xl border border-border shadow-lg">
-                    <h4 className="text-sm font-bold text-foreground mb-3">Contact Info</h4>
+                    <h4 className="text-sm font-bold text-foreground mb-3">{tr("Contact Info", "Informations de Contact", "معلومات الاتصال")}</h4>
                     <div className="space-y-2 text-sm">
                       {order.contactInfo.email && (
                         <p className="flex items-center gap-2 text-muted-foreground">
@@ -288,11 +292,11 @@ export default function MyOrders() {
                 {order.shippingMethod && (
                   <Card className="p-5 bg-card rounded-2xl border border-border shadow-lg">
                     <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                      <Truck size={16} className="text-primary" /> Shipping Method
+                      <Truck size={16} className="text-primary" /> {tr("Shipping Method", "Méthode d'Expédition", "طريقة الشحن")}
                     </h4>
                     <p className="font-medium text-sm">{order.shippingMethod.name}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Est. {order.shippingMethod.estimatedDays} business days &middot; {(order.shippingMethod.cost || 0).toFixed(2)} DT
+                      {tr("Est.", "Est.", "المتوقع")} {order.shippingMethod.estimatedDays} {tr("business days", "jours ouvrables", "أيام عمل")} &middot; {(order.shippingMethod.cost || 0).toFixed(2)} DT
                     </p>
                   </Card>
                 )}
@@ -306,7 +310,7 @@ export default function MyOrders() {
 
   // --- ORDER LIST VIEW ---
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4 bg-card rounded-2xl border border-border shadow-lg">
@@ -315,7 +319,7 @@ export default function MyOrders() {
               <ShoppingBag size={20} className="text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Total Spent</p>
+              <p className="text-xs text-muted-foreground font-medium">{t('orders.totalAmount')}</p>
               <p className="text-xl font-bold text-foreground">{totalSpent.toFixed(2)} DT</p>
             </div>
           </div>
@@ -326,7 +330,7 @@ export default function MyOrders() {
               <Package size={20} className="text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Active Orders</p>
+              <p className="text-xs text-muted-foreground font-medium">{tr("Active Orders", "Commandes Actives", "الطلبات النشطة")}</p>
               <p className="text-xl font-bold text-foreground">{activeCount}</p>
             </div>
           </div>
@@ -337,7 +341,7 @@ export default function MyOrders() {
               <PackageCheck size={20} className="text-emerald-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Delivered</p>
+              <p className="text-xs text-muted-foreground font-medium">{t('orders.delivered')}</p>
               <p className="text-xl font-bold text-foreground">{deliveredCount}</p>
             </div>
           </div>
@@ -350,7 +354,7 @@ export default function MyOrders() {
           <div className="relative flex-1">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by order number or product..."
+              placeholder={tr("Search by order number or product...", "Rechercher par numéro de commande ou produit...", "البحث حسب رقم الطلب أو المنتج...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 h-11 rounded-xl border-2 border-border focus:border-primary"
@@ -367,7 +371,7 @@ export default function MyOrders() {
                     : 'bg-muted text-muted-foreground hover:bg-gray-200'
                 }`}
               >
-                {s === 'all' ? 'All' : (statusConfig[s]?.label || s)}
+                {s === 'all' ? t('common.all') : (statusConfig[s]?.label || s)}
               </button>
             ))}
           </div>
@@ -382,9 +386,9 @@ export default function MyOrders() {
       ) : filtered.length === 0 ? (
         <Card className="p-12 bg-card rounded-2xl border border-border shadow-lg text-center">
           <ShoppingBag size={48} className="text-muted-foreground mx-auto mb-4 opacity-40" />
-          <h3 className="text-xl font-bold text-foreground mb-2">No orders found</h3>
+          <h3 className="text-xl font-bold text-foreground mb-2">{t('orders.noOrders')}</h3>
           <p className="text-muted-foreground">
-            {searchTerm || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Your material purchases will appear here after checkout.'}
+            {searchTerm || statusFilter !== 'all' ? tr("Try adjusting your filters.", "Essayez d'ajuster vos filtres.", "حاول تعديل عوامل التصفية الخاصة بك.") : tr("Your material purchases will appear here after checkout.", "Vos achats de matériaux apparaîtront ici après le paiement.", "ستظهر مشترياتك من المواد هنا بعد الدفع.")}
           </p>
         </Card>
       ) : (

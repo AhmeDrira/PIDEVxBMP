@@ -4,13 +4,16 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ArrowRight, Download, FileText, Calendar, User, Package } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ViewQuotePageProps {
   quoteId?: string;
   onBack?: () => void;
 }
 
 export default function ViewQuotePage({ quoteId, onBack }: ViewQuotePageProps) {
-  // Mock quote data - in real app this would come from API/props
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  // Mock quote data - in real app this would come from API/props
   const quote = {
     id: quoteId || 'QT-2024-001',
     title: 'Villa Construction Project - Phase 1',

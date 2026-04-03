@@ -12,6 +12,7 @@ import 'react-quill/dist/quill.snow.css';
 import type { KnowledgeAttachment } from '../../services/knowledgeService';
 import type { KnowledgeArticle } from '../../services/knowledgeService';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface AddKnowledgePageProps {
   onBack?: () => void;
   onSave?: (data: {
@@ -54,6 +55,8 @@ export default function AddKnowledgePage({
   articleToEdit = null,
   initialData,
 }: AddKnowledgePageProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const isEditMode = Boolean(isEditing && articleToEdit?._id);
   const articleRef = useRef(articleToEdit);
   articleRef.current = articleToEdit;

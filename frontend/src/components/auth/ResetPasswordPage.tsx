@@ -12,13 +12,16 @@ import { resetPasswordSchema, ResetPasswordFormValues } from '../../lib/validati
 import Logo from '../common/Logo';
 import { toast } from 'sonner';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ResetPasswordPageProps {
   onBackToLogin: () => void;
   token?: string | null;
 }
 
 export default function ResetPasswordPage({ onBackToLogin, token }: ResetPasswordPageProps) {
-  const [resolvedToken, setResolvedToken] = useState<string | null>(token || null);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [resolvedToken, setResolvedToken] = useState<string | null>(token || null);
   const [smsEmail, setSmsEmail] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);

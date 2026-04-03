@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div

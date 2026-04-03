@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Home, Package, ShoppingBag, ClipboardList } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import ManufacturerHome from '../manufacturer/ManufacturerHome';
 import ManufacturerProducts from '../manufacturer/ManufacturerProducts';
 import ManufacturerOrders from '../manufacturer/ManufacturerOrders';
@@ -14,6 +15,9 @@ interface ManufacturerDashboardProps {
 }
 
 export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboardProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const [activeView, setActiveView] = useState('home');
   const [unreadOrdersCount, setUnreadOrdersCount] = useState(0);
 
@@ -63,10 +67,10 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
   // ------------------------------
 
   const menuItems =[
-    { id: 'home', label: 'Home', icon: <Home size={20} /> },
-    { id: 'products', label: 'My Products', icon: <Package size={20} /> },
-    { id: 'orders', label: 'Orders', icon: <ShoppingBag size={20} /> },
-    { id: 'reports', label: 'My Reports', icon: <ClipboardList size={20} /> },
+    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
+    { id: 'products', label: t('nav.myProducts'), icon: <Package size={20} /> },
+    { id: 'orders', label: t('nav.orders'), icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: t('nav.myReports'), icon: <ClipboardList size={20} /> },
   ];
 
   const handleMenuItemClick = async (id: string) => {

@@ -6,6 +6,7 @@ import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import authService from '../../services/authService';
 import { toast } from 'sonner';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface AdminManufacturerVerificationProps {
   canVerifyManufacturers?: boolean;
@@ -22,13 +23,16 @@ type ManufacturerItem = {
   createdAt?: string;
 };
 
-const getCertFileName = (cf: CertificationFile): string => {
-  if (!cf) return 'Not provided';
+const getCertFileName = (cf: CertificationFile, t: (key: string) => string): string => {
+  if (!cf) return t('admin.verification.notProvided');
   if (typeof cf === 'string') return cf;
-  return cf.fileName || 'Document uploaded';
+  return cf.fileName || t('admin.verification.documentUploaded');
 };
 
 export default function AdminManufacturerVerification({ canVerifyManufacturers = false }: AdminManufacturerVerificationProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const [pendingManufacturers, setPendingManufacturers] = useState<ManufacturerItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -51,7 +55,7 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
 
   const approve = async (id: string) => {
     if (!canVerifyManufacturers) {
-      toast.error('You do not have permission to verify manufacturers.');
+      toast.error(t('admin.verification.noPermission'));
       return;
     }
     await authService.approveManufacturer(id);
@@ -60,7 +64,7 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
 
   const reject = async (id: string) => {
     if (!canVerifyManufacturers) {
-      toast.error('You do not have permission to verify manufacturers.');
+      toast.error(t('admin.verification.noPermission'));
       return;
     }
     await authService.rejectManufacturer(id, rejectReason);
@@ -73,14 +77,14 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
     <div className="space-y-8">
       <div className="grid md:grid-cols-3 gap-6">
         <StatsCard
-          label="Pending Reviews"
+          label={t('admin.verification.pendingReviews')}
           value={pendingManufacturers.length}
           icon={<FileText size={28} />}
           color="#F59E0B"
-          subtitle="Awaiting approval"
+          subtitle={t('admin.verification.awaitingApproval')}
         />
         <StatsCard
-          label="Approved This Month"
+          label={t('admin.verification.approvedThisMonth')}
           value="12"
           icon={<CheckCircle size={28} />}
           color="#10B981"
@@ -88,19 +92,19 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
           trendUp={true}
         />
         <StatsCard
-          label="Rejected"
+          label={t('admin.verification.rejected')}
           value="3"
           icon={<XCircle size={28} />}
           color="#EF4444"
-          subtitle="This month"
+          subtitle={t('admin.verification.thisMonth')}
         />
       </div>
 
       <div className="space-y-4">
-        {loading && <p className="text-muted-foreground">Loading...</p>}
+        {loading && <p className="text-muted-foreground">{t('common.loading')}</p>}
         {!loading && pendingManufacturers.length === 0 && (
           <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-            <p className="text-muted-foreground">No pending manufacturer applications.</p>
+            <p className="text-muted-foreground">{t('admin.verification.noPending')}</p>
           </Card>
         )}
         {pendingManufacturers.map((manufacturer) => (
@@ -110,12 +114,12 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
                 <div className="flex items-center gap-3 mb-4">
                   <h3 className="text-2xl font-bold text-foreground">{manufacturer.companyName}</h3>
                   <Badge className="bg-secondary/10 text-secondary border-secondary/20 border-2 px-4 py-1.5 text-sm font-semibold">
-                    Pending Review
+                    {t('admin.verification.pendingReview')}
                   </Badge>
                 </div>
                 <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                  <p><strong className="text-foreground">Email:</strong> {manufacturer.email}</p>
-                  <p><strong className="text-foreground">Submitted:</strong> {manufacturer.createdAt ? new Date(manufacturer.createdAt).toLocaleDateString() : '-'}</p>
+                  <p><strong className="text-foreground">{t('admin.verification.email')}</strong> {manufacturer.email}</p>
+                  <p><strong className="text-foreground">{t('admin.verification.submitted')}</strong> {manufacturer.createdAt ? new Date(manufacturer.createdAt).toLocaleDateString() : '-'}</p>
                 </div>
               </div>
 
@@ -125,8 +129,8 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
                     <FileText size={24} className="text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-foreground">Certification Document</p>
-                    <p className="text-xs text-muted-foreground truncate">{getCertFileName(manufacturer.certificationFile)}</p>
+                    <p className="text-sm font-bold text-foreground">{t('admin.verification.certificationDoc')}</p>
+                    <p className="text-xs text-muted-foreground truncate">{getCertFileName(manufacturer.certificationFile, t)}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -140,12 +144,12 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
                         const blobUrl = URL.createObjectURL(blob);
                         window.open(blobUrl, '_blank');
                       } catch (err) {
-                        toast.error('Could not load document. The manufacturer may not have uploaded a file.');
+                        toast.error(t('admin.verification.couldNotLoadDoc'));
                       }
                     }}
                   >
                     <Building size={16} className="mr-2" />
-                    View Document
+                    {t('admin.verification.viewDocument')}
                   </Button>
                 </div>
                 <div className="flex gap-2">
@@ -156,7 +160,7 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
                     title={canVerifyManufacturers ? 'Approve manufacturer' : 'Permission required'}
                   >
                     <CheckCircle size={18} className="mr-2" />
-                    Approve
+                    {t('admin.verification.approve')}
                   </Button>
                   <Button
                     onClick={() => setRejectingId(manufacturer._id)}
@@ -165,25 +169,25 @@ export default function AdminManufacturerVerification({ canVerifyManufacturers =
                     title={canVerifyManufacturers ? 'Reject manufacturer' : 'Permission required'}
                   >
                     <XCircle size={18} className="mr-2" />
-                    Reject
+                    {t('admin.verification.reject')}
                   </Button>
                 </div>
                 {rejectingId === manufacturer._id && (
                   <div className="space-y-2">
                     <textarea
                       className="w-full h-20 rounded-xl border-2 border-border p-3"
-                      placeholder="Provide a rejection reason (optional)"
+                      placeholder={t('admin.verification.rejectionReason')}
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                     />
                     <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1" onClick={() => { setRejectingId(null); setRejectReason(''); }}>Cancel</Button>
+                      <Button variant="outline" className="flex-1" onClick={() => { setRejectingId(null); setRejectReason(''); }}>{t('common.cancel')}</Button>
                       <Button
                         className="flex-1 bg-destructive text-white"
                         onClick={() => reject(manufacturer._id)}
                         disabled={!canVerifyManufacturers}
                       >
-                        Confirm Reject
+                        {t('admin.verification.confirmReject')}
                       </Button>
                     </div>
                   </div>

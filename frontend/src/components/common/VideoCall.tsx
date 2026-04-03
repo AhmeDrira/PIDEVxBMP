@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { CallState } from '../../hooks/useCall';
 import CallControls from './CallControls';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface VideoCallProps {
   callState: CallState;
   localStream: MediaStream | null;
@@ -23,6 +24,8 @@ export default function VideoCall({
   toggleCamera,
   endCall
 }: VideoCallProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 

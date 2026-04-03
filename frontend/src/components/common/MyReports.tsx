@@ -19,6 +19,7 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 type ReportStatus = 'submitted' | 'accepted' | 'rejected';
 type ReportType = 'user' | 'app';
@@ -57,36 +58,36 @@ interface ReportItem {
   } | null;
 }
 
-const STATUS_LABEL: Record<ReportStatus, string> = {
-  submitted: 'Submitted',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-};
+const getStatusLabel = (t: (key: string) => string): Record<ReportStatus, string> => ({
+  submitted: t('reports.submitted'),
+  accepted: t('reports.accepted'),
+  rejected: t('reports.rejected'),
+});
 
-const REPORT_REASONS = [
-  'Harassment or abusive behavior',
-  'Spam or misleading content',
-  'Fraud or suspicious activity',
-  'Late delivery or no-show',
-  'Poor quality of service/product',
-  'Policy violation',
-  'Other',
+const getReportReasons = (t: (key: string) => string) => [
+  t('messages.reportReasons.harassment'),
+  t('messages.reportReasons.spam'),
+  t('messages.reportReasons.fraud'),
+  t('messages.reportReasons.lateDelivery'),
+  t('messages.reportReasons.poorQuality'),
+  t('messages.reportReasons.policyViolation'),
+  t('messages.reportReasons.other'),
 ];
 
-const USER_TARGET_OPTIONS: Record<MyReportsProps['role'], UserTargetOption[]> = {
+const getUserTargetOptions = (t: (key: string) => string): Record<MyReportsProps['role'], UserTargetOption[]> => ({
   artisan: [
-    { key: 'expert', label: 'Expert', description: 'Report an expert account' },
-    { key: 'manufacturer', label: 'Manufacturer', description: 'Report a manufacturer account' },
+    { key: 'expert', label: t('role.expert'), description: t('reports.reportExpert') },
+    { key: 'manufacturer', label: t('role.manufacturer'), description: t('reports.reportManufacturer') },
   ],
   expert: [
-    { key: 'artisan', label: 'Artisan', description: 'Report an artisan account' },
-    { key: 'manufacturer', label: 'Manufacturer', description: 'Report a manufacturer account' },
+    { key: 'artisan', label: t('role.artisan'), description: t('reports.reportArtisan') },
+    { key: 'manufacturer', label: t('role.manufacturer'), description: t('reports.reportManufacturer') },
   ],
   manufacturer: [
-    { key: 'expert', label: 'Expert', description: 'Report an expert account' },
-    { key: 'artisan', label: 'Artisan', description: 'Report an artisan account' },
+    { key: 'expert', label: t('role.expert'), description: t('reports.reportExpert') },
+    { key: 'artisan', label: t('role.artisan'), description: t('reports.reportArtisan') },
   ],
-};
+});
 
 const roleToLabel = (target: SelectableUser['role']) =>
   target.charAt(0).toUpperCase() + target.slice(1);
@@ -118,6 +119,11 @@ const getRoleIcon = (target: UserTargetOption['key']) => {
 };
 
 export default function MyReports({ role, userId: _userId }: MyReportsProps) {
+  const { t, language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const REPORT_REASONS = getReportReasons(t);
+  const STATUS_LABEL = getStatusLabel(t);
+  const USER_TARGET_OPTIONS = getUserTargetOptions(t);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'user' | 'problem'>('all');
@@ -319,7 +325,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
 
     const token = getAuthToken();
     if (!token) {
-      toast.error('You must be logged in to submit a report.');
+      toast.error(tr('You must be logged in to submit a report.', 'Vous devez etre connecte pour soumettre un signalement.', 'يجب أن تكون مسجلاً لتقديم البلاغ.'));
       return;
     }
 
@@ -346,12 +352,12 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
         throw new Error('Failed to submit report');
       }
     } catch {
-      toast.error('Failed to submit report. Please try again.');
+      toast.error(tr('Failed to submit report. Please try again.', 'Echec de l\'envoi du signalement. Veuillez reessayer.'));
       return;
     }
 
     await fetchReports();
-    toast.success('Report submitted. We will notify you soon via email once it is treated.');
+    toast.success(tr('Report submitted. We will notify you soon via email once it is treated.', 'Signalement envoye. Nous vous informerons bientot par email une fois traite.', 'تم البلاغ. سنرسل رسالة إلش بالبريد جريد معالجتها.'));
     setIsAdding(false);
     resetForm();
   };
@@ -390,7 +396,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
       <Card className="border border-border shadow-sm">
         <CardHeader className="flex flex-col gap-5 py-6 md:min-h-24 md:flex-row md:items-center md:justify-between">
           <div className="flex min-h-14 items-center">
-            <CardTitle className="text-3xl font-semibold leading-tight tracking-tight text-foreground">My Reports</CardTitle>
+            <CardTitle className="text-3xl font-semibold leading-tight tracking-tight text-foreground">{tr('My Reports', 'Mes signalements', 'بلاغاتي')}</CardTitle>
           </div>
           <Button
             type="button"
@@ -405,7 +411,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
             className="gap-2"
           >
             <FilePlus2 size={16} />
-            {isAdding ? 'Close Form' : 'Add Report'}
+            {isAdding ? tr('Close Form', 'Fermer le formulaire', 'غلق الدعارة') : tr('Add Report', 'Ajouter un signalement', 'أضف بلاغ')}
           </Button>
         </CardHeader>
       </Card>
@@ -414,7 +420,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
         <Card>
           <CardContent className="flex items-center justify-between py-6">
             <div>
-              <p className="text-base text-muted-foreground">Total Reports</p>
+              <p className="text-base text-muted-foreground">{tr("Total Reports", "Signalements Totaux", "إجمالي البلاغات")}</p>
               <p className="text-3xl font-bold">{totals.all}</p>
             </div>
             <ClipboardList className="text-primary" size={24} />
@@ -423,7 +429,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
         <Card>
           <CardContent className="flex items-center justify-between py-6">
             <div>
-              <p className="text-base text-muted-foreground">Submitted</p>
+              <p className="text-base text-muted-foreground">{tr("Submitted", "Soumis", "مُقدم")}</p>
               <p className="text-3xl font-bold">{totals.submitted}</p>
             </div>
             <BarChart3 className="text-blue-600" size={24} />
@@ -432,7 +438,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
         <Card>
           <CardContent className="flex items-center justify-between py-6">
             <div>
-              <p className="text-base text-muted-foreground">Accepted</p>
+              <p className="text-base text-muted-foreground">{tr("Accepted", "Accepté", "مقبول")}</p>
               <p className="text-3xl font-bold">{totals.accepted}</p>
             </div>
             <CheckCircle2 className="text-green-600" size={24} />
@@ -441,7 +447,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
         <Card>
           <CardContent className="flex items-center justify-between py-6">
             <div>
-              <p className="text-base text-muted-foreground">Rejected</p>
+              <p className="text-base text-muted-foreground">{tr("Rejected", "Rejeté", "مرفوض")}</p>
               <p className="text-3xl font-bold">{totals.rejected}</p>
             </div>
             <XCircle className="text-red-600" size={24} />
@@ -452,9 +458,9 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
       {isAdding && (
         <Card>
           <CardHeader className="space-y-2">
-            <CardTitle className="text-2xl font-semibold">Add Report</CardTitle>
+            <CardTitle className="text-2xl font-semibold">{tr("Add Report", "Ajouter un Signalement", "إضافة بلاغ")}</CardTitle>
             <CardDescription>
-              First choose report user or report problem, then select a logical reason or write your own.
+              {tr("First choose report user or report problem, then select a logical reason or write your own.", "Choisissez d'abord signaler un utilisateur ou un problème, puis sélectionnez une raison logique ou écrivez la votre.", "أولاً اختر الإبلاغ عن مستخدم أو مشكلة، ثم اختر سبباً منطقياً أو اكتب سببك الخاص.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -469,8 +475,8 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                 <div className="mb-3 inline-flex rounded-lg bg-primary/10 p-2.5">
                   <User size={18} className="text-primary" />
                 </div>
-                <p className="text-base font-semibold text-foreground">Report User</p>
-                <p className="mt-1 text-sm text-muted-foreground">Report an artisan, expert, or manufacturer account.</p>
+                <p className="text-base font-semibold text-foreground">{tr("Report User", "Signaler un Utilisateur", "الإبلاغ عن مستخدم")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{tr("Report an artisan, expert, or manufacturer account.", "Signalez un compte d'artisan, d'expert ou de fabricant.", "الإبلاغ عن حساب حرفي أو خبير أو مصنع.")}</p>
               </button>
 
               <button
@@ -483,15 +489,15 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                 <div className="mb-3 inline-flex rounded-lg bg-primary/10 p-2.5">
                   <AppWindow size={18} className="text-primary" />
                 </div>
-                <p className="text-base font-semibold text-foreground">Report Problem</p>
-                <p className="mt-1 text-sm text-muted-foreground">Report a bug, issue, or content problem on the app.</p>
+                <p className="text-base font-semibold text-foreground">{tr("Report Problem", "Signaler un Problème", "الإبلاغ عن مشكلة")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{tr("Report a bug, issue, or content problem on the app.", "Signalez un bug, un problème ou un problème de contenu dans l'application.", "الإبلاغ عن خلل أو مشكلة أو مشكلة محتوى في التطبيق.")}</p>
               </button>
             </div>
 
             {reportType === 'user' && (
               <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
                 <div className="space-y-2">
-                  <label className="text-base font-medium text-foreground" htmlFor="report-user-target">User Type</label>
+                  <label className="text-base font-medium text-foreground" htmlFor="report-user-target">{tr("User Type", "Type d'Utilisateur", "نوع المستخدم")}</label>
                   <select
                     id="report-user-target"
                     value={selectedUserTarget}
@@ -511,12 +517,12 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-base font-medium text-foreground" htmlFor="report-user-search">Select User</label>
+                  <label className="text-base font-medium text-foreground" htmlFor="report-user-search">{tr("Select User", "Sélectionner un Utilisateur", "اختر مستخدماً")}</label>
                   <Input
                     id="report-user-search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by user name"
+                    placeholder={tr("Search by user name", "Rechercher par nom d'utilisateur", "البحث باسم المستخدم")}
                   />
                 </div>
 
@@ -524,7 +530,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                   {usersLoading && (
                     <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
                       <Loader2 size={16} className="animate-spin" />
-                      Loading users...
+                      {tr("Loading users...", "Chargement des utilisateurs...", "جاري تحميل المستخدمين...")}
                     </div>
                   )}
 
@@ -533,7 +539,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                   )}
 
                   {!usersLoading && !usersError && filteredUsers.length === 0 && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">No users found.</p>
+                    <p className="py-8 text-center text-sm text-muted-foreground">{tr("No users found.", "Aucun utilisateur trouvé.", "لم يتم العثور على مستخدمين.")}</p>
                   )}
 
                   {!usersLoading && !usersError && filteredUsers.map((entry) => (
@@ -558,7 +564,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
             )}
 
             <div className="space-y-2">
-              <label className="text-base font-medium text-foreground" htmlFor="report-reason">Reason</label>
+              <label className="text-base font-medium text-foreground" htmlFor="report-reason">{tr("Reason", "Raison", "السبب")}</label>
               <select
                 id="report-reason"
                 value={form.reason}
@@ -573,23 +579,23 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
 
             {form.reason === 'Other' && (
               <div className="space-y-2">
-                <label className="text-base font-medium text-foreground" htmlFor="report-custom-reason">Custom reason</label>
+                <label className="text-base font-medium text-foreground" htmlFor="report-custom-reason">{tr("Custom reason", "Raison Personnalisée", "سبب مخصص")}</label>
                 <Input
                   id="report-custom-reason"
                   value={form.customReason}
                   onChange={(e) => setForm((prev) => ({ ...prev, customReason: e.target.value }))}
-                  placeholder="Write your own report reason"
+                  placeholder={tr("Write your own report reason", "Écrivez votre propre raison de signalement", "اكتب سبب بلاغك الخاص")}
                 />
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="text-base font-medium text-foreground" htmlFor="report-summary">Report details (optional)</label>
+              <label className="text-base font-medium text-foreground" htmlFor="report-summary">{tr("Report details (optional)", "Détails du Rapport (Facultatif)", "تفاصيل البلاغ (اختياري)")}</label>
               <Textarea
                 id="report-summary"
                 value={form.summary}
                 onChange={(e) => setForm((prev) => ({ ...prev, summary: e.target.value }))}
-                placeholder="Explain what happened..."
+                placeholder={tr("Explain what happened...", "Expliquez ce qui s'est passe...", "اشرح ما حدث...")}
                 className="min-h-32 text-base"
               />
             </div>
@@ -603,10 +609,10 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                   resetForm();
                 }}
               >
-                Cancel
+                {tr("Cancel", "Annuler", "إلغاء")}
               </Button>
               <Button type="button" onClick={() => { void submitReport(); }} disabled={isSubmitDisabled}>
-                Submit Report
+                {tr("Submit Report", "Soumettre le Signalement", "إرسال البلاغ")}
               </Button>
             </div>
           </CardContent>
@@ -617,9 +623,9 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
         <CardHeader>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <CardTitle className="text-2xl font-semibold">Report History</CardTitle>
+              <CardTitle className="text-2xl font-semibold">{tr("Report History", "Historique des Signalements", "سجل البلاغات")}</CardTitle>
               <CardDescription>
-                Latest reports submitted under your account.
+                {tr("Latest reports submitted under your account.", "Derniers signalements soumis sous votre compte.", "أحدث البلاغات المقدمة تحت حسابك.")}
               </CardDescription>
             </div>
             <div className="inline-flex items-center rounded-xl border border-border bg-muted/30 p-1">
@@ -632,7 +638,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                All
+                {tr("All", "Tous", "الكل")}
               </button>
               <button
                 type="button"
@@ -643,7 +649,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                User Reports
+                {tr("User Reports", "Signalements d'Utilisateurs", "بلاغات المستخدمين")}
               </button>
               <button
                 type="button"
@@ -654,7 +660,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                App Reports
+                {tr("App Reports", "Signalements d'Applications", "بلاغات التطبيق")}
               </button>
             </div>
           </div>
@@ -663,16 +669,16 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
           {loadingReports ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 size={16} className="animate-spin" />
-              Loading reports...
+              {tr("Loading reports...", "Chargement des signalements...", "جاري تحميل البلاغات...")}
             </div>
           ) : filteredReports.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 px-4 py-12 text-center">
               <FileText size={34} className="mb-3 text-muted-foreground" />
-              <p className="text-base font-medium text-foreground">No reports found</p>
+              <p className="text-base font-medium text-foreground">{tr("No reports found", "Aucun signalement trouvé", "لم يتم العثور على بلاغات")}</p>
               <p className="text-sm text-muted-foreground">
                 {historyFilter === 'all'
-                  ? 'Create your first report using the Add Report button.'
-                  : 'Try another filter or create a new report.'}
+                  ? tr("Create your first report using the Add Report button.", "Créez votre premier signalement à l'aide du bouton Ajouter un Signalement.", "قم بإنشاء أول بلاغ لك باستخدام زر إضافة بلاغ.")
+                  : tr("Try another filter or create a new report.", "Essayez un autre filtre ou créez un nouveau signalement.", "جرب فلتراً آخر أو قم بإنشاء بلاغ جديد.")}
               </p>
             </div>
           ) : (

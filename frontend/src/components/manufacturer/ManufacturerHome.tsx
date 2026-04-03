@@ -1,21 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '../ui/card';
+import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell
+  AreaChart, Area
 } from 'recharts';
 import {
-  TrendingUp, TrendingDown, DollarSign, ShoppingBag, Package, BarChart3,
-  Loader2, ArrowUpRight, ArrowDownRight
+  TrendingUp, DollarSign, ShoppingBag, Package, BarChart3,
+  Loader2
 } from 'lucide-react';
 import axios from 'axios';
 import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ManufacturerHomeProps {
   onNavigate: (view: string) => void;
 }
 
 export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomeProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({ totalRevenue: 0, totalOrders: 0, avgOrderValue: 0, activeProducts: 0 });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
@@ -58,7 +60,6 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
   };
 
   // Category distribution from top products
-  const totalSales = topProducts.reduce((s, p) => s + p.sales, 0);
   const PIE_COLORS = ['#7c3aed', '#10b981', '#f59e0b', '#3b82f6', '#ef4444'];
 
   // Custom tooltip
@@ -69,7 +70,7 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
         <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', marginBottom: 4 }}>{label}</p>
         {payload.map((entry: any, i: number) => (
           <p key={i} style={{ fontSize: 12, color: entry.color, margin: 0 }}>
-            {entry.name === 'sales' ? 'Revenue' : 'Orders'}: <strong>{entry.name === 'sales' ? `${entry.value.toLocaleString()} TND` : entry.value}</strong>
+            {entry.name === 'sales' ? tr('Revenue', 'Revenu', 'الإيرادات') : tr('Orders', 'Commandes', 'الطلبات')}: <strong>{entry.name === 'sales' ? `${entry.value.toLocaleString()} TND` : entry.value}</strong>
           </p>
         ))}
       </div>
@@ -86,28 +87,28 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
 
   const statCards = [
     {
-      label: 'Total Revenue',
+      label: tr('Total Revenue', 'Revenu total', 'إجمالي الإيرادات'),
       value: `${formatCurrency(stats.totalRevenue)} TND`,
       icon: DollarSign,
       color: '#10b981',
       bg: 'rgba(5,150,105,0.1)',
     },
     {
-      label: 'Total Orders',
+      label: tr('Total Orders', 'Commandes totales', 'إجمالي الطلبات'),
       value: stats.totalOrders,
       icon: ShoppingBag,
       color: '#7c3aed',
       bg: 'rgba(124,58,237,0.1)',
     },
     {
-      label: 'Avg Order Value',
+      label: tr('Avg Order Value', 'Valeur moyenne des commandes', 'متوسط قيمة الطلب'),
       value: `${stats.avgOrderValue.toFixed(0)} TND`,
       icon: TrendingUp,
       color: '#f59e0b',
       bg: 'rgba(217,119,6,0.1)',
     },
     {
-      label: 'Active Products',
+      label: tr('Active Products', 'Produits actifs', 'المنتجات النشطة'),
       value: stats.activeProducts,
       icon: Package,
       color: '#3b82f6',
@@ -123,8 +124,8 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
 
       {/* Page Header */}
       <div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--foreground)', margin: 0 }}>Dashboard</h1>
-        <p style={{ fontSize: 15, color: 'var(--muted-foreground)', margin: '4px 0 0' }}>Overview of your business performance</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--foreground)', margin: 0 }}>{tr('Manufacturer Dashboard', 'Tableau de bord fabricant', 'لوحة معلومات الصانع')}</h1>
+        <p style={{ fontSize: 15, color: 'var(--muted-foreground)', margin: '4px 0 0' }}>{tr('Manage your product sales, revenue, and business metrics', 'Gérez vos ventes de produits, vos revenus et vos métriques commerciales', 'إدارة مبيعاتك والإيرادات والمقاييس التجارية')}</p>
       </div>
 
       {/* Stat Cards */}
@@ -160,15 +161,15 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
       <div style={{ backgroundColor: 'var(--card)', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Revenue Overview</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '2px 0 0' }}>Last 6 months performance</p>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>{tr('Revenue Overview', 'Aperçu des revenus', 'نظرة عامة على الإيرادات')}</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '2px 0 0' }}>{tr('Last 6 months performance', 'Performance des 6 derniers mois', 'الأداء خلال الـ 6 أشهر الماضية')}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--muted-foreground)' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#7c3aed', display: 'inline-block' }} /> Revenue
+              <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#7c3aed', display: 'inline-block' }} /> {tr('Revenue', 'Revenu', 'الإيرادات')}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--muted-foreground)' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#10b981', display: 'inline-block' }} /> Orders
+              <span style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#10b981', display: 'inline-block' }} /> {tr('Orders', 'Commandes', 'الطلبات')}
             </span>
           </div>
         </div>
@@ -194,11 +195,11 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
 
         {/* Top Selling Products */}
         <div style={{ backgroundColor: 'var(--card)', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 20px' }}>Top Selling Products</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 20px' }}>{tr('Top Selling Products', 'Produits les mieux vendus', 'أفضل المنتجات مبيعاً')}</h2>
           {topProducts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
               <Package size={40} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-              <p style={{ fontSize: 14 }}>No sales data yet</p>
+              <p style={{ fontSize: 14 }}>{tr('No sales data available', 'Aucune donnée de vente disponible', 'لا توجد بيانات مبيعات متاحة')}</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -224,7 +225,7 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
                     <div style={{ height: 6, backgroundColor: 'var(--muted)', borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${(product.sales / maxTopSales) * 100}%`, backgroundColor: PIE_COLORS[index] || '#7c3aed', borderRadius: 999, transition: 'width 0.5s' }} />
                     </div>
-                    <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{product.units} units sold</p>
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{product.units} {tr('units sold', 'unités vendues', 'وحدات مباعة')}</p>
                   </div>
                 </div>
               ))}
@@ -234,11 +235,11 @@ export default function ManufacturerAnalytics({ onNavigate }: ManufacturerHomePr
 
         {/* Monthly Orders */}
         <div style={{ backgroundColor: 'var(--card)', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 20px' }}>Monthly Orders</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 20px' }}>{tr('Monthly Orders', 'Commandes mensuelles', 'الطلبات الشهرية')}</h2>
           {monthlyData.every(d => d.orders === 0) ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
               <BarChart3 size={40} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-              <p style={{ fontSize: 14 }}>No orders yet</p>
+              <p style={{ fontSize: 14 }}>{tr('No orders yet', 'Pas d\'commandes pour le moment', 'لا توجد طلبات حتى الآن')}</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={280}>

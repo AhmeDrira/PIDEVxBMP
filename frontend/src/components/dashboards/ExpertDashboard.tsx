@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import ExpertHome from '../expert/ExpertHome';
 import ExpertKnowledgeLibrary from '../expert/ExpertKnowledgeLibrary';
 import ExpertArtisanDirectory from '../expert/ExpertArtisanDirectory';
@@ -17,6 +18,9 @@ interface ExpertDashboardProps {
 }
 
 export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const [activeView, setActiveView] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const fromQuery = params.get('expertView') || params.get('artisanView');
@@ -108,13 +112,13 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   const profilePhoto = currentUser?.profilePhoto || '';
 
   const menuItems = [
-    { id: 'home', label: 'Home', icon: <Home size={20} /> },
-    { id: 'library', label: 'Knowledge Library', icon: <BookOpen size={20} /> },
-    { id: 'directory', label: 'Artisan Directory', icon: <Users size={20} /> },
-    { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
-    { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
-    { id: 'orders', label: 'My Orders', icon: <ShoppingBag size={20} /> },
-    { id: 'reports', label: 'My Reports', icon: <ClipboardList size={20} /> },
+    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
+    { id: 'library', label: t('nav.knowledgeLibrary'), icon: <BookOpen size={20} /> },
+    { id: 'directory', label: t('nav.artisanDirectory'), icon: <Users size={20} /> },
+    { id: 'messages', label: t('nav.messages'), icon: <MessageSquare size={20} /> },
+    { id: 'marketplace', label: t('nav.marketplace'), icon: <ShoppingCart size={20} /> },
+    { id: 'orders', label: t('nav.myOrders'), icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: t('nav.myReports'), icon: <ClipboardList size={20} /> },
   ];
 
   const renderContent = () => {

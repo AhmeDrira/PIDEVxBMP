@@ -5,6 +5,7 @@ import * as SwitchPrimitive from "@radix-ui/react-switch@1.1.3";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Switch({
   className,
   ...props

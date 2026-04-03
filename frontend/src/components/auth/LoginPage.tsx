@@ -13,6 +13,7 @@ import authService from '../../services/authService';
 import { toast } from 'sonner';
 import { loginSchema, LoginFormValues } from '../../lib/validations';
 import { GoogleLoginButton } from './GoogleLoginButton';
+import { useLanguage } from '../../context/LanguageContext';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin';
 
@@ -23,7 +24,9 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onLogin, onRegister, onForgotPassword }: LoginPageProps) {
-  const [isLoading, setIsLoading] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isLoading, setIsLoading] = useState(false);
   const [siteStats, setSiteStats] = useState({ activeUsers: 0, projects: 0, satisfaction: 0 });
 
   useEffect(() => {

@@ -11,13 +11,15 @@ import authService from '../../services/authService';
 import { toast } from 'sonner';
 import { adminSecretSchema, AdminSecretFormValues } from '../../lib/validations';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface AdminLoginPageProps {
   onLogin: (role: 'admin') => void;
-  onCreateSubAdmin: () => void;
 }
 
-export default function AdminLoginPage({ onLogin, onCreateSubAdmin }: AdminLoginPageProps) {
-  const [isLoading, setIsLoading] = useState(false);
+export default function AdminLoginPage({ onLogin }: AdminLoginPageProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
@@ -94,18 +96,6 @@ export default function AdminLoginPage({ onLogin, onCreateSubAdmin }: AdminLogin
                 )}
               </Button>
             </form>
-
-            <div className="mt-8 text-center">
-              <p className="text-sm text-slate-500 mb-2">Need to onboard a new admin?</p>
-              <Button
-                type="button"
-                className="text-white font-semibold rounded-xl px-6"
-                style={{ backgroundColor: '#1F3A8A' }}
-                onClick={onCreateSubAdmin}
-              >
-                Create Sub-Admin Account
-              </Button>
-            </div>
           </Card>
         </div>
       </div>

@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { getRegisterSchema, RegisterFormValues } from '../../lib/validations';
 import { GoogleLoginButton } from './GoogleLoginButton';
 
+import { useLanguage } from '../../context/LanguageContext';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin';
 
@@ -23,7 +24,9 @@ interface RegisterFormProps {
 }
 
 export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelection, onBackToLogin }: RegisterFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isLoading, setIsLoading] = useState(false);
   const [certificationFile, setCertificationFile] = useState<File | null>(null);
   const certFileRef = useRef<HTMLInputElement>(null);
 

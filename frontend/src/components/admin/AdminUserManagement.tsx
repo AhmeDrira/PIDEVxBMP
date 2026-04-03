@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Checkbox } from '../ui/checkbox';
 import authService from '../../services/authService';
 import { toast } from 'sonner';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface AdminUserManagementProps {
   canSuspendUsers?: boolean;
@@ -44,6 +45,9 @@ const emptyPermissions: PermissionSet = {
 };
 
 export default function AdminUserManagement({ canSuspendUsers = false, canDeleteUsers = false }: AdminUserManagementProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const currentUser = authService.getCurrentUser();
   const isSubAdmin = currentUser?.role === 'admin' && currentUser?.adminType === 'sub';
   const isSuperAdmin = currentUser?.role === 'admin' && (currentUser?.adminType === 'super' || currentUser?.isSuperAdmin);

@@ -10,6 +10,7 @@ import authService from '../../services/authService';
 import { forgotPasswordSchema, ForgotPasswordFormValues } from '../../lib/validations';
 import Logo from '../common/Logo';
 import { toast } from 'sonner';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ForgotPasswordPageProps {
   onBackToLogin: () => void;
@@ -20,7 +21,9 @@ interface ForgotPasswordPageProps {
 type Step = 'email-input' | 'method-choice' | 'sms-verify' | 'done';
 
 export default function ForgotPasswordPage({ onBackToLogin, initialEmail }: ForgotPasswordPageProps) {
-  const [step, setStep] = useState<Step>('email-input');
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [step, setStep] = useState<Step>('email-input');
   const [loading, setLoading] = useState(false);
   const [resolvedEmail, setResolvedEmail] = useState(initialEmail || '');
   const [hasVerifiedPhone, setHasVerifiedPhone] = useState(false);

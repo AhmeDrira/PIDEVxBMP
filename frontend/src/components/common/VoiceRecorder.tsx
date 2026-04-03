@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, Square, Trash2, Send } from 'lucide-react';
 import { Button } from '../ui/button';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface VoiceRecorderProps {
   onSend: (blob: Blob, duration: number) => void | Promise<void>;
   onCancel: () => void;
@@ -10,7 +11,9 @@ interface VoiceRecorderProps {
 }
 
 export default function VoiceRecorder({ onSend, onCancel, onStateChange, disabled }: VoiceRecorderProps) {
-  const [isRecording, setIsRecording] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Mic, MicOff, VideoIcon, VideoOff, PhoneOff } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 
 interface CallControlsProps {
   isMicrophoneEnabled: boolean;
@@ -19,6 +20,8 @@ export default function CallControls({
   endCall,
   isVideoCall
 }: CallControlsProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   return (
     <div 
       className="flex items-center justify-center gap-6 px-8 py-4 rounded-full backdrop-blur-md shadow-2xl"

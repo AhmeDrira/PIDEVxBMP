@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../ui/card';
 import { Users, FolderKanban, ShoppingBag, TrendingUp } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import axios from 'axios';
 import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
+import { useLanguage } from '../../context/LanguageContext';
 
 type StatsResponse = {
   totalUsers: number;
@@ -26,6 +27,8 @@ const roleColors: Record<string, string> = {
 };
 
 export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: string) => void } = {}) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
         setStats(response.data);
       } catch (err) {
         console.error('Failed to load analytics', err);
-        setError('Unable to load analytics right now.');
+        setError(tr('Unable to load analytics', "Impossible de charger l'analytique", 'تعذر تحميل التحليلات'));
       } finally {
         setLoading(false);
       }
@@ -79,7 +82,7 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
       <ProfileCompletionBanner onNavigate={onNavigate} profileView="profile" />
 
       {loading && (
-        <Card className="p-6 bg-card">Loading analytics...</Card>
+        <Card className="p-6 bg-card">{tr('Loading analytics...', 'Chargement de l\'analytique...', 'جاري تحميل التحليلات...')}</Card>
       )}
       {error && (
         <Card className="p-6 bg-card text-red-600">{error}</Card>
@@ -90,26 +93,26 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
         <Card className="p-6 bg-card">
           <Users size={32} style={{ color: '#1F3A8A' }} className="mb-2" />
           <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.totalUsers}</p>
-          <p style={{ color: 'var(--muted-foreground)' }}>Total Users</p>
-          <p className="text-sm mt-2" style={{ color: '#10B981' }}>{activeUserRate}% active</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{tr('Total Users', 'Utilisateurs totaux', 'إجمالي المستخدمين')}</p>
+          <p className="text-sm mt-2" style={{ color: '#10B981' }}>{activeUserRate}{tr('%', '%', '%')} {tr('active', 'actif', 'نشط')}</p>
         </Card>
         <Card className="p-6 bg-card">
           <FolderKanban size={32} style={{ color: '#F59E0B' }} className="mb-2" />
           <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.activeProjects}</p>
-          <p style={{ color: 'var(--muted-foreground)' }}>Active Projects</p>
-          <p className="text-sm mt-2" style={{ color: '#10B981' }}>{stats.totalProjects} total</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{tr('Active Projects', 'Projets actifs', 'المشاريع النشطة')}</p>
+          <p className="text-sm mt-2" style={{ color: '#10B981' }}>{stats.totalProjects} {tr('total', 'total', 'الإجمالي')}</p>
         </Card>
         <Card className="p-6 bg-card">
           <ShoppingBag size={32} style={{ color: '#10B981' }} className="mb-2" />
           <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.totalInvoices}</p>
-          <p style={{ color: 'var(--muted-foreground)' }}>Total Invoices</p>
-          <p className="text-sm mt-2" style={{ color: '#10B981' }}>Billing activity</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{tr('Total Invoices', 'Factures totales', 'إجمالي الفواتير')}</p>
+          <p className="text-sm mt-2" style={{ color: '#10B981' }}>{tr('Billing Activity', 'Activité de facturation', 'نشاط الفواتير')}</p>
         </Card>
         <Card className="p-6 bg-card">
           <TrendingUp size={32} style={{ color: '#8B5CF6' }} className="mb-2" />
           <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.satisfaction}%</p>
-          <p style={{ color: 'var(--muted-foreground)' }}>User Satisfaction</p>
-          <p className="text-sm mt-2" style={{ color: '#10B981' }}>Engagement score</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{tr('User Satisfaction', "Satisfaction de l'utilisateur", 'رضا المستخدم')}</p>
+          <p className="text-sm mt-2" style={{ color: '#10B981' }}>{tr('Engagement Score', "Score d'engagement", 'درجة المشاركة')}</p>
         </Card>
       </div>
       )}
@@ -117,7 +120,7 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
       {!loading && !error && stats && (
         <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-6 bg-card">
-          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>User Growth</h2>
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>{tr('User Growth', 'Croissance des utilisateurs', 'نمو المستخدمين')}</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={stats.userGrowth}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -130,7 +133,7 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
         </Card>
 
         <Card className="p-6 bg-card">
-          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Project Activity</h2>
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>{tr('Project Activity', 'Activité du projet', 'نشاط المشروع')}</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.projectActivity}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -147,7 +150,7 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
       {!loading && !error && stats && (
         <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-6 bg-card">
-          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>User Distribution</h2>
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>{tr('User Distribution', 'Distribution des utilisateurs', 'توزيع المستخدمين')}</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -170,14 +173,14 @@ export default function AdminAnalytics({ onNavigate }: { onNavigate?: (view: str
         </Card>
 
         <Card className="p-6 bg-card">
-          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Key Metrics</h2>
+          <h2 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>{tr('Key Metrics', 'Métriques clés', 'المقاييس الرئيسية')}</h2>
           <div className="space-y-4">
             {[
-              { label: 'Avg Projects per Artisan', value: `${avgProjectsPerArtisan}`, trend: 'Live' },
-              { label: 'Avg Invoices per Artisan', value: `${avgInvoicesPerArtisan}`, trend: 'Live' },
-              { label: 'Active User Rate', value: `${activeUserRate}%`, trend: 'Live' },
-              { label: 'Total Experts', value: `${stats.roleCounts?.expert || 0}`, trend: 'Live' },
-              { label: 'Total Manufacturers', value: `${stats.roleCounts?.manufacturer || 0}`, trend: 'Live' },
+              { label: tr('Avg Projects per Artisan', 'Moyenne de projets par artisan', 'متوسط المشاريع لكل حرفي'), value: `${avgProjectsPerArtisan}`, trend: tr('Live', 'En Temps Réel', 'بث مباشر') },
+              { label: tr('Avg Invoices per Artisan', 'Moyenne de factures par artisan', 'متوسط الفواتير لكل حرفي'), value: `${avgInvoicesPerArtisan}`, trend: tr('Live', 'En Temps Réel', 'بث مباشر') },
+              { label: tr('Active User Rate', "Taux d'utilisateurs actifs", 'معدل المستخدمين النشطين'), value: `${activeUserRate}%`, trend: tr('Live', 'En Temps Réel', 'بث مباشر') },
+              { label: tr('Total Experts', 'Experts totaux', 'إجمالي الخبراء'), value: `${stats.roleCounts?.expert || 0}`, trend: tr('Live', 'En Temps Réel', 'بث مباشر') },
+              { label: tr('Total Manufacturers', 'Fabricants totaux', 'إجمالي المصنعين'), value: `${stats.roleCounts?.manufacturer || 0}`, trend: tr('Live', 'En Temps Réel', 'بث مباشر') },
             ].map((metric, index) => (
               <div
                 key={index}

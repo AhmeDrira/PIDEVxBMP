@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea

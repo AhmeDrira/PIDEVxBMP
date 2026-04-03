@@ -5,6 +5,7 @@ import * as SliderPrimitive from "@radix-ui/react-slider@1.2.3";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Slider({
   className,
   defaultValue,

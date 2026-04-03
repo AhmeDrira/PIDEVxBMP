@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import {
@@ -9,6 +9,7 @@ import StatsCard from '../common/StatsCard';
 import ViewArtisanProfile from './ViewArtisanProfile';
 import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
 import axios from 'axios';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ExpertHomeProps {
   onNavigate: (view: string) => void;
@@ -44,9 +45,10 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const userStorage = localStorage.getItem('user');
   const user = userStorage ? JSON.parse(userStorage) : null;
-  const firstName = user?.firstName || 'Expert';
 
   const [conversations, setConversations] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -83,10 +85,10 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
 
   // ─── Stats ───────────────────────────────────────────────────────────────
   const stats = [
-    { label: 'Active Projects', value: loading ? '…' : String(projects.length), icon: <BookOpen size={28} />, color: '#1E40AF' },
-    { label: 'Conversations', value: loading ? '…' : String(conversations.length), icon: <MessageSquare size={28} />, color: '#8B5CF6' },
-    { label: 'Artisan Network', value: loading ? '…' : String(conversations.length), icon: <Users size={28} />, color: '#10B981' },
-    { label: 'Purchases', value: loading ? '…' : String(payments.length), icon: <Wallet size={28} />, color: '#F59E0B' },
+    { label: tr('Active Projects', 'Projets actifs', 'المشاريع النشطة'), value: loading ? '…' : String(projects.length), icon: <BookOpen size={28} />, color: '#1E40AF' },
+    { label: tr('Conversations', 'Conversations', 'المحادثات'), value: loading ? '…' : String(conversations.length), icon: <MessageSquare size={28} />, color: '#8B5CF6' },
+    { label: tr('Artisan Network', 'Réseau d\'artisans', 'شبكة الحرفيين'), value: loading ? '…' : String(conversations.length), icon: <Users size={28} />, color: '#10B981' },
+    { label: tr('Purchases', 'Achats', 'المشتريات'), value: loading ? '…' : String(payments.length), icon: <Wallet size={28} />, color: '#F59E0B' },
   ];
 
   // ─── Top Manufacturers ───────────────────────────────────────────────────
@@ -98,8 +100,8 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
         if (!mfr) continue;
         const id = typeof mfr === 'object' ? mfr._id : String(mfr);
         const nameRaw = typeof mfr === 'object'
-          ? (mfr.companyName || `${mfr.firstName || ''} ${mfr.lastName || ''}`.trim() || 'Manufacturer')
-          : 'Manufacturer';
+          ? (mfr.companyName || `${mfr.firstName || ''} ${mfr.lastName || ''}`.trim() || tr('Manufacturer', 'Fabricant', 'مُصنّع'))
+          : tr('Manufacturer', 'Fabricant', 'مُصنّع');
         const initials = nameRaw.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'M';
         const existing = map.get(id) || { id, name: nameRaw, initials, orders: 0, totalAmount: 0, totalItems: 0 };
         existing.orders += 1;
@@ -124,8 +126,8 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
   const recentConnections = conversations.slice(0, 3).map((conv: any) => {
     const other = conv.participants?.find((p: any) => p._id !== user?._id);
     return {
-      name: other ? `${other.firstName} ${other.lastName}` : 'Unknown',
-      role: other?.role || 'Artisan',
+      name: other ? `${other.firstName} ${other.lastName}` : tr('unknown', 'inconnu', 'غير معروف'),
+      role: other?.role || tr('Artisan', 'Artisan', 'حرفي'),
       lastContact: conv.updatedAt ? new Date(conv.updatedAt).toLocaleDateString() : '—',
     };
   });
@@ -164,13 +166,13 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                   <Package size={20} style={{ color: '#1e40af' }} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">Top Manufacturers</h2>
-                  <p className="text-xs mt-0.5 text-muted-foreground">Your most loyal suppliers</p>
+                  <h2 className="text-lg font-bold text-foreground">{tr('Top Manufacturers', 'Meilleurs fabricants', 'أفضل المصنعين')}</h2>
+                  <p className="text-xs mt-0.5 text-muted-foreground">{tr('Your most loyal suppliers', 'Vos fournisseurs les plus fidèles', 'الموردين الأكثر ولاءً لك')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/50">
                 <TrendingUp size={13} style={{ color: '#1e40af' }} />
-                <span className="text-xs font-semibold" style={{ color: '#1e40af' }}>By orders</span>
+                <span className="text-xs font-semibold" style={{ color: '#1e40af' }}>{tr('By Orders', 'Par commandes', 'حسب الطلبات')}</span>
               </div>
             </div>
           </div>
@@ -181,9 +183,9 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
             ) : topManufacturers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <ShoppingBag size={36} className="text-gray-200" />
-                <p className="text-sm text-muted-foreground font-medium">No purchases yet</p>
+                <p className="text-sm text-muted-foreground font-medium">{tr('No purchases yet', 'Pas d\'achats pour le moment', 'لا توجد مشتريات حتى الآن')}</p>
                 <Button size="sm" variant="outline" className="mt-1 rounded-xl text-xs" onClick={() => onNavigate('marketplace')}>
-                  Browse Marketplace
+                  {tr('Browse Marketplace', 'Parcourir le marché', 'تصفح السوق')}
                 </Button>
               </div>
             ) : (
@@ -218,16 +220,16 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                         <p className="font-bold text-foreground truncate text-sm">{mfr.name}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(37,99,235,0.1)', color: '#1e40af' }}>
-                            {mfr.orders} order{mfr.orders !== 1 ? 's' : ''}
+                            {mfr.orders} {mfr.orders !== 1 ? tr('orders', 'commandes', 'طلبات') : tr('order', 'commande', 'طلب')}
                           </span>
-                          <span className="text-xs text-muted-foreground">{mfr.totalItems} items</span>
+                          <span className="text-xs text-muted-foreground">{mfr.totalItems} {tr('items', 'articles', 'عناصر')}</span>
                         </div>
                       </div>
 
                       {/* Amount */}
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-extrabold" style={{ color: '#1e40af' }}>{mfr.totalAmount.toFixed(0)}</p>
-                        <p className="text-xs text-muted-foreground font-medium">TND spent</p>
+                        <p className="text-xs text-muted-foreground font-medium">{tr('TND spent', 'TND dépensé', 'دينار تم إنفاقه')}</p>
                       </div>
                     </div>
                   );
@@ -247,15 +249,15 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                   <Award size={20} style={{ color: '#d97706' }} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">Top Artisans</h2>
-                  <p className="text-xs mt-0.5 text-muted-foreground">Highest rated professionals</p>
+                  <h2 className="text-lg font-bold text-foreground">{tr('Top Artisans', 'Meilleurs artisans', 'أفضل الحرفيين')}</h2>
+                  <p className="text-xs mt-0.5 text-muted-foreground">{tr('Highest rated professionals', 'Professionnels les mieux notés', 'أعلى المهنيين المقيمين')}</p>
                 </div>
               </div>
               <button
                 onClick={() => onNavigate('directory')}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border bg-muted/50 hover:border-amber-300 dark:hover:bg-gray-800 transition-colors text-muted-foreground dark:text-gray-300"
               >
-                View all <ChevronRight size={13} />
+                {tr('View All', 'Voir tout', 'عرض الجميع')} <ChevronRight size={13} />
               </button>
             </div>
           </div>
@@ -266,7 +268,7 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
             ) : topArtisans.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <Users size={36} className="text-gray-200" />
-                <p className="text-sm text-muted-foreground font-medium">No artisans found</p>
+                <p className="text-sm text-muted-foreground font-medium">{tr('No artisans found', 'Aucun artisan trouvé', 'لم يتم العثور على حرفيين')}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -319,7 +321,7 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                         <div className="flex items-center gap-1.5 mt-1">
                           <StarRating rating={rating} />
                           <span className="text-xs font-bold" style={{ color: '#d97706' }}>{rating.toFixed(1)}</span>
-                          <span className="text-xs text-muted-foreground">· {reviews} review{reviews !== 1 ? 's' : ''}</span>
+                          <span className="text-xs text-muted-foreground">· {reviews} {reviews !== 1 ? tr('reviews', 'avis', 'تقييمات') : tr('review', 'avis', 'تقييم')}</span>
                         </div>
                         {domain && (
                           <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(37,99,235,0.1)', color: '#1e40af' }}>
@@ -332,12 +334,12 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                       <div className="shrink-0 flex flex-col items-end gap-1">
                         {completed > 0 && (
                           <div className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(5,150,105,0.1)', color: '#15803d' }}>
-                            {completed} done
+                            {completed} {tr('done', 'terminé', 'مكتمل')}
                           </div>
                         )}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <Eye size={12} style={{ color: '#1e40af' }} />
-                          <span className="text-xs font-semibold" style={{ color: '#1e40af' }}>Profile</span>
+                          <span className="text-xs font-semibold" style={{ color: '#1e40af' }}>{tr('Profile', 'Profil', 'الملف الشخصي')}</span>
                           <ChevronRight size={12} style={{ color: '#1e40af' }} />
                         </div>
                       </div>
@@ -354,21 +356,21 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
       <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Recent Conversations</h2>
-            <p className="text-muted-foreground mt-1">Your artisan network</p>
+            <h2 className="text-2xl font-bold text-foreground">{tr('Recent Conversations', 'Conversations récentes', 'المحادثات الأخيرة')}</h2>
+            <p className="text-muted-foreground mt-1">{tr('Your artisan network', "Votre réseau d'artisans", 'شبكة الحرفيين الخاصة بك')}</p>
           </div>
           <Button
             variant="outline"
             onClick={() => onNavigate('messages')}
             className="rounded-xl border-2 hover:border-primary hover:text-primary"
           >
-            View All <ArrowRight size={16} className="ml-2" />
+            {tr('View All', 'Voir tout', 'عرض الجميع')} <ArrowRight size={16} className="ml-2" />
           </Button>
         </div>
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 size={32} className="animate-spin text-primary" /></div>
         ) : recentConnections.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">No conversations yet. Connect with artisans!</p>
+          <p className="text-center text-muted-foreground py-8">{tr('No conversations yet. Connect with artisans!', "Pas encore de conversations. Connectez-vous avec des artisans!", 'لا توجد محادثات حتى الآن. تواصل مع الحرفيين!')}</p>
         ) : (
           <div className="space-y-4">
             {recentConnections.map((connection, index) => (
@@ -385,12 +387,12 @@ export default function ExpertHome({ onNavigate }: ExpertHomeProps) {
                   </div>
                   <div>
                     <h4 className="font-bold text-foreground text-lg">{connection.name}</h4>
-                    <p className="text-sm text-muted-foreground capitalize">{connection.role}</p>
+                    <p className="text-sm text-muted-foreground capitalize">{connection.role === 'Artisan' ? tr('Artisan', 'Artisan', 'حرفي') : connection.role}</p>
                     <p className="text-sm text-muted-foreground">{connection.lastContact}</p>
                   </div>
                 </div>
                 <Button size="sm" variant="outline" className="rounded-xl border-2" onClick={() => onNavigate('messages')}>
-                  Message
+                  {tr('Message', 'Message', 'رسالة')}
                 </Button>
               </div>
             ))}

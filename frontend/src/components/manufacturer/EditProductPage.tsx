@@ -7,6 +7,7 @@ import { Textarea } from '../ui/textarea';
 import { ArrowRight, Upload, Save, X } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface EditProductPageProps {
   productId?: string;
   onBack?: () => void;
@@ -14,7 +15,9 @@ interface EditProductPageProps {
 }
 
 export default function EditProductPage({ productId, onBack, onSave }: EditProductPageProps) {
-  // Mock product data - in real app this would come from API/props
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  // Mock product data - in real app this would come from API/props
   const [formData, setFormData] = useState({
     name: 'Premium Cement - 50kg',
     category: 'Building Materials',

@@ -7,13 +7,16 @@ import { Textarea } from '../ui/textarea';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { Badge } from '../ui/badge';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface AddKnowledgeLibraryProps {
   onBack: () => void;
   onSave: (data: any) => void;
 }
 
 export default function AddKnowledgeLibrary({ onBack, onSave }: AddKnowledgeLibraryProps) {
-  const [formData, setFormData] = useState({
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [formData, setFormData] = useState({
     title: '',
     category: '',
     content: '',

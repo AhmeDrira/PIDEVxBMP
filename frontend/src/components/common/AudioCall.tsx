@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { CallState } from '../../hooks/useCall';
 import CallControls from './CallControls';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface AudioCallProps {
   callState: CallState;
   remoteStream: MediaStream | null;
@@ -18,6 +19,8 @@ export default function AudioCall({
   toggleMicrophone,
   endCall
 }: AudioCallProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const remoteAudioRef = React.useRef<HTMLAudioElement>(null);
 
   React.useEffect(() => {

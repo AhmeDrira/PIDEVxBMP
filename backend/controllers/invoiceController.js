@@ -104,6 +104,50 @@ const resolveChromeExecutablePath = () => {
   return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 };
 
+const escapeHtml = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+const extractProjectMaterialItems = (project) => {
+  const groupedMarketplace = Array.isArray(project?.materials)
+    ? Object.values(
+        project.materials.reduce((acc, mat) => {
+          const id = String((mat && (mat._id || mat)) || '');
+          if (!id) return acc;
+          if (!acc[id]) {
+            acc[id] = {
+              name: mat?.name || 'Marketplace material',
+              quantity: 0,
+              unitPrice: Number(mat?.price) || 0,
+              source: 'Marketplace',
+            };
+          }
+          acc[id].quantity += 1;
+          return acc;
+        }, {})
+      )
+    : [];
+
+  const personalItems = Array.isArray(project?.personalMaterials)
+    ? project.personalMaterials
+      .filter((item) => item && item.name)
+      .map((item) => {
+        const quantity = Number(item?.stock);
+        return {
+          name: item.name,
+          quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+          unitPrice: Number(item?.price) || 0,
+          source: 'Personal',
+        };
+      })
+    : [];
+
+  return [...groupedMarketplace, ...personalItems];
+};
+
 // @desc    Create a new invoice
 // @route   POST /api/invoices
 // @access  Private (Artisan only)
@@ -314,7 +358,14 @@ const downloadInvoicePdf = async (req, res) => {
     }
 
     const invoice = await Invoice.findById(req.params.id)
-      .populate('project', 'title')
+      .populate({
+        path: 'project',
+        select: 'title materials personalMaterials',
+        populate: {
+          path: 'materials',
+          select: 'name price',
+        },
+      })
       .populate('artisan', 'firstName lastName email');
 
     if (!invoice) {
@@ -325,9 +376,34 @@ const downloadInvoicePdf = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to download this invoice' });
     }
 
-    const issueDate = invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('en-GB') : 'N/A';
-    const dueDate = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-GB') : 'N/A';
+    const issueDate = invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : 'N/A';
+    const dueDate = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : 'N/A';
     const total = Number(invoice.amount || 0);
+    const TVA_RATE = 0.19;
+    const totalHT = +(total / (1 + TVA_RATE)).toFixed(2);
+    const totalTVA = +(total - totalHT).toFixed(2);
+    const totalTTC = total;
+    const materialItems = extractProjectMaterialItems(invoice.project);
+    const materialRowsHtml = materialItems.map((item) => {
+      const lineTotal = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+      return `<div class="material-row">
+        <span>${escapeHtml(item.name)} <small>(${escapeHtml(item.source)})</small></span>
+        <strong>x${item.quantity} - ${lineTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TND</strong>
+      </div>`;
+    }).join('');
+
+    const artisanName = invoice.artisan ? `${invoice.artisan.firstName || ''} ${invoice.artisan.lastName || ''}`.trim() : 'N/A';
+    const artisanEmail = invoice.artisan?.email || '';
+
+    const statusLabels = { pending: 'EN ATTENTE', paid: 'PAYÉE', overdue: 'EN RETARD' };
+    const statusColors = { pending: { bg: '#fef3c7', color: '#b45309' }, paid: { bg: '#d1fae5', color: '#065f46' }, overdue: { bg: '#fee2e2', color: '#991b1b' } };
+    const sBadge = statusColors[invoice.status] || statusColors.pending;
+
+    const fmt = (n) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Payment plan info
+    const pp = invoice.paymentPlan || {};
+    const hasPaymentPlan = pp.firstTrancheAmount > 0 || pp.secondTrancheAmount > 0;
 
     const html = `
       <!doctype html>
@@ -335,73 +411,210 @@ const downloadInvoicePdf = async (req, res) => {
       <head>
         <meta charset="utf-8" />
         <style>
-          * { box-sizing: border-box; }
-          body { margin: 0; font-family: Arial, sans-serif; color: #0f172a; background: #f8fafc; }
-          .page { padding: 32px; }
-          .card { background: #ffffff; border-radius: 20px; padding: 28px; border: 1px solid #e2e8f0; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; }
-          .title { font-size: 44px; font-weight: 800; color: #1d4ed8; margin: 0; letter-spacing: 1px; }
-          .number { margin-top: 8px; color: #64748b; font-size: 18px; }
-          .brand { text-align: right; }
-          .brand h3 { margin: 0; font-size: 28px; color: #0f172a; }
-          .brand p { margin: 4px 0 0; color: #64748b; }
-          .badge { display: inline-block; margin-top: 10px; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; background: #fef3c7; color: #b45309; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
-          .label { font-size: 13px; color: #64748b; margin-bottom: 6px; }
-          .value { font-size: 20px; font-weight: 700; color: #0f172a; }
-          .section { margin-top: 20px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #f8fafc; }
-          .section h4 { margin: 0 0 10px; font-size: 16px; }
-          .section p { margin: 0; color: #475569; line-height: 1.5; white-space: pre-wrap; }
-          .totals { margin-top: 24px; border-top: 2px solid #e2e8f0; padding-top: 16px; display: grid; gap: 10px; }
-          .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; }
-          .row.total { background: #1d4ed8; color: #ffffff; border-color: #1d4ed8; font-size: 22px; font-weight: 800; }
-          .footer { margin-top: 20px; color: #64748b; font-size: 12px; text-align: center; }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; background: #fff; font-size: 13px; }
+          .page { padding: 40px; }
+
+          /* Header */
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+          .header-left h1 { font-size: 36px; font-weight: 800; color: #1d4ed8; margin-bottom: 4px; text-decoration: underline; text-underline-offset: 6px; }
+          .logo-circle { width: 60px; height: 60px; background: #e8edf5; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 600; }
+
+          /* Parties */
+          .parties { display: flex; gap: 40px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+          .party { flex: 1; }
+          .party-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+          .party-name { font-size: 15px; font-weight: 700; color: #0f172a; }
+          .party-detail { font-size: 12px; color: #475569; line-height: 1.6; }
+
+          /* Invoice meta */
+          .meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+          .meta-item .meta-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+          .meta-item .meta-value { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; }
+
+          /* Status badge */
+          .badge { display: inline-block; border-radius: 4px; padding: 3px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; }
+
+          /* Additional info */
+          .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 24px; }
+          .info-box .info-label { font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 4px; }
+          .info-box p { font-size: 12px; color: #475569; line-height: 1.6; white-space: pre-wrap; }
+          .materials-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 24px; }
+          .materials-box .info-label { font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; }
+          .material-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+          .material-row:last-child { border-bottom: none; }
+          .material-row small { color: #64748b; font-weight: 600; }
+
+          /* Items table */
+          table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+          thead th { background: #1d4ed8; color: #fff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 12px; text-align: left; }
+          thead th:first-child { border-radius: 6px 0 0 0; }
+          thead th:last-child { border-radius: 0 6px 0 0; text-align: right; }
+          thead th.right { text-align: right; }
+          thead th.center { text-align: center; }
+          tbody td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #1a1a1a; }
+          tbody td.right { text-align: right; }
+          tbody td.center { text-align: center; }
+          tbody tr:last-child td { border-bottom: none; }
+
+          /* Totals */
+          .totals-section { display: flex; justify-content: flex-end; margin-top: 0; }
+          .totals-table { width: 280px; }
+          .totals-table .trow { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #e2e8f0; }
+          .totals-table .trow .tlabel { color: #475569; font-weight: 600; }
+          .totals-table .trow .tvalue { color: #0f172a; font-weight: 700; }
+          .totals-table .trow.ttc { background: #1d4ed8; color: #fff; border-radius: 0 0 6px 6px; border-bottom: none; }
+          .totals-table .trow.ttc .tlabel, .totals-table .trow.ttc .tvalue { color: #fff; font-weight: 800; font-size: 14px; }
+
+          /* Payment plan */
+          .payment-plan { margin-top: 24px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; }
+          .payment-plan h4 { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+          .tranche { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+          .tranche:last-child { border-bottom: none; }
+          .tranche-label { color: #475569; }
+          .tranche-amount { font-weight: 700; color: #0f172a; }
+          .tranche-status { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+          .tranche-paid { background: #d1fae5; color: #065f46; }
+          .tranche-unpaid { background: #fee2e2; color: #991b1b; }
+
+          /* Footer */
+          .footer-bar { margin-top: 40px; padding-top: 16px; border-top: 2px solid #1d4ed8; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; }
+          .footer-bar .col { line-height: 1.7; }
+          .footer-bar .col-title { font-weight: 700; color: #0f172a; font-size: 11px; margin-bottom: 2px; }
         </style>
       </head>
       <body>
         <div class="page">
-          <div class="card">
-            <div class="header">
-              <div>
-                <h1 class="title">INVOICE</h1>
-                <div class="number">${invoice.invoiceNumber}</div>
+          <!-- Header -->
+          <div class="header">
+            <div class="header-left">
+              <h1>Facture</h1>
+            </div>
+            <div class="logo-circle">Logo</div>
+          </div>
+
+          <!-- Parties: Vendor / Client -->
+          <div class="parties">
+            <div class="party">
+              <div class="party-label">Vendeur</div>
+              <div class="party-name">${artisanName}</div>
+              <div class="party-detail">${artisanEmail}</div>
+            </div>
+            <div class="party">
+              <div class="party-label">Client</div>
+              <div class="party-name">${invoice.clientName || 'N/A'}</div>
+            </div>
+          </div>
+
+          <!-- Invoice Meta -->
+          <div class="meta-grid">
+            <div class="meta-item">
+              <div class="meta-label">Date de facturation</div>
+              <div class="meta-value">${issueDate}</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">N° de facture</div>
+              <div class="meta-value">${invoice.invoiceNumber}</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">Échéance</div>
+              <div class="meta-value">${dueDate}</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">Paiement</div>
+              <div class="meta-value">30 jours</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">Statut</div>
+              <div class="meta-value"><span class="badge" style="background:${sBadge.bg};color:${sBadge.color}">${statusLabels[invoice.status] || 'EN ATTENTE'}</span></div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="info-box">
+            <div class="info-label">Description des travaux</div>
+            <p>${escapeHtml(invoice.description || '—')}</p>
+          </div>
+
+          ${materialItems.length > 0 ? `<div class="materials-box"><div class="info-label">Matériaux inclus</div>${materialRowsHtml}</div>` : ''}
+
+          <!-- Items Table -->
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="center">Qté</th>
+                <th class="right">Prix unitaire HT</th>
+                <th class="center">% TVA</th>
+                <th class="right">Total TVA</th>
+                <th class="right">Total TTC</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${invoice.project?.title || 'Prestation de service'}</td>
+                <td class="center">1</td>
+                <td class="right">${fmt(totalHT)} TND</td>
+                <td class="center">19 %</td>
+                <td class="right">${fmt(totalTVA)} TND</td>
+                <td class="right">${fmt(totalTTC)} TND</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="totals-table">
+              <div class="trow">
+                <span class="tlabel">Total HT</span>
+                <span class="tvalue">${fmt(totalHT)} TND</span>
               </div>
-              <div class="brand">
-                <h3>BMP Marketplace</h3>
-                <p>Digital Construction Platform</p>
-                <span class="badge">${String(invoice.status || 'pending').toUpperCase()}</span>
+              <div class="trow">
+                <span class="tlabel">Total TVA (19%)</span>
+                <span class="tvalue">${fmt(totalTVA)} TND</span>
+              </div>
+              <div class="trow ttc">
+                <span class="tlabel">Total TTC</span>
+                <span class="tvalue">${fmt(totalTTC)} TND</span>
               </div>
             </div>
+          </div>
 
-            <div class="grid">
-              <div>
-                <div class="label">Project</div>
-                <div class="value">${invoice.project?.title || 'Unknown Project'}</div>
-              </div>
-              <div>
-                <div class="label">Client</div>
-                <div class="value">${invoice.clientName || 'N/A'}</div>
-              </div>
-              <div>
-                <div class="label">Issue Date</div>
-                <div class="value">${issueDate}</div>
-              </div>
-              <div>
-                <div class="label">Due Date</div>
-                <div class="value">${dueDate}</div>
-              </div>
+          ${hasPaymentPlan ? `
+          <!-- Payment Plan -->
+          <div class="payment-plan">
+            <h4>Plan de paiement</h4>
+            <div class="tranche">
+              <span class="tranche-label">Acompte (${pp.firstTranchePercent || 50}%)</span>
+              <span class="tranche-amount">${fmt(pp.firstTrancheAmount || 0)} TND</span>
+              <span class="tranche-status ${pp.firstTranchePaid ? 'tranche-paid' : 'tranche-unpaid'}">${pp.firstTranchePaid ? 'Payé' : 'Non payé'}</span>
             </div>
-
-            <div class="section">
-              <h4>Description of Work / Items</h4>
-              <p>${invoice.description || ''}</p>
+            <div class="tranche">
+              <span class="tranche-label">Solde (${pp.secondTranchePercent || 50}%)</span>
+              <span class="tranche-amount">${fmt(pp.secondTrancheAmount || 0)} TND</span>
+              <span class="tranche-status ${pp.secondTranchePaid ? 'tranche-paid' : 'tranche-unpaid'}">${pp.secondTranchePaid ? 'Payé' : 'Non payé'}</span>
             </div>
+          </div>
+          ` : ''}
 
-            <div class="totals">
-              <div class="row total"><span>Total</span><strong>${total.toLocaleString()} TND</strong></div>
+          <!-- Footer -->
+          <div class="footer-bar">
+            <div class="col">
+              <div class="col-title">BMP Marketplace</div>
+              Plateforme numérique de construction<br/>
+              Tunisie
             </div>
-
-            <div class="footer">Generated by BMP Marketplace</div>
+            <div class="col">
+              <div class="col-title">Coordonnées</div>
+              Email : support@bmp.tn<br/>
+              Tél : +216 70 000 000<br/>
+              www.bmp.tn
+            </div>
+            <div class="col">
+              <div class="col-title">Détails</div>
+              Facture générée automatiquement<br/>
+              TVA : 19%
+            </div>
           </div>
         </div>
       </body>

@@ -6,7 +6,8 @@ import { SearchIcon } from "lucide-react@0.487.0";
 
 import { cn } from "./utils";
 import {
-  Dialog,
+
+import { useLanguage } from '../../context/LanguageContext';  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,

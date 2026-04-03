@@ -5,6 +5,7 @@ import { Drawer as DrawerPrimitive } from "vaul@1.1.2";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Drawer({
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {

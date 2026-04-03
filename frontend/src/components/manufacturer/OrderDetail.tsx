@@ -10,6 +10,7 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
 import { toast } from 'sonner';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface OrderDetailProps {
   order: any;
   onBack: () => void;
@@ -25,7 +26,9 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
 const timelineSteps = ['paid', 'processing', 'shipped', 'delivered'];
 
 export default function OrderDetail({ order, onBack }: OrderDetailProps) {
-  const [status, setStatus] = useState(order?.status || 'processing');
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [status, setStatus] = useState(order?.status || 'processing');
   const [timeline, setTimeline] = useState(order?.deliveryTimeline || []);
   const [isUpdating, setIsUpdating] = useState(false);
 

@@ -5,6 +5,7 @@ import * as PopoverPrimitive from "@radix-ui/react-popover@1.1.6";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Popover({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {

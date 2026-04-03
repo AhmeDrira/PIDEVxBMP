@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../ui/button';
 
+import { useLanguage } from '../../context/LanguageContext';
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin';
 
 interface RegisterRoleSelectionProps {
@@ -9,7 +10,9 @@ interface RegisterRoleSelectionProps {
 }
 
 export default function RegisterRoleSelection({ onRoleSelect, onBackToLogin }: RegisterRoleSelectionProps) {
-  const roles = [
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const roles = [
     {
       id: 'artisan' as UserRole,
       title: 'Artisan',

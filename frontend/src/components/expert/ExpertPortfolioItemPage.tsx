@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Button } from '../ui/button';
 import { ArrowLeft, MapPin, Calendar, CheckCircle, ImageIcon } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ExpertPortfolioItemPageProps {
   artisanId: string;
   itemId: string;
@@ -39,7 +40,9 @@ const resolveMediaUrl = (url: string) => {
 };
 
 export default function ExpertPortfolioItemPage({ artisanId, itemId, artisanName, onBack }: ExpertPortfolioItemPageProps) {
-  const [item, setItem] = useState<PortfolioItem | null>(null);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [item, setItem] = useState<PortfolioItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 

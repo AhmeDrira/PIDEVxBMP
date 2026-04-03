@@ -4,13 +4,16 @@ import { Card } from '../ui/card';
 import { Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import Logo from '../common/Logo';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface EmailSentPageProps {
   email: string;
   onBackToLogin: () => void;
 }
 
 export default function EmailSentPage({ email, onBackToLogin }: EmailSentPageProps) {
-  return (
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  return (
     <div className="min-h-screen flex items-center justify-center p-6 relative" style={{ backgroundImage: "url('/construction-bg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
       <div className="absolute inset-0 bg-black/60" />
       <Card className="w-full max-w-xl p-10 bg-card rounded-3xl shadow-2xl border-0 text-center relative z-10">

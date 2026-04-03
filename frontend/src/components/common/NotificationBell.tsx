@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCheck, Factory, ShoppingBag, Package, Truck, CheckCircle, Info } from 'lucide-react';
 import axios from 'axios';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface NotificationItem {
   _id: string;
   type: string;

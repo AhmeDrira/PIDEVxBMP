@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, Users, CheckSquare, BookOpen, BarChart3, ShieldOff, History, Flag } from 'lucide-react';
+import { Home, Users, CheckSquare, BookOpen, ShieldOff, History, Flag } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import AdminUserManagement from '../admin/AdminUserManagement';
 import AdminManufacturerVerification from '../admin/AdminManufacturerVerification';
 import AdminKnowledgeManagement from '../admin/AdminKnowledgeManagement';
@@ -11,12 +12,16 @@ import AdminProfile from '../admin/AdminProfile';
 import UpdatePasswordPage from '../common/UpdatePasswordPage';
 import AdminActionLogs from '../admin/AdminActionLogs';
 import AdminReports from '../admin/AdminReports';
+import AdminAddSubAdminPage from '../admin/AdminAddSubAdminPage';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const [activeView, setActiveView] = useState('home');
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -40,33 +45,33 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const profilePhoto = currentUser?.profilePhoto || '';
 
   const menuItems = useMemo(() => ([
-    { id: 'home', label: 'Home', icon: <Home size={20} /> },
-    { id: 'users', label: 'User Management', icon: <Users size={20} /> },
+    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
+    { id: 'users', label: t('nav.userManagement'), icon: <Users size={20} /> },
     {
       id: 'verification',
-      label: 'Manufacturer Verification',
+      label: t('nav.manufacturerVerification'),
       icon: <CheckSquare size={20} />,
       visible: isSuperAdmin || permissions.canVerifyManufacturers,
     },
     {
       id: 'knowledge',
-      label: 'Knowledge Library',
+      label: t('nav.knowledgeLibrary'),
       icon: <BookOpen size={20} />,
       visible: isSuperAdmin || permissions.canManageKnowledge,
     },
     {
       id: 'logs',
-      label: 'Logs',
+      label: t('nav.logs'),
       icon: <History size={20} />,
       visible: isSuperAdmin || isSubAdmin,
     },
     {
       id: 'reports',
-      label: 'Reports',
+      label: t('nav.reports'),
       icon: <Flag size={20} />,
       visible: isSuperAdmin || isSubAdmin,
     },
-  ].filter((item) => item.visible !== false)), [isSuperAdmin, isSubAdmin, permissions]);
+  ].filter((item) => item.visible !== false)), [isSuperAdmin, isSubAdmin, permissions, t]);
 
   const canSuspendUsers = isSuperAdmin || permissions.canSuspendUsers;
   const canDeleteUsers = isSuperAdmin || permissions.canDeleteUsers;
@@ -79,6 +84,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const isActiveValid =
       activeView === 'profile' ||
       activeView === 'analytics' ||
+      activeView === 'add-sub-admin' ||
       activeView === 'update-password' ||
       menuItems.some((item) => item.id === activeView);
     if (!isActiveValid) {
@@ -137,6 +143,12 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         return isSubAdmin ? <UpdatePasswordPage /> : <PermissionNotice message="This action is only available to sub-admins." />;
       case 'profile':
         return <AdminProfile />;
+      case 'add-sub-admin':
+        return isSuperAdmin ? (
+          <AdminAddSubAdminPage />
+        ) : (
+          <PermissionNotice message="Only super admins can create sub-admin accounts." />
+        );
       default:
         return <AdminUserManagement />;
     }
@@ -147,6 +159,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleEditProfile = () => {
+    if (isSuperAdmin) {
+      setActiveView('add-sub-admin');
+      return;
+    }
     setActiveView('profile');
   };
 
@@ -167,6 +183,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       onLogout={onLogout}
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}
+      editProfileLabel={isSuperAdmin ? 'Add Sub-Admin' : undefined}
       onUpdatePassword={isSubAdmin ? handleUpdatePassword : undefined}
       userRole="admin"
       userName={fullName}

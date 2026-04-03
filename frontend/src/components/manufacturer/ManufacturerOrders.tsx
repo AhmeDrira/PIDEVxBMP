@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Package, Clock, CheckCircle, Truck, Search, Filter, Loader2 } from 'lucide-react';
+import { Package, CheckCircle, Truck, Search, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
 import OrderDetail from './OrderDetail';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ManufacturerOrders() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,7 +88,7 @@ export default function ManufacturerOrders() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <Input
-            placeholder="Search orders..."
+            placeholder={tr('Search by order ID, customer, or product...', 'Rechercher par numéro de commande, client ou produit...', 'البحث حسب رقم الطلب أو العميل أو المنتج...')}
             className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -101,25 +104,25 @@ export default function ManufacturerOrders() {
         <>
           <div className="grid md:grid-cols-3 gap-6">
             <StatsCard
-              label="Processing"
+              label={tr('Processing', 'En cours de traitement', 'قيد المعالجة')}
               value={orders.filter(o => o.status === 'processing' || o.status === 'paid').length}
               icon={<Package size={28} />}
               color="#F59E0B"
-              subtitle="Being prepared"
+              subtitle={tr('Being Prepared', 'En cours de préparation', 'قيد التحضير')}
             />
             <StatsCard
-              label="Shipped"
+              label={tr('Shipped', 'Expédié', 'تم شحنه')}
               value={orders.filter(o => o.status === 'shipped').length}
               icon={<Truck size={28} />}
               color="#1E40AF"
-              subtitle="In transit"
+              subtitle={tr('In Transit', 'En transit', 'قيد الترحيل')}
             />
             <StatsCard
-              label="Delivered"
+              label={tr('Delivered', 'Livré', 'تم التسليم')}
               value={orders.filter(o => o.status === 'delivered').length}
               icon={<CheckCircle size={28} />}
               color="#10B981"
-              subtitle="Completed"
+              subtitle={tr('Completed', 'Complété', 'مكتمل')}
             />
           </div>
 
@@ -127,7 +130,7 @@ export default function ManufacturerOrders() {
             {filteredOrders.length === 0 ? (
               <div className="text-center py-20 bg-card rounded-2xl border-2 border-dashed border-border text-muted-foreground">
                 <Package size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="text-xl font-medium">No orders found</p>
+                <p className="text-xl font-medium">{tr('No orders found', 'Aucune commande trouvée', 'لم يتم العثور على طلبات')}</p>
               </div>
             ) : (
               filteredOrders.map((order) => (
@@ -135,25 +138,25 @@ export default function ManufacturerOrders() {
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-xl font-bold text-foreground truncate max-w-[250px]">{order.orderNumber || `Order #${order.id.slice(-6)}`}</h3>
+                        <h3 className="text-xl font-bold text-foreground truncate max-w-[250px]">{order.orderNumber || `${tr('Order', 'Commande', 'الطلب')} #${order.id.slice(-6)}`}</h3>
                         <Badge className={`${getStatusColor(order.status)} px-4 py-1.5 text-sm font-semibold flex items-center gap-2 border-2`}>
                           {getStatusIcon(order.status)}
                           {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        <strong className="text-foreground">Customer:</strong> {order.customer}
+                        <strong className="text-foreground">{tr('Customer:', 'Client:', 'العميل:')}</strong> {order.customer}
                       </p>
                       <p className="text-sm text-muted-foreground mb-3">
-                        <strong className="text-foreground">Products:</strong> {order.products}
+                        <strong className="text-foreground">{tr('Products:', 'Produits:', 'المنتجات:')}</strong> {order.products}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Date: <strong className="text-foreground">{order.date}</strong>
+                        {tr('Date:', 'Date:', 'التاريخ:')} <strong className="text-foreground">{order.date}</strong>
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="text-sm text-muted-foreground font-medium mb-2">Amount</p>
+                        <p className="text-sm text-muted-foreground font-medium mb-2">{tr('Amount', 'Montant', 'المبلغ')}</p>
                         <p className="text-3xl font-bold text-primary">{order.amount.toFixed(2)} TND</p>
                       </div>
                       <Button 
@@ -161,7 +164,7 @@ export default function ManufacturerOrders() {
                         variant="outline" 
                         className="h-11 px-6 rounded-xl border-2 !border-emerald-500 !text-emerald-600 hover:!bg-emerald-50 transition-all font-semibold"
                       >
-                        Manage Order
+                        {tr('View Details', 'Voir les détails', 'عرض التفاصيل')}
                       </Button>
                     </div>
                   </div>

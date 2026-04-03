@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -53,16 +54,40 @@ const TUNISIA_LOCATIONS = [
   'Gabès', 'Médenine', 'Tataouine',
 ];
 
-const RATING_OPTIONS = [
-  { label: 'All ratings', value: 0 },
-  { label: '4★ & above', value: 4 },
-  { label: '3★ & above', value: 3 },
-  { label: '2★ & above', value: 2 },
+const getRatingOptions = (t: (key: string) => string) => [
+  { label: t('expert.directory.allRatings'), value: 0 },
+  { label: t('expert.directory.rating4Above'), value: 4 },
+  { label: t('expert.directory.rating3Above'), value: 3 },
+  { label: t('expert.directory.rating2Above'), value: 2 },
 ];
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDirectoryProps) {
+  const { t, language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+
+  const specTranslationMap: Record<string, string> = {
+    'Masonry': t('spec.masonry'),
+    'Concrete Work': t('spec.concreteWork'),
+    'Foundation Construction': t('spec.foundationConstruction'),
+    'Plumbing': t('spec.plumbing'),
+    'Electrical Installation': t('spec.electricalInstallation'),
+    'Carpentry': t('spec.carpentry'),
+    'Painting': t('spec.painting'),
+    'Tiling': t('spec.tiling'),
+    'Plastering': t('spec.plastering'),
+    'Roofing': t('spec.roofing'),
+    'Waterproofing': t('spec.waterproofing'),
+    'HVAC': t('spec.hvac'),
+    'Metal Work': t('spec.metalWork'),
+    'Aluminum Work': t('spec.aluminumWork'),
+  };
+
+  const translateSpec = (s: string) => specTranslationMap[s] || s;
+
+  const RATING_OPTIONS = getRatingOptions(t);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState<Page>({ type: 'directory' });
   const [artisans, setArtisans] = useState<Artisan[]>([]);
@@ -163,7 +188,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
   const handleContact = async (artisanId: string) => {
     try {
       const token = getToken();
-      if (!token) { alert('Please login first'); return; }
+      if (!token) { alert(t('expert.directory.pleaseLogin')); return; }
       const response = await axios.post(
         `${API_URL}/conversations`,
         { participantId: artisanId },
@@ -173,7 +198,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
       localStorage.setItem('selectedConversationId', conversation._id || conversation.id);
       onNavigate('messages');
     } catch (err: any) {
-      alert(`Failed to create conversation: ${axios.isAxiosError(err) ? err.response?.data?.message || err.message : 'Unknown error'}`);
+      alert(`${t('expert.directory.failedCreateConv')}: ${axios.isAxiosError(err) ? err.response?.data?.message || err.message : tr('Unknown error', 'Erreur inconnue', 'Unknown error')}`);
     }
   };
 
@@ -221,10 +246,10 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
         <div className="flex items-center justify-between border-b pb-4">
           <div className="flex items-center gap-2">
             <SlidersHorizontal size={20} className="text-primary" />
-            <h3 className="text-xl font-bold text-foreground">Filters</h3>
+            <h3 className="text-xl font-bold text-foreground">{t('common.filters')}</h3>
           </div>
           <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-primary">
-            Clear All
+            {t('common.clearAll')}
           </Button>
         </div>
 
@@ -236,7 +261,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
             className="w-full flex items-center justify-between mb-2 group"
           >
             <Label className="text-sm font-bold text-foreground uppercase tracking-wider cursor-pointer group-hover:text-primary transition-colors">
-              Specialization
+              {t('auth.specialization')}
               {pendingFilters.specializations.length > 0 && (
                 <span className="ml-2 text-[10px] font-bold bg-primary dark:bg-blue-600 text-white rounded-full px-1.5 py-0.5 normal-case tracking-normal">
                   {pendingFilters.specializations.length}
@@ -259,7 +284,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
                     onChange={() => toggleSpec(s)}
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                   />
-                  <span className="text-sm text-foreground">{s}</span>
+                  <span className="text-sm text-foreground">{translateSpec(s)}</span>
                 </label>
               ))}
             </div>
@@ -274,7 +299,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
             className="w-full flex items-center justify-between mb-2 group"
           >
             <Label className="text-sm font-bold text-foreground uppercase tracking-wider cursor-pointer group-hover:text-primary transition-colors">
-              Location
+              {t('common.city')}
               {pendingFilters.locations.length > 0 && (
                 <span className="ml-2 text-[10px] font-bold bg-primary dark:bg-blue-600 text-white rounded-full px-1.5 py-0.5 normal-case tracking-normal">
                   {pendingFilters.locations.length}
@@ -306,7 +331,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
         {/* Rating */}
         <div>
-          <Label className="text-sm font-bold text-foreground uppercase tracking-wider mb-3 block">Minimum Rating</Label>
+          <Label className="text-sm font-bold text-foreground uppercase tracking-wider mb-3 block">{t('expert.directory.minRating')}</Label>
           <select
             value={pendingFilters.minRating}
             onChange={e => setPendingFilters(prev => ({ ...prev, minRating: Number(e.target.value) }))}
@@ -320,10 +345,10 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
 
         <div className="flex gap-3 pt-4 border-t-2 border-border">
           <Button onClick={handleClearFilters} variant="outline" className="flex-1 h-11 rounded-xl border-2">
-            Reset
+            {t('common.reset')}
           </Button>
           <Button onClick={handleApplyFilters} className="flex-1 h-11 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">
-            Apply
+            {t('common.apply')}
           </Button>
         </div>
       </div>
@@ -337,7 +362,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <Input
-            placeholder="Search by name, skill, or location..."
+            placeholder={t('expert.directory.searchPlaceholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
@@ -349,7 +374,7 @@ export default function ExpertArtisanDirectory({ onNavigate }: ExpertArtisanDire
           onClick={() => setShowFilters(prev => !prev)}
         >
           <SlidersHorizontal size={18} className="mr-2" />
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
+          {showFilters ? tr('Hide Filters', 'Masquer les filtres', 'Hide Filters') : tr('Show Filters', 'Afficher les filtres', 'Show Filters')}
           {!showFilters && activeFilterCount > 0 && (
             <span className="absolute -top-1.5 -right-1.5 w-5 h-5 text-[10px] font-bold rounded-full bg-primary dark:bg-blue-600 text-white flex items-center justify-center">
               {activeFilterCount}

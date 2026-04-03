@@ -9,8 +9,11 @@ import axios from 'axios';
 interface ProductDetailProps {
   productId?: string;
   onBack?: () => void;
+  import { useLanguage } from '../../context/LanguageContext';
   onAddToCart?: (product: any) => void;
 }
+    const { language } = useLanguage();
+    const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
 
 const SERVER_URL = 'http://localhost:5000';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -41,7 +44,7 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-muted-foreground">{tr('Product not found.', 'Produit introuvable.', 'Product not found.')}</p>
       </div>
     );
   }
@@ -49,10 +52,10 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
   if (!product) {
     return (
       <div className="space-y-6">
-        {onBack && <Button variant="outline" onClick={onBack} className="rounded-xl border-2"><ArrowRight size={20} className="mr-2 rotate-180" /> Back</Button>}
+        {onBack && <Button variant="outline" onClick={onBack} className="rounded-xl border-2"><ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back', 'Retour', 'Back')}</Button>}
         <Card className="p-12 text-center rounded-2xl border-0 shadow-lg">
           <Package size={48} className="text-gray-300 mx-auto mb-4" />
-          <p className="text-muted-foreground">Product not found.</p>
+      : product.manufacturerName || tr('Manufacturer', 'Fabricant', 'Manufacturer');
         </Card>
       </div>
     );
@@ -66,7 +69,7 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
     : product.manufacturerName || 'Manufacturer';
 
   const handleAddToCart = () => {
-    if (onAddToCart) {
+            {tr('Back to Products', 'Retour aux produits', 'Back to Products')}
       onAddToCart({ ...product, quantity });
     }
   };
@@ -96,8 +99,8 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
               ) : (
                 <Package size={64} className="text-gray-300" />
               )}
-            </div>
-          </Card>
+                    <p className="font-semibold text-blue-900 text-sm">{tr('Technical Sheet Available', 'Fiche technique disponible', 'Technical Sheet Available')}</p>
+                    <p className="text-blue-600 text-xs mt-0.5">{tr('PDF document attached by manufacturer', 'Document PDF joint par le fabricant', 'PDF document attached by manufacturer')}</p>
 
           {/* PDF Technical Sheet */}
           {pdfUrl && (
@@ -122,22 +125,22 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
         </div>
 
         {/* Product Info */}
-        <div className="space-y-6">
+                <span className="text-lg font-medium text-muted-foreground">{tr('Price:', 'Prix :', 'Price:')}</span>
           <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <Badge className="mb-4 bg-primary/10 text-primary border-0 px-3 py-1 text-sm">
               {product.category}
             </Badge>
-
+                <span className="text-base font-medium text-muted-foreground">{tr('Stock Availability:', 'Disponibilite du stock :', 'Stock Availability:')}</span>
             <h1 className="text-3xl font-bold text-foreground mb-3">{product.name}</h1>
 
             <p className="text-lg text-muted-foreground mb-4">{manufacturerName}</p>
 
             <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-primary/5 to-primary/10 mb-6">
-              <span className="text-lg font-medium text-muted-foreground">Price:</span>
+                        {product.stock} {tr('units available', 'unites disponibles', 'units available')}
               <span className="text-4xl font-bold text-primary">{Number(product.price).toFixed(3)} TND</span>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 mb-6">
+                    <span className="font-semibold text-destructive">{tr('Out of Stock', 'Rupture de stock', 'Out of Stock')}</span>
               <span className="text-base font-medium text-muted-foreground">Stock Availability:</span>
               <div className="flex items-center gap-2">
                 {product.stock > 0 ? (
@@ -148,7 +151,7 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
                     </span>
                   </>
                 ) : (
-                  <span className="font-semibold text-destructive">Out of Stock</span>
+                <span className="text-base font-medium text-foreground">{tr('Quantity:', 'Quantite :', 'Quantity:')}</span>
                 )}
               </div>
             </div>
@@ -162,7 +165,7 @@ export default function ProductDetail({ productId, onBack, onAddToCart }: Produc
               <span className="text-base font-medium text-foreground">Quantity:</span>
               <div className="flex items-center gap-3">
                 <Button size="sm" variant="outline" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-xl border-2">-</Button>
-                <span className="w-16 text-center font-bold text-xl">{quantity}</span>
+                {tr('Add to Cart', 'Ajouter au panier', 'إضافة إلى السلة')} - {(Number(product.price) * quantity).toFixed(3)} TND
                 <Button size="sm" variant="outline" onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} className="w-10 h-10 rounded-xl border-2">+</Button>
               </div>
             </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCheck, Clock3, Truck, CreditCard } from 'lucide-react';
 import axios from 'axios';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface NotificationItem {
   _id: string;
   type: string;
@@ -38,6 +39,8 @@ const renderNotificationIcon = (icon?: string) => {
 };
 
 export default function ArtisanNotificationBell() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

@@ -61,6 +61,38 @@ const projectSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product'
   }],
+  personalMaterials: [
+    {
+      name: {
+        type: String,
+        required: [true, 'Please add a material name'],
+        trim: true,
+      },
+      category: {
+        type: String,
+        required: [true, 'Please add a category'],
+        trim: true,
+      },
+      price: {
+        type: Number,
+        required: [true, 'Please add a price'],
+        min: 0,
+      },
+      stock: {
+        type: Number,
+        default: 1,
+        min: 1,
+      },
+      image: {
+        type: String,
+        default: '',
+      },
+      description: {
+        type: String,
+        default: '',
+      },
+    },
+  ],
   // La relation : on relie ce projet à l'artisan (User)
   artisan: {
     type: mongoose.Schema.Types.ObjectId,

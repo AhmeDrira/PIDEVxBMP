@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import authService from '../../services/authService';
 import { toast } from 'sonner';
 
+import { useLanguage } from '../../context/LanguageContext';
 declare global {
   interface Window {
     google?: any;
@@ -38,7 +39,9 @@ function loadGoogleScript(): Promise<void> {
 }
 
 export function GoogleLoginButton({ onSuccess, variant = 'signin', role }: GoogleLoginButtonProps) {
-  useEffect(() => {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  useEffect(() => {
     loadGoogleScript().catch(() =>
       console.error('Google Identity Services script failed to load')
     );

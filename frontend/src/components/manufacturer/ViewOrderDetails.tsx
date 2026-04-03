@@ -5,13 +5,16 @@ import { Badge } from '../ui/badge';
 import { ArrowRight, Package, User, Calendar, MapPin, Phone, Mail, CreditCard } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ViewOrderDetailsProps {
   orderId?: string;
   onBack?: () => void;
 }
 
 export default function ViewOrderDetails({ orderId, onBack }: ViewOrderDetailsProps) {
-  // Mock order data - in real app this would come from API/props
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  // Mock order data - in real app this would come from API/props
   const order = {
     id: orderId || 'ORD-2024-1234',
     date: '2026-02-15',

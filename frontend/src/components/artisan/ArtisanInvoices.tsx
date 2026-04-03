@@ -5,14 +5,17 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, CreditCard, Trash2, Search, Filter, Package, ShoppingBag } from 'lucide-react';
+import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, Trash2, Search, Filter, ShoppingBag } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import CheckoutWizard from './CheckoutWizard';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ArtisanInvoices() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [view, setView] = useState<'list' | 'create' | 'details' | 'materials-checkout'>('list');
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -52,6 +55,8 @@ export default function ArtisanInvoices() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isPayMaterialLoading, setIsPayMaterialLoading] = useState(false);
+  const [hasMarketplaceMaterials, setHasMarketplaceMaterials] = useState(false);
+  const [isCheckingMarketplaceMaterials, setIsCheckingMarketplaceMaterials] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -129,14 +134,14 @@ export default function ArtisanInvoices() {
 
     try {
       const parsed = JSON.parse(raw);
-      const message = parsed?.message || 'Success';
+      const message = parsed?.message || tr('Success', 'Succes', 'Success');
       const type = parsed?.type || 'success';
 
       if (type === 'error') toast.error(message);
       else if (type === 'warning') toast.warning(message);
       else toast.success(message);
     } catch {
-      toast.success('Operation completed successfully');
+      toast.success(tr('Operation completed successfully', 'Operation terminee avec succes', 'Operation completed successfully'));
     } finally {
       sessionStorage.removeItem('artisan:redirect-toast');
     }
@@ -161,7 +166,7 @@ export default function ArtisanInvoices() {
     };
 
     if (state === 'cancel' || state === 'materialsCancel') {
-      toast.warning('Payment cancelled. You can continue later.');
+      toast.warning(tr('Payment cancelled. You can continue later.', 'Paiement annule. Vous pouvez continuer plus tard.', 'Payment cancelled. You can continue later.'));
       clearParams();
       return;
     }
@@ -248,6 +253,45 @@ export default function ArtisanInvoices() {
 
     confirm();
   }, [API_URL]);
+
+  useEffect(() => {
+    const checkMarketplaceMaterials = async () => {
+      if (view !== 'details' || !selectedInvoice) {
+        setHasMarketplaceMaterials(false);
+        return;
+      }
+
+      const projectId = selectedInvoice?.project?._id || selectedInvoice?.project;
+      if (!projectId) {
+        setHasMarketplaceMaterials(false);
+        return;
+      }
+
+      try {
+        setIsCheckingMarketplaceMaterials(true);
+        const token = getToken();
+        if (!token) {
+          setHasMarketplaceMaterials(false);
+          return;
+        }
+
+        const projectsRes = await axios.get(`${API_URL}/projects`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const project = (projectsRes.data || []).find((p: any) => String(p._id) === String(projectId));
+        const materials = Array.isArray(project?.materials) ? project.materials : [];
+        setHasMarketplaceMaterials(materials.length > 0);
+      } catch (error) {
+        console.error('Failed to check marketplace materials:', error);
+        setHasMarketplaceMaterials(false);
+      } finally {
+        setIsCheckingMarketplaceMaterials(false);
+      }
+    };
+
+    checkMarketplaceMaterials();
+  }, [view, selectedInvoice, API_URL]);
 
   // --- VALIDATION DES CHAMPS ---
   const validateField = (name: string, value: any): string => {
@@ -345,46 +389,6 @@ export default function ArtisanInvoices() {
     if (planAmount > 0) return planAmount;
     const total = Number(invoice?.amount || 0);
     return Number((total - getUpfrontAmount(invoice)).toFixed(2));
-  };
-
-  const handleStartInstallmentPayment = async (invoiceId: string, phase: 'upfront' | 'completion') => {
-    try {
-      setIsPaymentLoading(true);
-      const token = getToken();
-      if (!token) {
-        toast.error('Authentication required');
-        return;
-      }
-
-      const res = await axios.post(
-        `${API_URL}/invoices/${invoiceId}/create-payment-session`,
-        { phase },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-
-      const checkoutUrl = res?.data?.url;
-      if (!checkoutUrl) {
-        toast.error('Unable to start payment session');
-        return;
-      }
-
-      window.location.href = checkoutUrl;
-    } catch (error: any) {
-      console.error('create invoice payment session failed:', error?.response?.data || error?.message);
-      toast.error(error?.response?.data?.message || 'Failed to initialize payment');
-    } finally {
-      setIsPaymentLoading(false);
-    }
-  };
-
-  const handlePayUpfrontClick = () => {
-    if (!selectedInvoice?._id) return;
-    handleStartInstallmentPayment(selectedInvoice._id, 'upfront');
-  };
-
-  const handlePayCompletionClick = () => {
-    if (!selectedInvoice?._id) return;
-    handleStartInstallmentPayment(selectedInvoice._id, 'completion');
   };
 
   const handlePayMaterialsClick = async () => {
@@ -642,10 +646,10 @@ export default function ArtisanInvoices() {
     return (
       <div className="max-w-4xl mx-auto">
         <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
-          <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
+          <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Invoices', 'Retour aux factures', 'العودة إلى الفواتير')}
         </Button>
         <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
-          <h2 className="text-3xl font-bold text-foreground mb-8">Generate New Invoice</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-8">{tr('Generate New Invoice', 'Generer une nouvelle facture', 'إنشاء فاتورة جديدة')}</h2>
           <form className="space-y-6" onSubmit={handleCreateInvoice}>
             {/* Projet */}
             <div className="space-y-2">
@@ -911,7 +915,7 @@ export default function ArtisanInvoices() {
         {/* Header — Back + Buy Materials */}
         <div className="flex flex-wrap justify-between items-center gap-3 print:hidden">
           <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2">
-            <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Invoices
+            <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Invoices', 'Retour aux factures', 'العودة إلى الفواتير')}
           </Button>
           {materialsPaid ? (
             <button
@@ -924,11 +928,11 @@ export default function ArtisanInvoices() {
           ) : (
             <button
               onClick={handlePayMaterialsClick}
-              disabled={isPayMaterialLoading}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 12, padding: '10px 22px', fontSize: 14, fontWeight: 700, background: '#F59E0B', color: 'white', border: 'none', cursor: isPayMaterialLoading ? 'not-allowed' : 'pointer', opacity: isPayMaterialLoading ? 0.6 : 1, transition: 'all 0.15s' }}
+              disabled={isPayMaterialLoading || isCheckingMarketplaceMaterials || !hasMarketplaceMaterials}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 12, padding: '10px 22px', fontSize: 14, fontWeight: 700, background: '#F59E0B', color: 'white', border: 'none', cursor: (isPayMaterialLoading || isCheckingMarketplaceMaterials || !hasMarketplaceMaterials) ? 'not-allowed' : 'pointer', opacity: (isPayMaterialLoading || isCheckingMarketplaceMaterials || !hasMarketplaceMaterials) ? 0.5 : 1, transition: 'all 0.15s' }}
             >
               <ShoppingBag size={17} />
-              {isPayMaterialLoading ? 'Loading...' : 'Buy Materials'}
+              {isCheckingMarketplaceMaterials ? tr('Checking...', 'Verification...', 'جاري التحقق...') : isPayMaterialLoading ? tr('Loading...', 'Chargement...', 'جاري التحميل...') : !hasMarketplaceMaterials ? tr('No Marketplace Materials', 'Aucun materiau marketplace', 'لا توجد مواد سوق') : tr('Buy Materials', 'Acheter les materiaux', 'شراء المواد')}
             </button>
           )}
         </div>
@@ -939,7 +943,7 @@ export default function ArtisanInvoices() {
           {/* ── Header with progress bar ── */}
           <div style={{ padding: '28px 32px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Payment Progress</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>{tr('Payment Progress', 'Progression du paiement', 'تقدم الدفع')}</h3>
               <span
                 style={{
                   fontSize: 28,
@@ -1180,26 +1184,26 @@ export default function ArtisanInvoices() {
             <div>
               <h4 className="font-bold text-foreground mb-2 border-b pb-1">Billed To:</h4>
               <p className="font-semibold text-lg">{selectedInvoice.clientName}</p>
-              <p className="text-muted-foreground">Project: {selectedInvoice.project?.title || 'Unknown Project'}</p>
+              <p className="text-muted-foreground">{tr('Project:', 'Projet :', 'المشروع:')} {selectedInvoice.project?.title || tr('Unknown Project', 'Projet inconnu', 'مشروع غير معروف')}</p>
             </div>
             <div className="space-y-2 text-right">
-              <p><span className="font-medium text-muted-foreground">Issue Date:</span> <span className="font-semibold">{formatDate(selectedInvoice.issueDate)}</span></p>
-              <p><span className="font-medium text-muted-foreground">Due Date:</span> <span className="font-semibold">{formatDate(selectedInvoice.dueDate)}</span></p>
+              <p><span className="font-medium text-muted-foreground">{tr('Issue Date:', 'Date d\'emission :')}</span> <span className="font-semibold">{formatDate(selectedInvoice.issueDate)}</span></p>
+              <p><span className="font-medium text-muted-foreground">{tr('Due Date:', 'Date d\'echeance :')}</span> <span className="font-semibold">{formatDate(selectedInvoice.dueDate)}</span></p>
             </div>
           </div>
 
           {/* Description */}
           <div className="mb-8 bg-muted/50 p-6 rounded-xl border">
-            <h4 className="font-bold text-foreground mb-4">Description of Work / Items:</h4>
+            <h4 className="font-bold text-foreground mb-4">{tr('Description of Work / Items:', 'Description des travaux / elements :', 'وصف العمل / العناصر:')}</h4>
             <p className="whitespace-pre-wrap text-muted-foreground">{selectedInvoice.description}</p>
           </div>
 
           {/* Montant total */}
           <div className="flex justify-end border-t-2 pt-6">
             <div className="text-right">
-              <p className="text-muted-foreground font-medium mb-1">Total Amount Due</p>
+              <p className="text-muted-foreground font-medium mb-1">{tr('Total Amount Due', 'Montant total du', 'المبلغ الإجمالي المستحق')}</p>
               <p className="text-4xl font-bold text-primary">{selectedInvoice.amount.toLocaleString()} TND</p>
-              <p className="text-sm text-muted-foreground mt-1">Paid: {Number(selectedInvoice.paidAmount || 0).toFixed(2)} TND</p>
+              <p className="text-sm text-muted-foreground mt-1">{tr('Paid:', 'Paye :', 'المدفوع:')} {Number(selectedInvoice.paidAmount || 0).toFixed(2)} TND</p>
               <p className="text-sm text-muted-foreground mt-1">
                 {new Intl.NumberFormat('en-TN', { style: 'currency', currency: 'TND' }).format(selectedInvoice.amount)}
               </p>
@@ -1219,9 +1223,9 @@ export default function ArtisanInvoices() {
       {/* Header */}
       {/* Stats */}
       <div className="grid md:grid-cols-3 gap-6">
-        <StatsCard label="Total Revenue" value={`${totalRevenue.toLocaleString()} TND`} icon={<Check size={28} />} color="#10B981" trend="Paid" trendUp={true} />
-        <StatsCard label="Pending" value={`${pendingAmount.toLocaleString()} TND`} icon={<Clock size={28} />} color="#F59E0B" subtitle="Awaiting payment" />
-        <StatsCard label="Overdue" value={`${overdueAmount.toLocaleString()} TND`} icon={<AlertCircle size={28} />} color="#EF4444" subtitle="Needs attention" />
+        <StatsCard label={tr('Total Revenue', 'Revenu total', 'Total Revenue')} value={`${totalRevenue.toLocaleString()} TND`} icon={<Check size={28} />} color="#10B981" trend={tr('Paid', 'Paye', 'Paid')} trendUp={true} />
+        <StatsCard label={tr('Pending', 'En attente', 'Pending')} value={`${pendingAmount.toLocaleString()} TND`} icon={<Clock size={28} />} color="#F59E0B" subtitle={tr('Awaiting payment', 'En attente de paiement', 'Awaiting payment')} />
+        <StatsCard label={tr('Overdue', 'En retard', 'Overdue')} value={`${overdueAmount.toLocaleString()} TND`} icon={<AlertCircle size={28} />} color="#EF4444" subtitle={tr('Needs attention', 'Necessite une attention', 'Needs attention')} />
       </div>
 
       <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
@@ -1229,7 +1233,7 @@ export default function ArtisanInvoices() {
           <div className="flex-1 h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2">
             <Search className="text-muted-foreground shrink-0" size={18} />
             <Input
-              placeholder="Search invoices..."
+              placeholder={tr('Search invoices...', 'Rechercher des factures...', 'Search invoices...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-full px-0"
@@ -1244,10 +1248,10 @@ export default function ArtisanInvoices() {
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >
-                <option value="all">All Status</option>
-                <option value="paid">Paid</option>
-                <option value="pending">Pending</option>
-                <option value="overdue">Overdue</option>
+                <option value="all">{tr('All Status', 'Tous les statuts', 'All Status')}</option>
+                <option value="paid">{tr('Paid', 'Paye', 'Paid')}</option>
+                <option value="pending">{tr('Pending', 'En attente', 'Pending')}</option>
+                <option value="overdue">{tr('Overdue', 'En retard', 'Overdue')}</option>
               </select>
             </div>
             <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
@@ -1257,9 +1261,9 @@ export default function ArtisanInvoices() {
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >
-                <option value="all">All Due</option>
-                <option value="overdue">Overdue Due Date</option>
-                <option value="upcoming">Upcoming Due Date</option>
+                <option value="all">{tr('All Due', 'Toutes echeances', 'All Due')}</option>
+                <option value="overdue">{tr('Overdue Due Date', 'Echeance depassee', 'Overdue Due Date')}</option>
+                <option value="upcoming">{tr('Upcoming Due Date', 'Echeance a venir', 'Upcoming Due Date')}</option>
               </select>
             </div>
           </div>
@@ -1269,11 +1273,11 @@ export default function ArtisanInvoices() {
       {/* Liste des factures */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="text-center py-10">Loading invoices...</div>
+          <div className="text-center py-10">{tr('Loading invoices...', 'Chargement des factures...', 'Loading invoices...')}</div>
         ) : filteredInvoices.length === 0 ? (
           <div className="text-center py-10 bg-card rounded-2xl border border-border shadow-lg border border-border">
             <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-            <p className="text-xl font-semibold text-muted-foreground">No invoices found.</p>
+            <p className="text-xl font-semibold text-muted-foreground">{tr('No invoices found.', 'Aucune facture trouvee.', 'No invoices found.')}</p>
           </div>
         ) : (
           filteredInvoices.map((invoice) => (
@@ -1288,20 +1292,20 @@ export default function ArtisanInvoices() {
                     </Badge>
                   </div>
                   <p className="mb-2 text-muted-foreground">
-                    <strong className="text-foreground">Project:</strong> {invoice.project?.title || 'Unknown Project'}
+                    <strong className="text-foreground">{tr('Project:', 'Projet :', 'المشروع:')}</strong> {invoice.project?.title || tr('Unknown Project', 'Projet inconnu', 'مشروع غير معروف')}
                   </p>
                   <p className="text-muted-foreground mb-4">
-                    <strong className="text-foreground">Client:</strong> {invoice.clientName}
+                    <strong className="text-foreground">{tr('Client:', 'Client :', 'Client:')}</strong> {invoice.clientName}
                   </p>
                   <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-                    <span>Due: <strong className="text-foreground">{formatDate(invoice.dueDate)}</strong></span>
-                    {invoice.status === 'paid' && <span>Paid on: <strong className="text-accent">{formatDate(invoice.updatedAt)}</strong></span>}
-                    <span>Paid: <strong className="text-foreground">{getPaymentProgress(invoice)}%</strong></span>
+                    <span>{tr('Due:', 'Echeance :', 'Due:')} <strong className="text-foreground">{formatDate(invoice.dueDate)}</strong></span>
+                    {invoice.status === 'paid' && <span>{tr('Paid on:', 'Paye le :', 'Paid on:')} <strong className="text-accent">{formatDate(invoice.updatedAt)}</strong></span>}
+                    <span>{tr('Paid:', 'Paye :', 'المدفوع:')} <strong className="text-foreground">{getPaymentProgress(invoice)}%</strong></span>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground font-medium mb-2">Amount</p>
+                    <p className="text-sm text-muted-foreground font-medium mb-2">{tr('Amount', 'Montant', 'Amount')}</p>
                     <p className="text-3xl font-bold text-primary">
                       {invoice.amount.toLocaleString()} TND
                     </p>
@@ -1313,7 +1317,7 @@ export default function ArtisanInvoices() {
                       className="rounded-xl border-2 h-10 hover:bg-primary hover:text-white"
                       onClick={() => subGuard(() => { setSelectedInvoice(invoice); setView('details'); })}
                     >
-                      <Eye size={16} className="mr-2" /> View
+                      <Eye size={16} className="mr-2" /> {tr('View', 'Voir', 'عرض')}
                     </Button>
                     <Button
                       variant="outline"
@@ -1329,7 +1333,7 @@ export default function ArtisanInvoices() {
                       className="rounded-xl border-2 h-10 hover:bg-red-600 hover:text-white"
                       onClick={() => openDeleteInvoiceModal(invoice)}
                     >
-                      <Trash2 size={16} className="mr-2" /> Delete
+                      <Trash2 size={16} className="mr-2" /> {tr('Delete', 'Supprimer', 'حذف')}
                     </Button>
                   </div>
                 </div>
@@ -1347,9 +1351,9 @@ export default function ArtisanInvoices() {
                 <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 size={32} className="text-red-600" />
                 </div>
-                <h3 className="text-3xl font-bold text-foreground mb-2">Delete Invoice?</h3>
+                <h3 className="text-3xl font-bold text-foreground mb-2">{tr('Delete Invoice?', 'Supprimer la facture ?', 'Delete Invoice?')}</h3>
                 <p className="text-muted-foreground font-medium">{invoiceToDelete?.invoiceNumber || ''}</p>
-                <p className="text-sm text-muted-foreground mt-2">Are you sure you want to delete this invoice?</p>
+                <p className="text-sm text-muted-foreground mt-2">{tr('Are you sure you want to delete this invoice?', 'Voulez-vous vraiment supprimer cette facture ?', 'Are you sure you want to delete this invoice?')}</p>
               </div>
 
               <div className="flex gap-3">
@@ -1363,7 +1367,7 @@ export default function ArtisanInvoices() {
                   }}
                   disabled={isDeletingInvoice}
                 >
-                  Non
+                  {tr('No', 'Non', 'No')}
                 </Button>
                 <Button
                   type="button"
@@ -1372,7 +1376,7 @@ export default function ArtisanInvoices() {
                   onClick={handleDeleteInvoice}
                   disabled={isDeletingInvoice}
                 >
-                  {isDeletingInvoice ? 'Oui...' : 'Oui'}
+                  {isDeletingInvoice ? tr('Yes...', 'Oui...', 'Yes...') : tr('Yes', 'Oui', 'Yes')}
                 </Button>
               </div>
             </div>
@@ -1383,3 +1387,4 @@ export default function ArtisanInvoices() {
     </div>
   );
 }
+

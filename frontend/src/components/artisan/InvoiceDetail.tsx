@@ -3,14 +3,18 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ArrowLeft, Receipt, Calendar, MapPin, Download, User, Mail, Phone, DollarSign, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import Logo from '../common/Logo';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface InvoiceDetailProps {
   invoiceId: string;
   onBack: () => void;
 }
 
 export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps) {
-  const invoice = {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const invoice = {
     id: invoiceId,
     project: {
       name: 'Villa Construction - Tunis',
@@ -87,13 +91,7 @@ export default function InvoiceDetail({ invoiceId, onBack }: InvoiceDetailProps)
           {/* Invoice Header */}
           <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
             <div className="flex items-start justify-between mb-8">
-              <div>
-                <div className="w-16 h-16 rounded-2xl bg-primary dark:bg-blue-600 flex items-center justify-center mb-4 shadow-lg">
-                  <Receipt size={32} className="text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-primary mb-1">BMP.tn</h2>
-                <p className="text-sm text-muted-foreground">Construction Marketplace</p>
-              </div>
+              <Logo size="lg" />
               <div className="text-right">
                 <h3 className="text-3xl font-bold text-foreground mb-2">INVOICE</h3>
                 <p className="text-lg text-muted-foreground">#{invoice.id}</p>

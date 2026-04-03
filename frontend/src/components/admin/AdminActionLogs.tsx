@@ -12,38 +12,15 @@ import {
 import { toast } from 'sonner';
 import actionLogService, { ActionLogItem } from '../../services/actionLogService';
 import authService from '../../services/authService';
+import { useLanguage } from '../../context/LanguageContext';
 
-const roleConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  artisan:      { label: 'Artisan',      color: '#d97706', bg: 'rgba(245,158,11,0.15)', dot: '#f59e0b' },
-  expert:       { label: 'Expert',       color: '#059669', bg: 'rgba(16,185,129,0.15)', dot: '#10b981' },
-  manufacturer: { label: 'Manufacturer', color: '#7c3aed', bg: 'rgba(139,92,246,0.15)', dot: '#8b5cf6' },
-  admin:        { label: 'Admin',        color: '#dc2626', bg: 'rgba(220,38,38,0.15)', dot: '#ef4444' },
-  system:       { label: 'System',       color: 'var(--muted-foreground)', bg: 'var(--border)', dot: 'var(--muted-foreground)' },
+const roleStyles: Record<string, { color: string; bg: string; dot: string }> = {
+  artisan:      { color: '#d97706', bg: 'rgba(245,158,11,0.15)', dot: '#f59e0b' },
+  expert:       { color: '#059669', bg: 'rgba(16,185,129,0.15)', dot: '#10b981' },
+  manufacturer: { color: '#7c3aed', bg: 'rgba(139,92,246,0.15)', dot: '#8b5cf6' },
+  admin:        { color: '#dc2626', bg: 'rgba(220,38,38,0.15)', dot: '#ef4444' },
+  system:       { color: 'var(--muted-foreground)', bg: 'var(--border)', dot: 'var(--muted-foreground)' },
 };
-
-const actionLabels = [
-  { label: 'All actions',                   value: '' },
-  { label: 'Project created',               value: 'artisan.project.create' },
-  { label: 'Quote generated',               value: 'artisan.quote.create' },
-  { label: 'Invoice generated',             value: 'artisan.invoice.create' },
-  { label: 'Invoice deleted',               value: 'artisan.invoice.delete' },
-  { label: 'Payment – upfront installment', value: 'artisan.invoice.payment.upfront' },
-  { label: 'Payment – completion installment', value: 'artisan.invoice.payment.completion' },
-  { label: 'Product added',                 value: 'manufacturer.product.create' },
-  { label: 'Product updated',               value: 'manufacturer.product.update' },
-  { label: 'Product deleted',               value: 'manufacturer.product.delete' },
-  { label: 'Marketplace purchase',          value: 'marketplace.checkout' },
-  { label: 'Marketplace purchase (Stripe)', value: 'marketplace.checkout.stripe' },
-  { label: 'Sub-admin created',             value: 'admin.subadmin.create' },
-  { label: 'Password reset',                value: 'admin.subadmin.password.reset' },
-  { label: 'Manufacturer approved',         value: 'admin.manufacturer.approve' },
-  { label: 'Manufacturer rejected',         value: 'admin.manufacturer.reject' },
-  { label: 'User suspended',                value: 'admin.user.suspend' },
-  { label: 'User activated',                value: 'admin.user.activate' },
-  { label: 'User deleted',                  value: 'admin.user.delete' },
-  { label: 'Report submitted',              value: 'report.submit' },
-  { label: 'Report status updated',         value: 'admin.report.status.update' },
-];
 
 type BasicUserRow = { _id: string; role: string; adminType?: string };
 
@@ -51,6 +28,42 @@ const card: React.CSSProperties = { background: 'var(--card)', border: '2px soli
 const selectBase: React.CSSProperties = { width: '100%', height: 44, padding: '0 12px', borderRadius: 12, border: '2px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: 14, outline: 'none', cursor: 'pointer' };
 
 export default function AdminActionLogs() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const { t } = useLanguage();
+
+  const roleConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+    artisan:      { label: t('role.artisan'),      ...roleStyles.artisan },
+    expert:       { label: t('role.expert'),       ...roleStyles.expert },
+    manufacturer: { label: t('role.manufacturer'), ...roleStyles.manufacturer },
+    admin:        { label: t('role.admin'),        ...roleStyles.admin },
+    system:       { label: t('role.system'),       ...roleStyles.system },
+  };
+
+  const actionLabels = [
+    { label: t('admin.logs.allActions'),                value: '' },
+    { label: t('admin.logs.projectCreated'),            value: 'artisan.project.create' },
+    { label: t('admin.logs.quoteGenerated'),            value: 'artisan.quote.create' },
+    { label: t('admin.logs.invoiceGenerated'),          value: 'artisan.invoice.create' },
+    { label: t('admin.logs.invoiceDeleted'),            value: 'artisan.invoice.delete' },
+    { label: t('admin.logs.paymentUpfront'),            value: 'artisan.invoice.payment.upfront' },
+    { label: t('admin.logs.paymentCompletion'),         value: 'artisan.invoice.payment.completion' },
+    { label: t('admin.logs.productAdded'),              value: 'manufacturer.product.create' },
+    { label: t('admin.logs.productUpdated'),            value: 'manufacturer.product.update' },
+    { label: t('admin.logs.productDeleted'),            value: 'manufacturer.product.delete' },
+    { label: t('admin.logs.marketplacePurchase'),       value: 'marketplace.checkout' },
+    { label: t('admin.logs.marketplacePurchaseStripe'), value: 'marketplace.checkout.stripe' },
+    { label: t('admin.logs.subAdminCreated'),           value: 'admin.subadmin.create' },
+    { label: t('admin.logs.passwordReset'),             value: 'admin.subadmin.password.reset' },
+    { label: t('admin.logs.manufacturerApproved'),      value: 'admin.manufacturer.approve' },
+    { label: t('admin.logs.manufacturerRejected'),      value: 'admin.manufacturer.reject' },
+    { label: t('admin.logs.userSuspended'),             value: 'admin.user.suspend' },
+    { label: t('admin.logs.userActivated'),             value: 'admin.user.activate' },
+    { label: t('admin.logs.userDeleted'),               value: 'admin.user.delete' },
+    { label: t('admin.logs.reportSubmitted'),           value: 'report.submit' },
+    { label: t('admin.logs.reportStatusUpdated'),       value: 'admin.report.status.update' },
+  ];
+
   const [logs, setLogs] = useState<ActionLogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -83,7 +96,7 @@ export default function AdminActionLogs() {
       if (response.summary) setLogSummary(response.summary);
       setSelectedIds([]);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to load logs.');
+      toast.error(error?.response?.data?.message || tr('Failed to load logs', 'Échec du chargement des journaux', 'فشل تحميل السجلات'));
     } finally { setLoading(false); }
   };
 
@@ -99,7 +112,7 @@ export default function AdminActionLogs() {
       const subAdmins = Array.isArray(users) ? users.filter((u) => String(u.role).toLowerCase() === 'admin' && String(u.adminType || '').toLowerCase() === 'sub') : [];
       setAccountStats({ total, users: nonAdminUsers.length, subAdmins: subAdmins.length });
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to load statistics.');
+      toast.error(error?.response?.data?.message || tr('Failed to load account statistics', "Échec du chargement des statistiques du compte", 'فشل تحميل إحصائيات الحساب'));
       setAccountStats({ total: 0, users: 0, subAdmins: 0 });
     } finally { setAccountStatsLoading(false); }
   };
@@ -112,13 +125,13 @@ export default function AdminActionLogs() {
     setSelectedIds((prev) => checked === true ? [...prev, id] : prev.filter((v) => v !== id));
 
   const deleteOne = async (id: string) => {
-    try { await actionLogService.deleteById(id); toast.success('Log deleted.'); loadLogs(page); }
-    catch (error: any) { toast.error(error?.response?.data?.message || 'Failed to delete log.'); }
+    try { await actionLogService.deleteById(id); toast.success(tr('Log deleted', 'Journal supprimé', 'تم حذف السجل')); loadLogs(page); }
+    catch (error: any) { toast.error(error?.response?.data?.message || tr('Failed to delete log', 'Échec de la suppression du journal', 'فشل حذف السجل')); }
   };
   const deleteSelected = async () => {
-    if (!selectedIds.length) { toast.error('Select at least one log.'); return; }
-    try { await actionLogService.bulkDelete(selectedIds); toast.success('Selected logs deleted.'); loadLogs(page); }
-    catch (error: any) { toast.error(error?.response?.data?.message || 'Failed to delete selection.'); }
+    if (!selectedIds.length) { toast.error(tr('Select at least one log', 'Sélectionnez au moins un journal', 'حدد سجل واحد على الأقل')); return; }
+    try { await actionLogService.bulkDelete(selectedIds); toast.success(tr('Selected logs deleted', 'Les journaux sélectionnés ont été supprimés', 'تم حذف السجلات المحددة')); loadLogs(page); }
+    catch (error: any) { toast.error(error?.response?.data?.message || tr('Failed to delete selected logs', 'Échec de la suppression des journaux sélectionnés', 'فشل حذف السجلات المحددة')); }
   };
 
   const formatMoney = (value: unknown) => { const n = Number(value); return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : null; };
@@ -130,15 +143,15 @@ export default function AdminActionLogs() {
     if (Number.isFinite(itemCount) && itemCount > 0) chips.push(`${itemCount} item(s)`);
     const amount = formatMoney(metadata.totalAmount ?? metadata.amount);
     if (amount) chips.push(`${amount} ${(metadata.currency || 'USD') as string}`);
-    const phase = String(metadata.phase || '').trim(); if (phase) chips.push(`phase: ${phase}`);
+    const phase = String(metadata.phase || '').trim(); if (phase) chips.push(`${tr('Phase', 'Phase', 'المرحلة')}: ${phase}`);
     const stripeSessionId = String(metadata.stripeSessionId || metadata.sessionId || '').trim();
-    if (stripeSessionId) chips.push(`session: ${stripeSessionId.slice(0, 12)}…`);
-    const invoiceNumber = String(metadata.invoiceNumber || '').trim(); if (invoiceNumber) chips.push(`invoice: ${invoiceNumber}`);
-    const quoteNumber = String(metadata.quoteNumber || '').trim(); if (quoteNumber) chips.push(`quote: ${quoteNumber}`);
-    const productName = String(metadata.name || '').trim(); if (productName) chips.push(`product: ${productName}`);
-    const reportType = String(metadata.reportType || '').trim(); if (reportType) chips.push(`report: ${reportType}`);
-    const reportStatus = String(metadata.newStatus || metadata.status || '').trim(); if (reportStatus) chips.push(`status: ${reportStatus}`);
-    const reportReason = String(metadata.reason || '').trim(); if (reportReason) chips.push(`reason: ${reportReason.slice(0, 40)}${reportReason.length > 40 ? '...' : ''}`);
+    if (stripeSessionId) chips.push(`${tr('Session', 'Séance', 'الجلسة')}: ${stripeSessionId.slice(0, 12)}…`);
+    const invoiceNumber = String(metadata.invoiceNumber || '').trim(); if (invoiceNumber) chips.push(`${tr('Invoice', 'Facture', 'الفاتورة')}: ${invoiceNumber}`);
+    const quoteNumber = String(metadata.quoteNumber || '').trim(); if (quoteNumber) chips.push(`${tr('Quote', 'Devis', 'الاقتباس')}: ${quoteNumber}`);
+    const productName = String(metadata.name || '').trim(); if (productName) chips.push(`${tr('Product', 'Produit', 'المنتج')}: ${productName}`);
+    const reportType = String(metadata.reportType || '').trim(); if (reportType) chips.push(`${tr('Report', 'Rapport', 'التقرير')}: ${reportType}`);
+    const reportStatus = String(metadata.newStatus || metadata.status || '').trim(); if (reportStatus) chips.push(`${tr('Status', 'Statut', 'الحالة')}: ${reportStatus}`);
+    const reportReason = String(metadata.reason || '').trim(); if (reportReason) chips.push(`${tr('Reason', 'Raison', 'السبب')}: ${reportReason.slice(0, 40)}${reportReason.length > 40 ? '...' : ''}`)
     if (!chips.length) return null;
     return (
       <div className="mt-2 flex flex-wrap gap-1">
@@ -152,12 +165,12 @@ export default function AdminActionLogs() {
   const activeFilterCount = [search, actorRole, actionKey, fromDate, toDate].filter(Boolean).length;
 
   const statCards = [
-    { label: 'Payments',         value: logSummary.paymentEvents,            icon: CreditCard,     accent: '#2563eb' },
-    { label: 'Marketplace',      value: logSummary.marketplaceEvents,         icon: ShoppingBag,    accent: '#7c3aed' },
-    { label: 'Installments',     value: logSummary.invoiceInstallmentEvents,  icon: BarChart3,      accent: '#d97706' },
-    { label: 'Products',         value: logSummary.manufacturerProductEvents, icon: Wrench,         accent: '#059669' },
-    { label: 'Admin Security',   value: logSummary.adminSecurityEvents,       icon: ShieldEllipsis, accent: '#dc2626' },
-    { label: 'Reports',          value: logSummary.reportEvents,              icon: UserCog,        accent: '#0ea5e9' },
+    { label: tr('Payments', 'Paiements', 'المدفوعات'),       value: logSummary.paymentEvents,            icon: CreditCard,     accent: '#2563eb' },
+    { label: tr('Marketplace', 'Marché', 'السوق'),    value: logSummary.marketplaceEvents,         icon: ShoppingBag,    accent: '#7c3aed' },
+    { label: tr('Installments', 'Versements', 'الأقساط'),   value: logSummary.invoiceInstallmentEvents,  icon: BarChart3,      accent: '#d97706' },
+    { label: tr('Products', 'Produits', 'المنتجات'),       value: logSummary.manufacturerProductEvents, icon: Wrench,         accent: '#059669' },
+    { label: tr('Admin Security', 'Sécurité Admin', 'أمان المسؤول'),  value: logSummary.adminSecurityEvents,       icon: ShieldEllipsis, accent: '#dc2626' },
+    { label: tr('Reports', 'Rapports', 'التقارير'),        value: logSummary.reportEvents,              icon: UserCog,        accent: '#0ea5e9' },
   ];
 
   return (
@@ -173,15 +186,15 @@ export default function AdminActionLogs() {
               <History size={26} style={{ color: '#fff' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>Logs & History</h1>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>Centralized action tracking and access audit</p>
+              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>{tr('Action Logs', 'Journaux d\'actions', 'سجلات الإجراءات')}</h1>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>{tr('Complete audit trail of all system actions', 'Trace d\'audit complète de toutes les actions du système', 'سجل تدقيق كامل لجميع إجراءات النظام')}</p>
             </div>
           </div>
           <div className="flex gap-3">
             {[
-              { label: 'Total accounts', value: accountStats.total,     icon: Users },
-              { label: 'Users',          value: accountStats.users,     icon: Activity },
-              { label: 'Sub-admins',     value: accountStats.subAdmins, icon: ShieldCheck },
+              { label: tr('Total Accounts', 'Comptes totaux', 'إجمالي الحسابات'), value: accountStats.total,     icon: Users },
+              { label: tr('Users', 'Utilisateurs', 'المستخدمون'),         value: accountStats.users,     icon: Activity },
+              { label: tr('Sub Admins', 'Sous-administrateurs', 'المسؤولون الفرعيون'),     value: accountStats.subAdmins, icon: ShieldCheck },
             ].map((s) => (
               <div key={s.label} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 14, padding: '12px 18px', minWidth: 110, backdropFilter: 'blur(8px)' }}>
                 <div className="flex items-center gap-2 mb-1">
@@ -214,10 +227,10 @@ export default function AdminActionLogs() {
       <div style={{ ...card, padding: 20 }}>
         <div className="flex items-center gap-2 mb-4">
           <Filter size={15} style={{ color: '#2563eb' }} />
-          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filters</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{tr('Filters', 'Filtres', 'المرشحات')}</span>
           {activeFilterCount > 0 && (
             <span style={{ fontSize: 11, background: '#2563eb', color: '#fff', borderRadius: 999, padding: '1px 8px', fontWeight: 800 }}>
-              {activeFilterCount} active
+              {tr(`${activeFilterCount} active`, `${activeFilterCount} actif`, `${activeFilterCount} نشط`)}
             </span>
           )}
         </div>
@@ -231,7 +244,7 @@ export default function AdminActionLogs() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') setSearch(searchInput.trim()); }}
-                placeholder="Name, action, target…"
+                placeholder={tr('Name, action, target…', 'Nom, action, cible…', 'الاسم، الإجراء، الهدف...')}
                 style={{ border: 'none', background: 'transparent', color: 'var(--foreground)', outline: 'none', boxShadow: 'none', height: '100%', fontSize: 14 }}
                 className="focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
               />
@@ -246,11 +259,11 @@ export default function AdminActionLogs() {
           {/* Role */}
           <div className="lg:col-span-2">
             <select value={actorRole} onChange={(e) => setActorRole(e.target.value)} style={selectBase}>
-              <option value="">All roles</option>
-              <option value="artisan">Artisan</option>
-              <option value="expert">Expert</option>
-              <option value="manufacturer">Manufacturer</option>
-              <option value="admin">Admin / Sub-admin</option>
+              <option value="">{tr('All roles', 'Tous les rôles', 'جميع الأدوار')}</option>
+              <option value="artisan">{t('role.artisan')}</option>
+              <option value="expert">{t('role.expert')}</option>
+              <option value="manufacturer">{t('role.manufacturer')}</option>
+              <option value="admin">{t('role.admin')}</option>
             </select>
           </div>
 
@@ -267,13 +280,13 @@ export default function AdminActionLogs() {
               onClick={() => setSearch(searchInput.trim())}
               style={{ height: 44, padding: '0 18px', borderRadius: 12, background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              <Filter size={14} /> Apply
+              <Filter size={14} /> {tr('Apply', 'Appliquer', 'تطبيق')}
             </button>
             <button
               onClick={() => { setSearch(''); setSearchInput(''); setActorRole(''); setActionKey(''); setFromDate(''); setToDate(''); }}
               style={{ height: 44, padding: '0 14px', borderRadius: 12, background: 'var(--muted)', color: 'var(--muted-foreground)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '2px solid var(--border)', cursor: 'pointer' }}
             >
-              <RefreshCw size={14} /> Reset
+              <RefreshCw size={14} /> {tr('Reset', 'Réinitialiser', 'إعادة تعيين')}
             </button>
           </div>
 
@@ -281,12 +294,12 @@ export default function AdminActionLogs() {
           <div className="lg:col-span-7">
             <div className="flex items-center gap-3 flex-wrap">
               <CalendarRange size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: 'var(--muted-foreground)', fontWeight: 600, whiteSpace: 'nowrap' }}>Period:</span>
-              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>From</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)', fontWeight: 600, whiteSpace: 'nowrap' }}>{tr('Period:', 'Période :', 'الفترة:')}</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{tr('From', 'De', 'من')}</span>
               <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
                 style={{ height: 40, background: 'var(--muted)', border: '2px solid var(--border)', borderRadius: 10, color: 'var(--foreground)', fontSize: 13 }}
                 className="focus-visible:ring-0" />
-              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>To</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{tr('To', 'À', 'إلى')}</span>
               <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
                 style={{ height: 40, background: 'var(--muted)', border: '2px solid var(--border)', borderRadius: 10, color: 'var(--foreground)', fontSize: 13 }}
                 className="focus-visible:ring-0" />
@@ -300,13 +313,13 @@ export default function AdminActionLogs() {
               onClick={deleteSelected}
               style={{ height: 40, padding: '0 16px', borderRadius: 10, background: selectedIds.length ? 'rgba(220,38,38,0.1)' : 'var(--muted)', color: selectedIds.length ? '#dc2626' : 'var(--muted-foreground)', border: `2px solid ${selectedIds.length ? 'rgba(220,38,38,0.3)' : 'var(--border)'}`, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: selectedIds.length ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
             >
-              <Trash2 size={14} /> Delete ({selectedIds.length})
+              <Trash2 size={14} /> {tr(`Delete (${selectedIds.length})`, `Supprimer (${selectedIds.length})`, `حذف (${selectedIds.length})`)}
             </button>
             <button
               onClick={() => { loadAccountStats(); loadLogs(page); }}
               style={{ height: 40, padding: '0 16px', borderRadius: 10, background: 'rgba(37,99,235,0.1)', color: '#2563eb', border: '2px solid rgba(37,99,235,0.3)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
             >
-              <RefreshCw size={14} /> Refresh
+              <RefreshCw size={14} /> {tr('Refresh', 'Rafraîchir', 'تحديث')}
             </button>
           </div>
         </div>
@@ -318,23 +331,23 @@ export default function AdminActionLogs() {
           <div style={{ ...card, padding: 20 }}>
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp size={14} style={{ color: '#2563eb' }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Top actions</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{tr('Top actions', 'Actions principales', 'الإجراءات الرئيسية')}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {logSummary.topActions.length ? logSummary.topActions.map((item) => (
                 <button key={item.actionKey} onClick={() => setActionKey(item.actionKey)}
                   style={{ padding: '7px 13px', borderRadius: 9, background: 'var(--muted)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontSize: 12, color: 'var(--foreground)', fontWeight: 600 }}>{item.actionLabel}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>{item.count} occurrence{item.count > 1 ? 's' : ''}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>{item.count} {item.count > 1 ? tr('occurrences', 'occurrences', 'حدوثات') : tr('occurrence', 'occurrence', 'حدوث')}</div>
                 </button>
-              )) : <p style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>No actions for the current filter.</p>}
+              )) : <p style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>{tr('No actions for the current filter.', 'Aucune action pour le filtre actuel.', 'لا توجد إجراءات للمرشح الحالي.')}</p>}
             </div>
           </div>
 
           <div style={{ ...card, padding: 20 }}>
             <div className="flex items-center gap-2 mb-4">
               <Zap size={14} style={{ color: '#2563eb' }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Breakdown by role</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{tr('Breakdown by role', 'Répartition par rôle', 'توزيع حسب الدور')}</span>
             </div>
             <div className="space-y-3">
               {(['artisan', 'expert', 'manufacturer', 'admin'] as const).map((role) => {
@@ -362,11 +375,11 @@ export default function AdminActionLogs() {
         <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'linear-gradient(90deg, var(--muted), rgba(37,99,235,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="flex items-center gap-2">
             <History size={17} style={{ color: '#2563eb' }} />
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--foreground)' }}>Action History</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--foreground)' }}>{tr('Action History', 'Historique des actions', 'سجل الإجراءات')}</h2>
           </div>
           <div className="flex items-center gap-2">
             <ShieldCheck size={14} style={{ color: '#2563eb' }} />
-            <span style={{ fontSize: 13, color: 'var(--muted-foreground)', fontWeight: 500 }}>{totalItems} log{totalItems > 1 ? 's' : ''} total</span>
+            <span style={{ fontSize: 13, color: 'var(--muted-foreground)', fontWeight: 500 }}>{totalItems} {totalItems > 1 ? tr('logs', 'journaux', 'السجلات') : tr('log', 'journal', 'السجل')} {tr('total', 'total', 'إجمالي')}</span>
           </div>
         </div>
 
@@ -376,8 +389,16 @@ export default function AdminActionLogs() {
               <TableHead style={{ width: 40 }}>
                 <Checkbox checked={isAllSelected} onCheckedChange={toggleSelectAll} />
               </TableHead>
-              {['Actor', 'Role', 'Action', 'Target', 'Date', 'Details', ''].map((h) => (
-                <TableHead key={h} style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</TableHead>
+              {[
+                { label: 'Actor', tr: tr('Actor', 'Acteur', 'الفاعل') },
+                { label: 'Role', tr: tr('Role', 'Rôle', 'الدور') },
+                { label: 'Action', tr: tr('Action', 'Action', 'الإجراء') },
+                { label: 'Target', tr: tr('Target', 'Cible', 'الهدف') },
+                { label: 'Date', tr: tr('Date', 'Date', 'التاريخ') },
+                { label: 'Details', tr: tr('Details', 'Détails', 'التفاصيل') },
+                { label: '', tr: '' }
+              ].map((h) => (
+                <TableHead key={h.label} style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h.tr}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
@@ -387,7 +408,7 @@ export default function AdminActionLogs() {
                 <TableCell colSpan={8} style={{ height: 120, textAlign: 'center', background: 'var(--card)' }}>
                   <div className="flex items-center justify-center gap-3">
                     <div style={{ width: 20, height: 20, border: '2px solid #2563eb', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                    <span style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Loading logs…</span>
+                    <span style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>{tr('Loading logs…', 'Chargement des journaux…', 'جاري تحميل السجلات...')}</span>
                   </div>
                 </TableCell>
               </TableRow>
@@ -395,7 +416,7 @@ export default function AdminActionLogs() {
               <TableRow>
                 <TableCell colSpan={8} style={{ height: 140, textAlign: 'center', background: 'var(--card)' }}>
                   <History size={36} style={{ color: 'var(--border)', margin: '0 auto 10px' }} />
-                  <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>No logs found with these filters.</p>
+                  <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>{tr('No logs found with these filters.', 'Aucun journal trouvé avec ces filtres.', 'لم يتم العثور على سجلات بهذه المرشحات.')}</p>
                 </TableCell>
               </TableRow>
             ) : (
@@ -411,7 +432,7 @@ export default function AdminActionLogs() {
                       <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 14 }}>{log.actorName || '—'}</div>
                       {log.actorAdminType && (
                         <div style={{ fontSize: 11, color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                          <UserCog size={11} /> {log.actorAdminType === 'sub' ? 'sub-admin' : 'super admin'}
+                          <UserCog size={11} /> {log.actorAdminType === 'sub' ? tr('sub-admin', 'Sous-administrateur', 'مسؤول فرعي') : tr('super admin', 'Super Administrateur', 'المسؤول الأعلى')}
                         </div>
                       )}
                     </TableCell>
@@ -437,14 +458,14 @@ export default function AdminActionLogs() {
                         {new Date(log.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </TableCell>
-                    <TableCell style={{ maxWidth: 320 }}>
-                      <p style={{ fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>{log.description || 'No additional details'}</p>
+                    <TableCell className="whitespace-normal align-top" style={{ maxWidth: 320, width: 320, paddingRight: 24 }}>
+                      <p style={{ fontSize: 13, color: '#111827', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{log.description || tr('No additional details', 'Aucun détail supplémentaire', 'لا توجد تفاصيل إضافية')}</p>
                       {renderMetadataDetails(log)}
                     </TableCell>
-                    <TableCell style={{ textAlign: 'right' }}>
+                    <TableCell style={{ textAlign: 'right', width: 72, minWidth: 72, maxWidth: 72, paddingLeft: 16, paddingRight: 12 }}>
                       <button
                         onClick={() => deleteOne(log._id)}
-                        style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(220,38,38,0.2)')}
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(220,38,38,0.1)')}
                       >
@@ -461,13 +482,13 @@ export default function AdminActionLogs() {
         {/* Pagination */}
         <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>
-            Page <strong style={{ color: 'var(--foreground)' }}>{page}</strong> / <strong style={{ color: 'var(--foreground)' }}>{totalPages}</strong>
-            <span style={{ marginLeft: 8, color: 'var(--muted-foreground)' }}>({totalItems} rows)</span>
+            {tr('Page', 'Page', 'الصفحة')} <strong style={{ color: 'var(--foreground)' }}>{page}</strong> / <strong style={{ color: 'var(--foreground)' }}>{totalPages}</strong>
+            <span style={{ marginLeft: 8, color: 'var(--muted-foreground)' }}>({totalItems} {tr('rows', 'lignes', 'صفوف')})</span>
           </span>
           <div className="flex items-center gap-2">
             <button disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(p - 1, 1))}
               style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--card)', color: page <= 1 ? 'var(--border)' : 'var(--muted-foreground)', border: '2px solid var(--border)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}>
-              <ChevronLeft size={15} /> Previous
+              <ChevronLeft size={15} /> {tr('Previous', 'Précédent', 'السابق')}
             </button>
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               const pageNum = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
@@ -481,7 +502,7 @@ export default function AdminActionLogs() {
             })}
             <button disabled={page >= totalPages || loading} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
               style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--card)', color: page >= totalPages ? 'var(--border)' : 'var(--muted-foreground)', border: '2px solid var(--border)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, cursor: page >= totalPages ? 'not-allowed' : 'pointer' }}>
-              Next <ChevronRight size={15} />
+              {tr('Next', 'Suivant', 'التالي')} <ChevronRight size={15} />
             </button>
           </div>
         </div>

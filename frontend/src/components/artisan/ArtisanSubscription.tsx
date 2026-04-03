@@ -5,8 +5,11 @@ import { Check, Crown, Calendar, CreditCard, Loader2, AlertTriangle, X, Download
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ArtisanSubscription() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -52,7 +55,7 @@ export default function ArtisanSubscription() {
       link.click();
       window.URL.revokeObjectURL(url);
     } catch {
-      toast.error('Failed to download receipt. Make sure Chrome/Edge is available on the server.');
+      toast.error(tr('Failed to download receipt. Make sure Chrome/Edge is available on the server.', 'Echec du telechargement du recu. Assurez-vous que Chrome/Edge est disponible sur le serveur.', 'فشل التحميل. بعد توفر كروم / Edge على الخادم.'));
     }
   };
 
@@ -84,7 +87,7 @@ export default function ArtisanSubscription() {
     if (subscriptionStatus === 'success' && sessionId) {
       verifySubscription(sessionId);
     } else if (subscriptionStatus === 'cancel') {
-      toast.error('Payment cancelled');
+      toast.error(tr('Payment cancelled', 'Paiement annule', 'تم إلغاء الدفع'));
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -98,7 +101,7 @@ export default function ArtisanSubscription() {
       });
       
       if (response.data.subscription) {
-        toast.success('Subscription activated! Welcome to the premium club. 🎉');
+        toast.success(tr('Subscription activated! Welcome to the premium club.', 'Abonnement active ! Bienvenue dans le club premium.', 'تم تفعيل الاشتراك! مرحباب بص به کلب بريميوم.'));
         fetchUserData();
         fetchPaymentHistory();
         // Notify dashboard to re-check subscription status
@@ -106,7 +109,7 @@ export default function ArtisanSubscription() {
       }
     } catch (error) {
       console.error('Verification error:', error);
-      toast.error('Failed to verify subscription');
+      toast.error(tr('Failed to verify subscription', 'Echec de verification de l\'abonnement'));
     } finally {
       setIsVerifying(false);
       window.history.replaceState({}, '', window.location.pathname);
@@ -120,7 +123,7 @@ export default function ArtisanSubscription() {
       setLoadingPlan(plan.id);
       const token = getToken();
       if (!token) {
-        toast.error('Please login to subscribe');
+        toast.error(tr('Please login to subscribe', 'Veuillez vous connecter pour vous abonner', 'يرجى تسجيل الدخول للاشتراك'));
         return;
       }
 
@@ -136,11 +139,11 @@ export default function ArtisanSubscription() {
       if (response.data.url) {
         window.location.href = response.data.url;
       } else {
-        toast.error('Failed to initiate payment');
+        toast.error(tr('Failed to initiate payment', 'Echec de l\'initialisation du paiement'));
       }
     } catch (error: any) {
       console.error('Subscription error:', error);
-      toast.error(error.response?.data?.message || 'Error initiating subscription');
+      toast.error(error.response?.data?.message || tr('Error initiating subscription', 'Erreur lors de l\'initialisation de l\'abonnement'));
     } finally {
       setLoadingPlan(null);
     }
@@ -156,9 +159,11 @@ export default function ArtisanSubscription() {
       const refund = response.data?.refundAmount || 0;
       const days = response.data?.remainingDays || 0;
       if (refund > 0) {
-        toast.success(`Subscription canceled. You will receive a refund of ${refund.toFixed(2)} TND for ${days} remaining day${days > 1 ? 's' : ''}.`);
+        toast.success(language === 'fr'
+          ? `Abonnement annule. Vous recevrez un remboursement de ${refund.toFixed(2)} TND pour ${days} jour${days > 1 ? 's' : ''} restant${days > 1 ? 's' : ''}.`
+          : `Subscription canceled. You will receive a refund of ${refund.toFixed(2)} TND for ${days} remaining day${days > 1 ? 's' : ''}.`);
       } else {
-        toast.success('Subscription canceled successfully.');
+        toast.success(tr('Subscription canceled successfully.', 'Abonnement annule avec succes.', 'تم إلغاء الاشتراك بنجاح.'));
       }
       setShowCancelDialog(false);
       fetchUserData();
@@ -166,7 +171,7 @@ export default function ArtisanSubscription() {
       window.dispatchEvent(new Event('artisan-subscription-verified'));
     } catch (error: any) {
       console.error('Cancel subscription error:', error);
-      toast.error(error.response?.data?.message || 'Error canceling subscription');
+      toast.error(error.response?.data?.message || tr('Error canceling subscription', 'Erreur lors de l\'annulation de l\'abonnement'));
     } finally {
       setIsCanceling(false);
     }
@@ -175,61 +180,61 @@ export default function ArtisanSubscription() {
   const plans = [
     {
       id: 'monthly',
-      name: 'Monthly',
+      name: tr('Monthly', 'Mensuel', 'شهري'),
       price: 150,
-      duration: '1 month',
+      duration: tr('1 month', '1 mois', 'شهر واحد'),
       popular: false,
       features: [
-        'Unlimited projects',
-        'Quote & invoice generation',
-        'Marketplace access',
-        'Basic analytics',
-        'Email support'
+        tr('Unlimited projects', 'Projets illimites', 'مشروعات غير محدودة'),
+        tr('Quote & invoice generation', 'Generation de devis et factures', 'عروض وإ نشاء الفواتير'),
+        tr('Marketplace access', 'Acces marketplace', 'الوصول إلى سوق البناء'),
+        tr('Basic analytics', 'Analyses de base', 'التحليلات الأساسية'),
+        tr('Email support', 'Support email', 'دعم البريد')
       ]
     },
     {
       id: '3months',
-      name: '3 Months',
+      name: tr('3 Months', '3 Mois', 'الثلاثة الشهور'),
       price: 390,
       originalPrice: 450,
-      duration: '3 months',
+      duration: tr('3 months', '3 mois', 'ثلاثة اشهر'),
       popular: true,
-      discount: '13% off',
+      discount: tr('13% off', '13% de reduction', 'خصم 13%'),
       features: [
-        'All Monthly features',
-        'Priority support',
-        'Advanced analytics',
-        'Custom branding',
-        'Export reports'
+        tr('All Monthly features', 'Toutes les fonctionnalites mensuelles', 'جميع ميزات الاشتراك الشهري'),
+        tr('Priority support', 'Support prioritaire', 'دعم مميز'),
+        tr('Advanced analytics', 'Analyses avancees', 'التحليلات المتقدمة'),
+        tr('Custom branding', 'Branding personnalise', 'علامة مخصصة'),
+        tr('Export reports', 'Export des rapports', 'تصدير التقارير')
       ]
     },
     {
       id: 'yearly',
-      name: 'Yearly',
+      name: tr('Yearly', 'Annuel', 'سنوي'),
       price: 1350,
       originalPrice: 1800,
-      duration: '12 months',
+      duration: tr('12 months', '12 mois', '12 شهر'),
       popular: false,
-      discount: '25% off',
+      discount: tr('25% off', '25% de reduction', 'خصم 25%'),
       features: [
-        'All 3 Months features',
-        'Dedicated account manager',
-        'API access',
-        'Custom integrations',
-        'Training sessions'
+        tr('All 3 Months features', 'Toutes les fonctionnalites 3 mois', 'جميع ميزات الاشتراك الثلاثي'),
+        tr('Dedicated account manager', 'Gestionnaire de compte dedie', 'مدير حساب مختص'),
+        tr('API access', 'Acces API', 'الوصول API'),
+        tr('Custom integrations', 'Integrations personnalisees', 'مش روعات مخصصة'),
+        tr('Training sessions', 'Sessions de formation', 'جلسات التدريب')
       ]
     }
   ];
 
   const currentPlan = userData?.subscription?.status === 'active' ? {
     type: userData.subscription.planId.charAt(0).toUpperCase() + userData.subscription.planId.slice(1),
-    status: 'Active',
+    status: tr('Active', 'Actif', 'نشط'),
     startDate: new Date(userData.subscription.startDate).toLocaleDateString(),
     endDate: new Date(userData.subscription.endDate).toLocaleDateString(),
     amount: plans.find(p => p.id === userData.subscription.planId)?.price || 0
   } : {
-    type: 'Free',
-    status: 'Inactive',
+    type: tr('Free', 'Gratuit', 'مجاني'),
+    status: tr('Inactive', 'Inactif', 'غير ؠ٩ن نشط'),
     startDate: '-',
     endDate: '-',
     amount: 0
@@ -253,7 +258,7 @@ export default function ArtisanSubscription() {
                 </Badge>
               </div>
               <p className="text-lg text-muted-foreground mb-6">
-                You're subscribed to the <strong className="text-foreground">{currentPlan.type}</strong> plan
+                {tr('You are subscribed to the', 'Vous etes abonne au plan', 'أنت مشترك في')} <strong className="text-foreground">{currentPlan.type}</strong>
               </p>
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="flex items-center gap-4">
@@ -261,7 +266,7 @@ export default function ArtisanSubscription() {
                     <Calendar size={24} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium">Start Date</p>
+                    <p className="text-sm text-muted-foreground font-medium">{tr('Start Date', 'Date de debut', 'تاريخ البداية')}</p>
                     <p className="font-bold text-foreground">{currentPlan.startDate}</p>
                   </div>
                 </div>
@@ -270,7 +275,7 @@ export default function ArtisanSubscription() {
                     <Calendar size={24} className="text-secondary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium">Renewal Date</p>
+                    <p className="text-sm text-muted-foreground font-medium">{tr('Renewal Date', 'Date de renouvellement', 'تاريخ التجديد')}</p>
                     <p className="font-bold text-foreground">{currentPlan.endDate}</p>
                   </div>
                 </div>
@@ -279,7 +284,7 @@ export default function ArtisanSubscription() {
                     <CreditCard size={24} className="text-accent" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium">Amount</p>
+                    <p className="text-sm text-muted-foreground font-medium">{tr('Amount', 'Montant', 'المبلغ')}</p>
                     <p className="font-bold text-foreground">{currentPlan.amount} TND</p>
                   </div>
                 </div>
@@ -287,14 +292,13 @@ export default function ArtisanSubscription() {
             </div>
             <div className="flex gap-3">
               {currentPlan.status === 'Active' && (
-                <Button 
-                  variant="destructive" 
-                  className="h-12 px-6 rounded-xl border-2 !border-red-600 !bg-red-600 !text-white hover:!bg-red-700 disabled:!opacity-100 disabled:!bg-red-700/70 disabled:!text-white"
+                <button
                   onClick={() => setShowCancelDialog(true)}
                   disabled={isCanceling}
+                  className="h-12 px-6 rounded-xl border-2 border-red-500 bg-red-500 !text-white font-semibold flex items-center justify-center gap-2 transition-all hover:bg-red-600 hover:border-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCanceling ? <Loader2 className="animate-spin" size={20} /> : 'Cancel Subscription'}
-                </Button>
+                  {isCanceling ? <Loader2 className="animate-spin" size={20} /> : tr('Cancel Subscription', 'Annuler l\'abonnement', 'إلغاء الاشتراك')}
+                </button>
               )}
             </div>
           </div>
@@ -302,7 +306,7 @@ export default function ArtisanSubscription() {
 
         {/* Subscription Plans */}
         <div>
-          <h2 className="text-3xl font-bold text-foreground mb-6">Choose Your Plan</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-6">{tr('Choose Your Plan', 'Choisissez votre plan', 'اختر خطتك')}</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {plans.map((plan) => (
               <Card
@@ -314,7 +318,7 @@ export default function ArtisanSubscription() {
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2 text-white bg-secondary shadow-lg">
                     <Crown size={18} />
-                    Most Popular
+                    {tr('Most Popular', 'Le plus populaire', 'الأكثر شيوعاً')}
                   </div>
                 )}
 
@@ -351,8 +355,8 @@ export default function ArtisanSubscription() {
                   {loadingPlan === plan.id ? (
                     <Loader2 className="animate-spin" size={20} />
                   ) : currentPlan.type.toLowerCase() === plan.name.toLowerCase() 
-                    ? 'Current Plan' 
-                    : plan.popular ? 'Upgrade Now' : 'Select Plan'
+                    ? tr('Current Plan', 'Plan actuel', 'الخطة الحالية') 
+                    : plan.popular ? tr('Upgrade Now', 'Mettre a niveau', 'الارتقاء الآن') : tr('Select Plan', 'Choisir le plan', 'اختر الخطة')
                   }
                 </Button>
               </Card>
@@ -364,8 +368,8 @@ export default function ArtisanSubscription() {
         <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-bold text-foreground">Payment History</h3>
-              <p className="text-sm text-muted-foreground mt-1">All your subscription payments</p>
+              <h3 className="text-2xl font-bold text-foreground">{tr('Payment History', 'Historique des paiements', 'سجل الدفعات')}</h3>
+              <p className="text-sm text-muted-foreground mt-1">{tr('All your subscription payments', 'Tous vos paiements d\'abonnement', 'جميع دفعاتك الاشتراك')}</p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Receipt size={20} className="text-primary" />
@@ -380,17 +384,17 @@ export default function ArtisanSubscription() {
             <div className="space-y-3">
               {/* Header row */}
               <div className="grid grid-cols-4 gap-4 px-4 py-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</span>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plan</span>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</span>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Receipt</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr('Date', 'Date', 'التاريخ')}</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr('Plan', 'Plan', 'الخطة')}</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr('Amount', 'Montant', 'المبلغ')}</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">{tr('Receipt', 'Recu', 'الإيصال')}</span>
               </div>
 
               {paymentHistory.map((payment, index) => {
                 const receiptNo = `REC-${String(payment._id).slice(-8).toUpperCase()}`;
                 const planLabel = payment.planId
                   ? payment.planId.charAt(0).toUpperCase() + payment.planId.slice(1)
-                  : 'Subscription';
+                  : tr('Subscription', 'Abonnement', 'الاشتراك');
                 return (
                   <div
                     key={index}
@@ -448,8 +452,8 @@ export default function ArtisanSubscription() {
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <CreditCard size={32} className="text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground text-lg font-medium">No payment history yet.</p>
-              <p className="text-sm text-muted-foreground mt-1">Your subscription receipts will appear here.</p>
+              <p className="text-muted-foreground text-lg font-medium">{tr('No payment history yet.', 'Aucun historique de paiement pour le moment.', 'لا يوجد سجل دفع حتى الآن.')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{tr('Your subscription receipts will appear here.', 'Vos recus d\'abonnement apparaitront ici.', 'ستظهر إيصالات اشتراكك هنا.')}</p>
             </div>
           )}
         </Card>
@@ -469,9 +473,9 @@ export default function ArtisanSubscription() {
                 <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
                   <AlertTriangle className="text-red-600" size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">Cancel Subscription?</h3>
+                <h3 className="text-xl font-bold text-foreground mb-2">{tr('Cancel Subscription?', 'Annuler l\'abonnement ?', 'إلغاء الاشتراك؟')}</h3>
                 <p className="text-sm text-muted-foreground font-medium leading-relaxed px-2">
-                  Are you sure you want to cancel?
+                  {tr('Are you sure you want to cancel?', 'Voulez-vous vraiment annuler ?', 'هل أنت متأكد من رغبة إلغاء الاشتراك؟')}
                 </p>
               </div>
               
@@ -479,21 +483,21 @@ export default function ArtisanSubscription() {
                 <button
                   type="button"
                   onClick={() => setShowCancelDialog(false)}
-                  className="flex-1 h-11 rounded-xl border-2 border-border font-bold text-foreground bg-card hover:bg-muted/50 transition-all text-sm"
+                  className="flex-1 h-11 rounded-xl border-2 border-border bg-muted/50 hover:bg-muted font-bold text-foreground transition-all text-sm"
                   disabled={isCanceling}
                 >
-                  Cancel
+                  {tr('Cancel', 'Annuler', 'إلغاء')}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelSubscription}
-                  className="flex-1 h-11 rounded-xl border-2 border-border font-bold text-foreground bg-card hover:bg-muted/50 transition-all text-sm"
+                  className="flex-1 h-11 rounded-xl border-2 border-red-500 bg-red-500 hover:bg-red-600 !text-white font-bold transition-all text-sm"
                   disabled={isCanceling}
                 >
                   {isCanceling ? (
-                    <Loader2 className="animate-spin mx-auto text-muted-foreground" size={18} />
+                    <Loader2 className="animate-spin mx-auto text-white" size={18} />
                   ) : (
-                    "Confirm"
+                    tr('Confirm', 'Confirmer', 'تأكيد')
                   )}
                 </button>
               </div>
@@ -504,3 +508,5 @@ export default function ArtisanSubscription() {
     </div>
   );
 }
+
+

@@ -4,12 +4,15 @@ import { Button } from '../ui/button';
 import { Clock, CheckCircle2, ArrowLeft } from 'lucide-react';
 import RegisterLeftSection from './RegisterLeftSection';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ManufacturerWaitingPageProps {
   onBackToLogin: () => void;
 }
 
 export default function ManufacturerWaitingPage({ onBackToLogin }: ManufacturerWaitingPageProps) {
-  return (
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Left Section - Same as Register/Login */}
       <RegisterLeftSection />

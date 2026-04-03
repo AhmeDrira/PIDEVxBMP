@@ -5,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { ArrowLeft, Calendar, Eye, ThumbsUp, Download, FileText, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import knowledgeService, { KnowledgeAttachment, KnowledgeArticle } from '../../services/knowledgeService';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface KnowledgeLibraryDetailProps {
   articleId: string;
@@ -18,6 +19,8 @@ function formatSize(size: string | number | undefined) {
 }
 
 export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeLibraryDetailProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [article, setArticle] = useState<KnowledgeArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasLiked, setHasLiked] = useState(false);
@@ -33,7 +36,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
         setLikeCount(data.likes ?? 0);
         setHasLiked(Boolean(data.liked ?? data.likedByUser));
       } catch (error: any) {
-        toast.error(error?.response?.data?.message || 'Unable to load the article.');
+        toast.error(error?.response?.data?.message || tr('Unable to load the article.', 'Impossible de charger l\'article.'));
       } finally {
         setLoading(false);
       }
@@ -73,9 +76,9 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
             }
           : prev,
       );
-      toast.success(response.liked ? 'Like saved. Thanks for your feedback!' : 'Like removed.');
+      toast.success(response.liked ? tr('Like saved. Thanks for your feedback!', 'Like enregistre. Merci pour votre retour!', 'Like saved. Thanks for your feedback!') : tr('Like removed.', 'Like supprime.', 'Like removed.'));
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Unable to like this article.');
+      toast.error(error?.response?.data?.message || tr('Unable to like this article.', 'Impossible de liker cet article.', 'Unable to like this article.'));
     } finally {
       setIsLiking(false);
     }
@@ -92,7 +95,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
       const nav: any = navigator;
       if (nav?.share) {
         await nav.share({ title: article.title, text, url });
-        toast.success('Shared successfully!');
+        toast.success(tr('Shared successfully!', 'Partage reussi!', 'Shared successfully!'));
         return;
       }
     } catch {
@@ -101,9 +104,9 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
 
     try {
       await navigator.clipboard.writeText(url);
-      toast.success('Link copied to clipboard.');
+      toast.success(tr('Link copied to clipboard.', 'Lien copie dans le presse-papiers.', 'Link copied to clipboard.'));
     } catch {
-      toast.error('Unable to share. Please copy the URL manually.');
+      toast.error(tr('Unable to share. Please copy the URL manually.', 'Impossible de partager. Veuillez copier l\'URL manuellement.'));
     }
   };
 
@@ -111,7 +114,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
     return (
       <div className="w-full min-h-screen">
         <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-          <p className="text-muted-foreground">Loading article...</p>
+          <p className="text-muted-foreground">{tr('Loading article...', 'Chargement de l\'article...')}</p>
         </Card>
       </div>
     );
@@ -121,7 +124,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
     <div className="w-full min-h-screen overflow-hidden">
       <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
-        Back to Library
+        {tr('Back to Library', 'Retour a la bibliotheque', 'Back to Library')}
       </Button>
 
       <div className="w-full flex flex-col lg:flex-row gap-6">
@@ -140,7 +143,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
                 </div>
                 <div>
                   <p className="font-bold text-foreground">{article.authorName}</p>
-                  <p className="text-sm text-muted-foreground">Editorial Contributor</p>
+                  <p className="text-sm text-muted-foreground">{tr('Editorial Contributor', 'Contributeur editorial', 'Editorial Contributor')}</p>
                 </div>
               </div>
 
@@ -151,11 +154,11 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
                 </div>
                 <div className="flex items-center gap-2">
                   <Eye size={16} />
-                  <span>{article.views} views</span>
+                  <span>{article.views} {tr('views', 'vues', 'views')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ThumbsUp size={16} />
-                  <span>{likeCount} likes</span>
+                  <span>{likeCount} {tr('likes', 'likes', 'likes')}</span>
                 </div>
               </div>
             </div>
@@ -174,7 +177,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
 
             {tags.length > 0 && (
               <div className="pt-8 border-t-2 border-border">
-                <h3 className="text-lg font-bold text-foreground mb-4">Tags</h3>
+                <h3 className="text-lg font-bold text-foreground mb-4">{tr('Tags', 'Tags', 'Tags')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {tags.map((tag, index) => (
                     <Badge
@@ -193,7 +196,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
         <aside className="w-full lg:w-96 flex-shrink-0">
           <div className="space-y-6">
             <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-              <h3 className="text-xl font-bold text-foreground mb-4">Actions</h3>
+              <h3 className="text-xl font-bold text-foreground mb-4">{tr('Actions', 'Actions', 'Actions')}</h3>
               <div className="space-y-3">
                 <Button
                   onClick={handleLike}
@@ -205,18 +208,18 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
                   }
                 >
                   <ThumbsUp size={18} className="mr-2" />
-                  {hasLiked ? `Liked (${likeCount})` : `Like (${likeCount})`}
+                  {hasLiked ? `${tr('Liked', 'Like', 'Liked')} (${likeCount})` : `${tr('Like', 'Like', 'Like')} (${likeCount})`}
                 </Button>
                 <Button onClick={handleShare} variant="outline" className="w-full h-11 rounded-xl border-2">
                   <Share2 size={18} className="mr-2" />
-                  Share
+                  {tr('Share', 'Partager', 'Share')}
                 </Button>
               </div>
             </Card>
 
             {attachmentList.length > 0 && (
               <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-                <h3 className="text-xl font-bold text-foreground mb-4">Attachments</h3>
+                <h3 className="text-xl font-bold text-foreground mb-4">{tr('Attachments', 'Pieces jointes', 'Attachments')}</h3>
                 <div className="space-y-3">
                   {attachmentList.map((attachment, index) => (
                     <div
@@ -245,7 +248,7 @@ export default function KnowledgeLibraryDetail({ articleId, onBack }: KnowledgeL
                       ) : (
                         <Button size="sm" variant="outline" className="w-full h-9 rounded-lg border-2" disabled>
                           <Download size={14} className="mr-2" />
-                          Download unavailable
+                          {tr('Download unavailable', 'Telechargement indisponible', 'Download unavailable')}
                         </Button>
                       )}
                     </div>

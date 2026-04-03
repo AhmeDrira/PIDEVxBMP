@@ -10,6 +10,7 @@ import LanguageSwitcher from '../common/LanguageSwitcher';
 import DarkModeToggle from '../common/DarkModeToggle';
 import axios from 'axios';
 import { useSocket } from '../../context/SocketContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface MenuItem {
   id: string;
@@ -54,6 +55,8 @@ export default function DashboardLayout({
   onViewReviews,
   bellComponent,
 }: DashboardLayoutProps) {
+  const { t, language } = useLanguage();
+  const isRTL = language === 'ar';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { socket } = useSocket();
@@ -105,7 +108,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col bg-card border-r border-border shadow-sm">
+      <aside className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col bg-card border-border shadow-sm ${isRTL ? 'lg:right-0 border-l' : 'lg:left-0 border-r'}`}>
         <div className="flex flex-col flex-1 min-h-0">
           {/* Logo */}
           <div className="flex items-center h-20 px-6 border-b border-border">
@@ -170,7 +173,7 @@ export default function DashboardLayout({
                 onClick={onLogout}
               >
                 <LogOut size={18} className="mr-2" />
-                Logout
+                {t('layout.logout')}
               </Button>
             </div>
           </div>
@@ -182,14 +185,11 @@ export default function DashboardLayout({
         <button
           type="button"
           onClick={onLogoClick}
-          className={onLogoClick ? 'flex items-center gap-2 cursor-pointer' : 'flex items-center gap-2 cursor-default'}
+          className={onLogoClick ? 'cursor-pointer' : 'cursor-default'}
           aria-label="Go to home"
           disabled={!onLogoClick}
         >
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--sidebar-primary)' }}>
-            <span className="text-white font-bold">B</span>
-          </div>
-          <h1 className="text-lg font-bold text-primary">BMP.tn</h1>
+          <Logo size="sm" />
         </button>
         <div className="flex items-center gap-1">
           {(userRole === 'expert' || userRole === 'artisan') && (
@@ -232,7 +232,7 @@ export default function DashboardLayout({
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className="absolute top-16 right-0 bottom-0 w-80 bg-card shadow-2xl overflow-y-auto"
+            className={`absolute top-16 bottom-0 w-80 bg-card shadow-2xl overflow-y-auto ${isRTL ? 'right-0' : 'left-0'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4">
@@ -282,7 +282,7 @@ export default function DashboardLayout({
                 onClick={onLogout}
               >
                 <LogOut size={18} className="mr-2" />
-                Logout
+                {t('layout.logout')}
               </Button>
             </div>
           </div>
@@ -290,12 +290,19 @@ export default function DashboardLayout({
       )}
 
       {/* Main Content */}
-      <div className="lg:pl-72">
+      <div 
+        className="lg:block w-full"
+        style={
+          isRTL 
+            ? { paddingRight: '18rem' }  // 18rem = w-72 sidebar width
+            : { paddingLeft: '18rem' }
+        }
+      >
         {/* Header */}
         <header className="hidden lg:flex items-center justify-between h-20 px-8 bg-card border-b border-border shadow-sm">
           <div>
             <h2 className="text-2xl font-bold text-foreground">
-              {menuItems.find((item) => item.id === activeItem)?.label || 'Dashboard'}
+              {menuItems.find((item) => item.id === activeItem)?.label || t('nav.dashboard')}
             </h2>
           </div>
           <div className="flex items-center gap-2">
