@@ -9,6 +9,7 @@ import { PasswordInput } from '../ui/password-input';
 import { toast } from 'sonner';
 import authService from '../../services/authService';
 import { updatePasswordSchema, UpdatePasswordFormValues } from '../../lib/validations';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function UpdatePasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);

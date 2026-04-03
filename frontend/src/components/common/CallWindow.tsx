@@ -3,6 +3,7 @@ import { CallState } from '../../hooks/useCall';
 import CallControls from './CallControls';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface CallWindowProps {
   callState: CallState;
   localStream: MediaStream | null;
@@ -24,6 +25,8 @@ export default function CallWindow({
   onToggleCamera,
   onEndCall
 }: CallWindowProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 

@@ -4,6 +4,7 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { ArrowLeft, MapPin, Calendar, ImageOff, Eye, ImageIcon, Film } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ArtisanPortfolioPageProps {
   artisanId: string;
   artisanName: string;
@@ -40,7 +41,9 @@ const resolveMediaUrl = (url: string) => {
 };
 
 export default function ArtisanPortfolioPage({ artisanId, artisanName, artisanDomain, onBack, onViewItem }: ArtisanPortfolioPageProps) {
-  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 

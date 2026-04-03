@@ -1,5 +1,6 @@
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, ShoppingBag, ClipboardList } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import ArtisanHome from '../artisan/ArtisanHome';
 import ArtisanProjects from '../artisan/ArtisanProjects';
 import ArtisanMarketplace from '../artisan/ArtisanMarketplace';
@@ -22,6 +23,9 @@ interface ArtisanDashboardProps {
 }
 
 export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const[activeView, setActiveView] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const fromQuery = params.get('artisanView');
@@ -128,15 +132,15 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
   const profilePhoto = currentUser?.profilePhoto || '';
 
   const menuItems = [
-    { id: 'home', label: 'Home', icon: <Home size={20} /> },
-    { id: 'projects', label: 'My Projects', icon: <FolderKanban size={20} /> },
-    { id: 'marketplace', label: 'Marketplace', icon: <ShoppingCart size={20} /> },
-    { id: 'quotes', label: 'Quotes', icon: <FileText size={20} /> },
-    { id: 'invoices', label: 'Invoices', icon: <Receipt size={20} /> },
-    { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
-    { id: 'subscription', label: 'Subscription', icon: <CreditCard size={20} /> },
-    { id: 'orders', label: 'My Orders', icon: <ShoppingBag size={20} /> },
-    { id: 'reports', label: 'My Reports', icon: <ClipboardList size={20} /> },
+    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
+    { id: 'projects', label: t('nav.myProjects'), icon: <FolderKanban size={20} /> },
+    { id: 'marketplace', label: t('nav.marketplace'), icon: <ShoppingCart size={20} /> },
+    { id: 'quotes', label: t('nav.quotes'), icon: <FileText size={20} /> },
+    { id: 'invoices', label: t('nav.invoices'), icon: <Receipt size={20} /> },
+    { id: 'messages', label: t('nav.messages'), icon: <MessageSquare size={20} /> },
+    { id: 'subscription', label: t('nav.subscription'), icon: <CreditCard size={20} /> },
+    { id: 'orders', label: t('nav.myOrders'), icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: t('nav.myReports'), icon: <ClipboardList size={20} /> },
   ];
 
   const renderContent = () => {
@@ -230,7 +234,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       onLogout={onLogout}
       onViewProfile={handleViewProfile}
       onEditProfile={handleEditProfile}
-      editProfileLabel="View Portfolio"
+      editProfileLabel={t('profile.viewPortfolio')}
       onViewReviews={handleViewReviews}
       userRole={role}
       userName={fullName}

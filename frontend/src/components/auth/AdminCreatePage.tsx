@@ -12,13 +12,16 @@ import { toast } from 'sonner';
 import { adminCreateSchema, AdminCreateFormValues } from '../../lib/validations';
 import RegisterLeftSection from './RegisterLeftSection';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface AdminCreatePageProps {
   onBackToLogin: () => void;
   onCreated: () => void;
 }
 
 export default function AdminCreatePage({ onBackToLogin, onCreated }: AdminCreatePageProps) {
-  const [isLoading, setIsLoading] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isLoading, setIsLoading] = useState(false);
 
   const { register, handleSubmit, setError, clearErrors, formState: { errors } } = useForm<AdminCreateFormValues>({
     resolver: zodResolver(adminCreateSchema),

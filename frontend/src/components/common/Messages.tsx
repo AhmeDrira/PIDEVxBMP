@@ -35,6 +35,7 @@ import AudioCall from './AudioCall';
 import { useSocket } from '../../context/SocketContext';
 import { useGlobalCall } from '../../context/GlobalCallContext';
 import { useWebRTC } from '../../hooks/useWebRTC';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Conversation {
   id: string;
@@ -83,17 +84,18 @@ interface Message {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const API_BASE_URL = API_URL.replace(/\/api\/?$/, '');
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
-const REPORT_REASONS = [
-  'Harassment or abusive behavior',
-  'Spam or misleading content',
-  'Fraud or suspicious activity',
-  'Late delivery or no-show',
-  'Poor quality of service/product',
-  'Policy violation',
-  'Other',
-];
-
 export default function Messages() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const REPORT_REASONS = [
+    tr('Harassment or abusive behavior', 'Harcèlement ou comportement abusif', 'التحرش أو السلوك المسيء'),
+    tr('Spam or misleading content', 'Spam ou contenu trompeur', 'رسالات غير مرغوبة أو محتوى مضلل'),
+    tr('Fraud or suspicious activity', 'Fraude ou activite suspecte', 'الاحتيال أو نشاط ميبهوم'),
+    tr('Late delivery or no-show', 'Retard de livraison ou absence', 'التأخر في الشحن أو العدم بالظهور'),
+    tr('Poor quality of service/product', 'Mauvaise qualite de service/produit', 'رداعة الخدمة / المنتج الرديئة'),
+    tr('Policy violation', 'Violation des regles', 'انتهاك السياسة'),
+    tr('Other', 'Autre', 'أخرى'),
+  ];
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -581,19 +583,19 @@ export default function Messages() {
 
   const handleSubmitDirectReport = async () => {
     if (!selectedConv) {
-      toast.error('Unable to submit report right now.');
+      toast.error(tr('Unable to submit report right now.', 'Impossible de soumettre le signalement pour le moment.', 'لا يمكن تقديم البلاغ في هذه اللحظة.'));
       return;
     }
 
     const token = getToken();
     if (!token) {
-      toast.error('You must be logged in to submit a report.');
+      toast.error(tr('You must be logged in to submit a report.', 'Vous devez etre connecte pour soumettre un signalement.', 'يجب أن تكون مسجلاً لتقديم البلاغ.'));
       return;
     }
 
     const reason = reportReason === 'Other' ? reportCustomReason.trim() : reportReason;
     if (!reason) {
-      toast.error('Please select or write a report reason.');
+      toast.error(tr('Please select or write a report reason.', 'Veuillez selectionner ou ecrire un motif de signalement.', 'يرجى تحديث أو كتابة علة بالبلاغ.'));
       return;
     }
 
@@ -618,9 +620,9 @@ export default function Messages() {
       }
 
       closeReportModal();
-      toast.success('Report submitted. We will notify you soon via email once it is treated.');
+      toast.success(tr('Report submitted. We will notify you soon via email once it is treated.', 'Signalement envoye. Nous vous informerons bientot par email une fois traite.', 'تم تقديم البلاغ. سيتم مخطرك عبر البريد بعد معالجته.'));
     } catch {
-      toast.error('Failed to submit report. Please try again.');
+      toast.error(tr('Failed to submit report. Please try again.', 'Echec de l\'envoi du signalement. Veuillez reessayer.', 'فشل إرسال البلاغ. يرجى المحاولة مرة أخرى.'));
     }
   };
 
@@ -648,15 +650,15 @@ export default function Messages() {
     if (!confirmModal) return { title: '', message: '', confirmLabel: '', color: '' };
     switch (confirmModal.type) {
       case 'delete-conv':
-        return { title: 'Delete Conversation', message: 'Are you sure you want to delete this conversation? All messages will be permanently removed.', confirmLabel: 'Delete', color: '#ef4444' };
+        return { title: tr('Delete Conversation', 'Supprimer la conversation', 'حذف المحادثة'), message: tr('Are you sure you want to delete this conversation? All messages will be permanently removed.', 'Voulez-vous vraiment supprimer cette conversation ? Tous les messages seront supprimes definitivement.', 'هل أنت متأكد من حذف هذه المحادثة ؟ جميع الرسالات سيتم حذفها نهائياً.'), confirmLabel: tr('Delete', 'Supprimer', 'حذف'), color: '#ef4444' };
       case 'block':
-        return { title: 'Block User', message: `Are you sure you want to block ${selectedConv?.name || 'this user'}? They won't be able to send you messages.`, confirmLabel: 'Block', color: '#ef4444' };
+        return { title: tr('Block User', 'Bloquer l\'utilisateur', 'حجب المستخدم'), message: tr(`Are you sure you want to block ${selectedConv?.name || 'this user'}? They won't be able to send you messages.`, `Voulez-vous vraiment bloquer ${selectedConv?.name || tr('this user', 'cet utilisateur', 'هذا المستخدم')} ? Cette personne ne pourra plus vous envoyer de messages.`, `هل أنت متأكد من حجب ${selectedConv?.name || 'هذا المستخدم'}ْ لن يضي لهم القدرة على إرسال رسالات إليك.`), confirmLabel: tr('Block', 'Bloquer', 'حجب'), color: '#ef4444' };
       case 'unblock':
-        return { title: 'Unblock User', message: `Are you sure you want to unblock ${selectedConv?.name || 'this user'}?`, confirmLabel: 'Unblock', color: '#10b981' };
+        return { title: tr('Unblock User', 'Debloquer l\'utilisateur', 'إلغاء حجب المستخدم'), message: tr(`Are you sure you want to unblock ${selectedConv?.name || 'this user'}?`, `Voulez-vous vraiment debloquer ${selectedConv?.name || tr('this user', 'cet utilisateur', 'هذا المستخدم')} ?`, `هل أنت متأكد من إلغاء حجب ${selectedConv?.name || 'هذا المستخدم'}ْ`), confirmLabel: tr('Unblock', 'Debloquer', 'إلغاء'), color: '#10b981' };
       case 'report':
-        return { title: 'Report User', message: `Are you sure you want to report ${selectedConv?.name || 'this user'}? Our team will review the conversation.`, confirmLabel: 'Report', color: '#f59e0b' };
+        return { title: tr('Report User', 'Signaler l\'utilisateur', 'إبلاغ عن مستخدم'), message: tr(`Are you sure you want to report ${selectedConv?.name || 'this user'}? Our team will review the conversation.`, `Voulez-vous vraiment signaler ${selectedConv?.name || tr('this user', 'cet utilisateur', 'هذا المستخدم')} ? Notre equipe examinera la conversation.`, `هل أنت متأكد من الإبلاغ عن ${selectedConv?.name || 'هذا المستخدم'}ْ ؟ سيقوم فريقنا بمراجعة المحادثة.`), confirmLabel: tr('Report', 'Signaler', 'إبلاغ'), color: '#f59e0b' };
       case 'delete-msg':
-        return { title: 'Delete Message', message: 'Are you sure you want to delete this message?', confirmLabel: 'Delete', color: '#ef4444' };
+        return { title: tr('Delete Message', 'Supprimer le message', 'حذف الرسالة'), message: tr('Are you sure you want to delete this message?', 'Voulez-vous vraiment supprimer ce message ?', 'هل أنت متأكد من حذف هذه الرسالة؟'), confirmLabel: tr('Delete', 'Supprimer', 'حذف'), color: '#ef4444' };
       default:
         return { title: '', message: '', confirmLabel: '', color: '' };
     }
@@ -749,7 +751,7 @@ export default function Messages() {
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
               <Input
-                placeholder="Search conversations..."
+                placeholder={tr('Search conversations...', 'Rechercher des conversations...', 'ابحث عن المحادثات...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
@@ -757,12 +759,12 @@ export default function Messages() {
             </div>
           </div>
 
-          {loadingConversations && <div className="p-4 text-sm text-muted-foreground">Loading conversations...</div>}
+          {loadingConversations && <div className="p-4 text-sm text-muted-foreground">{tr('Loading conversations...', 'Chargement des conversations...', 'جاري تحميل المحادثات...')}</div>}
           {error && <div className="p-4 text-sm text-red-500">{error}</div>}
 
           <div className="flex-1 overflow-y-auto">
             {!loadingConversations && filteredConversations.length === 0 && (
-              <p className="p-4 text-sm text-muted-foreground">No conversations found.</p>
+              <p className="p-4 text-sm text-muted-foreground">{tr('No conversations found.', 'Aucune conversation trouvee.', 'لم يتم العثور على محادثات.')}</p>
             )}
             {filteredConversations.map(conv => (
               <button
@@ -858,7 +860,7 @@ export default function Messages() {
                   <div>
                     <h3 className="font-bold text-foreground text-lg">{selectedConv.name}</h3>
                     <p className="text-sm font-medium" style={{ color: selectedConv.online ? '#10B981' : '#6B7280' }}>
-                      {selectedConv.online ? 'Online' : 'Offline'}
+                      {selectedConv.online ? tr('Online', 'En ligne', 'ماتصل') : tr('Offline', 'Hors ligne', 'غير مثبوت')}
                     </p>
                   </div>
                   <Button
@@ -882,7 +884,7 @@ export default function Messages() {
                         className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText size={16} />
-                        Voir le profil
+                        {tr('View profile', 'Voir le profil', 'عرض الملف الشخصي')}
                       </button>
                       <button
                         type="button"
@@ -890,7 +892,7 @@ export default function Messages() {
                         className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50"
                       >
                         {blockedByMe ? <ShieldCheck size={16} /> : <Ban size={16} />}
-                        {blockedByMe ? 'Unblock' : 'Block'}
+                        {blockedByMe ? tr('Unblock', 'Debloquer', 'إلغاء الحجب') : tr('Block', 'Bloquer', 'حجب')}
                       </button>
                     </div>
                   )}
@@ -922,7 +924,7 @@ export default function Messages() {
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 text-left"
                     >
                       <Trash2 size={16} />
-                      Delete Conversation
+                      {tr('Delete Conversation', 'Supprimer la conversation', 'حذف المحادثة')}
                     </button>
                     <button
                       type="button"
@@ -930,7 +932,7 @@ export default function Messages() {
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 text-left"
                     >
                       {blockedByMe ? <ShieldCheck size={16} /> : <Ban size={16} />}
-                      {blockedByMe ? 'Unblock User' : 'Block User'}
+                      {blockedByMe ? tr('Unblock User', 'Debloquer l\'utilisateur', 'إلغاء حجب المستخدم') : tr('Block User', 'Bloquer l\'utilisateur', 'حجب المستخدم')}
                     </button>
                     <button
                       type="button"
@@ -938,7 +940,7 @@ export default function Messages() {
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 text-left"
                     >
                       <Flag size={16} />
-                      Report
+                      {tr('Report', 'Signaler', 'إبلاغ')}
                     </button>
                   </div>
                 )}
@@ -947,9 +949,9 @@ export default function Messages() {
             </div>
           )}
           <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-[#11161c]">
-            {loadingMessages && <p className="text-sm text-muted-foreground">Loading messages...</p>}
-            {!loadingMessages && messages.length === 0 && selectedConv && <p className="text-sm text-muted-foreground">No messages yet.</p>}
-            {!selectedConv && !loadingConversations && <p className="text-sm text-muted-foreground">Select a conversation to start chatting.</p>}
+            {loadingMessages && <p className="text-sm text-muted-foreground">{tr('Loading messages...', 'Chargement des messages...', 'جاري تحميل الرسالات...')}</p>}
+            {!loadingMessages && messages.length === 0 && selectedConv && <p className="text-sm text-muted-foreground">{tr('No messages yet.', 'Aucun message pour le moment.', 'لا توجد رسالات حتى الآن.')}</p>}
+            {!selectedConv && !loadingConversations && <p className="text-sm text-muted-foreground">{tr('Select a conversation to start chatting.', 'Selectionnez une conversation pour commencer a discuter.', 'ابتدئ محادثة لبدء الدردشة.')}</p>}
             {messages.map(message => (
               <div
                 key={message.id}
@@ -1023,8 +1025,8 @@ export default function Messages() {
                           : 'bg-muted border-l-gray-400 text-foreground'
                       }`}
                     >
-                      <p className="text-[11px] font-semibold mb-0.5">Replied to {message.replyTo.senderName}</p>
-                      <p className="text-xs line-clamp-2 opacity-90">{message.replyTo.content || 'Attachment'}</p>
+                      <p className="text-[11px] font-semibold mb-0.5">{tr('Replied to', 'Repondu a', 'ردعلى')} {message.replyTo.senderName}</p>
+                      <p className="text-xs line-clamp-2 opacity-90">{message.replyTo.content || tr('Attachment', 'Piece jointe', 'مرفق')}</p>
                     </div>
                   )}
                   {message.content && (
@@ -1146,7 +1148,7 @@ export default function Messages() {
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-primary">Replying to {replyingTo.senderName}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {replyingTo.content || (replyingTo.attachments?.length ? 'Attachment' : (replyingTo.voiceMessage ? 'Message vocal' : 'Message'))}
+                    {replyingTo.content || (replyingTo.attachments?.length ? tr('Attachment', 'Piece jointe', 'مرفق') : (replyingTo.voiceMessage ? tr('Voice message', 'Message vocal', 'رسالة صوتية') : tr('Message', 'Message', 'رسالة')))}
                   </p>
                 </div>
                 <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setReplyingTo(null)}>
@@ -1181,7 +1183,7 @@ export default function Messages() {
                     fetchConversations();
                     setIsVoiceActive(false);
                   } catch (err: any) {
-                    setError(err?.response?.data?.message || 'Unable to send voice message.');
+                    setError(err?.response?.data?.message || tr('Unable to send voice message.', 'Impossible d\'envoyer le message vocal.'));
                     console.error('Error sending voice message:', err);
                     throw err; // Propagate to VoiceRecorder so it doesn't reset
                   }
@@ -1215,7 +1217,7 @@ export default function Messages() {
                     <Paperclip size={20} />
                   </Button>
                   <Input
-                    placeholder="Type a message..."
+                    placeholder={tr('Type a message...', '   Ecrire un message...', 'اكتب رسالة...')}
                     value={messageInput}
                     onChange={e => setMessageInput(e.target.value)}
                     className="flex-1 h-12 rounded-xl border-2 border-border focus:border-primary"
@@ -1256,7 +1258,7 @@ export default function Messages() {
                   onClick={() => setConfirmModal(null)}
                   style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
                 >
-                  Cancel
+                  {tr('Cancel', 'Annuler', 'إلغاء')}
                 </button>
                 <button
                   onClick={handleConfirmAction}
@@ -1296,14 +1298,14 @@ export default function Messages() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontSize: 22, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 8px' }}>Report User</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 700, color: 'var(--foreground)', margin: '0 0 8px' }}>{tr('Report User', 'Signaler l\'utilisateur')}</h3>
             <p style={{ fontSize: 14, color: 'var(--muted-foreground)', margin: '0 0 16px', lineHeight: 1.5 }}>
-              Reporting: <strong style={{ color: 'var(--foreground)' }}>{selectedConv?.name || 'User'}</strong>
+              {tr('Reporting:', 'Signalement de :', 'البلاغ عن:')} <strong style={{ color: 'var(--foreground)' }}>{selectedConv?.name || tr('User', 'Utilisateur', 'مستخدم')}</strong>
             </p>
 
             <div style={{ marginBottom: 14 }}>
               <label htmlFor="direct-report-reason" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
-                Reason
+                {tr('Reason', 'Raison', 'السبب')}
               </label>
               <select
                 id="direct-report-reason"
@@ -1317,29 +1319,29 @@ export default function Messages() {
               </select>
             </div>
 
-            {reportReason === 'Other' && (
+            {reportReason === tr('Other', 'Autre', 'أخرى') && (
               <div style={{ marginBottom: 14 }}>
                 <label htmlFor="direct-report-custom" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
-                  Custom reason
+                  {tr('Custom reason', 'Raison personnalisee', 'سبب مخصصة')}
                 </label>
                 <Input
                   id="direct-report-custom"
                   value={reportCustomReason}
                   onChange={(e) => setReportCustomReason(e.target.value)}
-                  placeholder="Write your reason"
+                  placeholder={tr('Write your reason', 'Ecrivez votre raison', 'اكتب سببك')}
                 />
               </div>
             )}
 
             <div style={{ marginBottom: 20 }}>
               <label htmlFor="direct-report-details" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
-                Details (optional)
+                {tr('Details (optional)', 'Details (optionnel)', 'التفاصيل (اختياري)')}
               </label>
               <Textarea
                 id="direct-report-details"
                 value={reportDetails}
                 onChange={(e) => setReportDetails(e.target.value)}
-                placeholder="Add extra details"
+                placeholder={tr('Add extra details', 'Ajouter des details supplementaires', 'ضم تفاصيل إضافية')}
                 className="min-h-28"
               />
             </div>
@@ -1349,13 +1351,13 @@ export default function Messages() {
                 onClick={closeReportModal}
                 style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
               >
-                Cancel
+                {tr('Cancel', 'Annuler', 'إلغاء')}
               </button>
               <button
                 onClick={handleSubmitDirectReport}
                 style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: 'none', backgroundColor: '#f59e0b', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
               >
-                Submit Report
+                {tr('Submit Report', 'Envoyer le signalement', 'إرسال البلاغ')}
               </button>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { Star, ArrowLeft, MessageSquare, TrendingUp, Award } from 'lucide-react'
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import axios from 'axios';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ProfileReviewsProps {
   onBack?: () => void;
 }
@@ -21,7 +22,9 @@ interface ReviewItem {
 }
 
 export default function ProfileReviews({ onBack }: ProfileReviewsProps) {
-  const [sortBy, setSortBy] = useState<'newest' | 'highest'>('newest');
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [sortBy, setSortBy] = useState<'newest' | 'highest'>('newest');
   const [filterStars, setFilterStars] = useState<number | null>(null);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);

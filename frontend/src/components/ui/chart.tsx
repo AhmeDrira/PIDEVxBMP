@@ -5,6 +5,7 @@ import * as RechartsPrimitive from "recharts@2.15.2";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
@@ -70,7 +71,9 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color,
   );
 

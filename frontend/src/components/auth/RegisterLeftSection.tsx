@@ -3,7 +3,10 @@ import { CheckCircle2 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import Logo from '../common/Logo';
 
+import { useLanguage } from '../../context/LanguageContext';
 export default function RegisterLeftSection() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [siteStats, setSiteStats] = useState({ activeUsers: 0, projects: 0, satisfaction: 0 });
 
   useEffect(() => {

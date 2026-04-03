@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { TUNISIA_STATES } from '../../lib/tunisiaStates';
+import { useLanguage } from '../../context/LanguageContext';
 
 const SPECIALIZATIONS = [
   'Masonry',
@@ -30,6 +31,8 @@ const SPECIALIZATIONS = [
 ];
 
 export default function ArtisanProfile() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +60,7 @@ export default function ArtisanProfile() {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { toast.error('Image must be less than 5MB'); return; }
+      if (file.size > 5 * 1024 * 1024) { toast.error(tr('Image must be less than 5MB', 'L\'image doit etre inferieure a 5MB')); return; }
       const reader = new FileReader();
       reader.onloadend = () => {
         const newPhoto = reader.result as string;
@@ -153,7 +156,7 @@ export default function ArtisanProfile() {
     setIsLoading(true);
     try {
       const token = getToken();
-      if (!token) { toast.error('Security error: Unable to find token.'); return; }
+      if (!token) { toast.error(tr('Security error: Unable to find token.', 'Erreur de securite : token introuvable.', 'خطأ أمان: لا يمكن العثور على الرمز.')); return; }
 
       await axios.put(
         `${API_URL}/auth/profile`,
@@ -162,7 +165,7 @@ export default function ArtisanProfile() {
       );
 
       setIsEditing(false);
-      toast.success('Profile updated successfully');
+      toast.success(tr('Profile updated successfully', 'Profil mis a jour avec succes', 'تم تحديث الملف الشخصي بنجاح'));
 
       const stored = localStorage.getItem('user');
       if (stored) {
@@ -177,13 +180,13 @@ export default function ArtisanProfile() {
       }
     } catch (error) {
       console.error('Save error:', error);
-      toast.error('Failed to save profile');
+      toast.error(tr('Failed to save profile', 'Echec de l\'enregistrement du profil'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading profile...</div>;
+  if (loading) return <div className="p-8 text-center">{tr('Loading profile...', 'Chargement du profil...', 'جاري تحميل الملف الشخصي...')}</div>;
 
   const fullName = `${formData.firstName} ${formData.lastName}`;
   const initials = `${formData.firstName?.charAt(0) || ''}${formData.lastName?.charAt(0) || ''}`.toUpperCase();
@@ -234,7 +237,7 @@ export default function ArtisanProfile() {
                 className={isEditing ? '' : 'text-white'}
                 style={isEditing ? {} : { backgroundColor: '#1F3A8A' }}
               >
-                {isEditing ? 'Cancel' : 'Edit Profile'}
+                {isEditing ? tr('Cancel', 'Annuler', 'إلغاء') : tr('Edit Profile', 'Modifier le profil', 'تعديل الملف الشخصي')}
               </Button>
             </div>
           </div>
@@ -243,34 +246,34 @@ export default function ArtisanProfile() {
 
       {/* Profile Information */}
       <Card className="p-6 bg-card">
-        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Profile Information</h3>
+        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>{tr('Profile Information', 'Informations du profil', 'معلومات الملف الشخصي')}</h3>
 
         {isEditing ? (
           <form onSubmit={handleSave} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               {/* First Name */}
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName">{tr('First Name', 'Prenom', 'الاسم الأول')}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
-                  <Input id="firstName" placeholder="First name" value={formData.firstName}
+                  <Input id="firstName" placeholder={tr('First name', 'Prenom', 'الاسم الأول')} value={formData.firstName}
                     onChange={e => setFormData({ ...formData, firstName: e.target.value })} className="pl-10" />
                 </div>
               </div>
 
               {/* Last Name */}
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">{tr('Last Name', 'Nom', 'الاسم الأخير')}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
-                  <Input id="lastName" placeholder="Last name" value={formData.lastName}
+                  <Input id="lastName" placeholder={tr('Last name', 'Nom', 'الاسم الأخير')} value={formData.lastName}
                     onChange={e => setFormData({ ...formData, lastName: e.target.value })} className="pl-10" />
                 </div>
               </div>
 
               {/* Phone */}
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">{tr('Phone Number', 'Numero de telephone', 'رقم الهاتف')}</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2" size={20} style={{ color: 'var(--muted-foreground)' }} />
                   <Input id="phone" placeholder="+216 XX XXX XXX" value={formData.phone}
@@ -280,14 +283,14 @@ export default function ArtisanProfile() {
 
               {/* Years of Experience */}
               <div className="space-y-2">
-                <Label htmlFor="yearsExperience">Years of Experience</Label>
+                <Label htmlFor="yearsExperience">{tr('Years of Experience', 'Annees d\'experience')}</Label>
                 <Input id="yearsExperience" type="number" min="0" placeholder="0" value={formData.yearsExperience}
                   onChange={e => setFormData({ ...formData, yearsExperience: e.target.value })} />
               </div>
 
               {/* Specialization dropdown */}
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="domain">Specialization</Label>
+                <Label htmlFor="domain">{tr('Specialization', 'Specialisation', 'التخصص')}</Label>
                 <div className="relative">
                   <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={18} style={{ color: 'var(--muted-foreground)' }} />
                   <select
@@ -296,7 +299,7 @@ export default function ArtisanProfile() {
                     onChange={e => setFormData({ ...formData, domain: e.target.value })}
                     className="w-full pl-10 pr-4 py-2 border-2 border-border rounded-xl text-sm focus:outline-none focus:border-primary bg-card"
                   >
-                    <option value="">Select a specialization…</option>
+                    <option value="">{tr('Select a specialization...', 'Selectionnez une specialisation...', 'اختر التخصص...')}</option>
                     {SPECIALIZATIONS.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -306,7 +309,7 @@ export default function ArtisanProfile() {
 
               {/* Location (Tunisia checkboxes) */}
               <div className="space-y-3 md:col-span-2">
-                <Label>Location (Tunisia)</Label>
+                <Label>{tr('Location (Tunisia)', 'Localisation (Tunisie)', 'الموقع (تونس)')}</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {TUNISIA_STATES.map(state => (
                     <label key={state} className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm text-foreground cursor-pointer">
@@ -320,20 +323,20 @@ export default function ArtisanProfile() {
                     </label>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Select one or more governorates.</p>
+                <p className="text-xs text-muted-foreground">{tr('Select one or more governorates.', 'Selectionnez un ou plusieurs gouvernorats.', 'اختر واحد أو أكثر من الولايات.')}</p>
               </div>
             </div>
 
             {/* Bio */}
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea id="bio" placeholder="Tell us about yourself, your skills and experience..." value={formData.bio}
+              <Label htmlFor="bio">{tr('Bio', 'Bio', 'النبذة الشخصية')}</Label>
+              <Textarea id="bio" placeholder={tr('Tell us about yourself, your skills and experience...', 'Parlez de vous, de vos competences et de votre experience...', 'أخبرنا عنك ومهاراتك وخبرتك...')} value={formData.bio}
                 onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} />
             </div>
 
             {/* Skills */}
             <div className="space-y-3">
-              <Label>Skills & Expertise</Label>
+              <Label>{tr('Skills & Expertise', 'Competences et expertise', 'المهارات والخبرة')}</Label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {skills.map((skill, idx) => (
                   <span key={idx} className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
@@ -346,7 +349,7 @@ export default function ArtisanProfile() {
               </div>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Add a skill (e.g. Brickwork)..."
+                  placeholder={tr('Add a skill (e.g. Brickwork)...', 'Ajouter une competence (ex: maconnerie)...', 'أضف مهارة (مثل البناء بالطوب)...')}
                   value={newSkill}
                   onChange={e => setNewSkill(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSkill(); } }}
@@ -360,7 +363,7 @@ export default function ArtisanProfile() {
 
             {/* Certifications */}
             <div className="space-y-3">
-              <Label>Certifications</Label>
+              <Label>{tr('Certifications', 'Certifications', 'الشهادات')}</Label>
               <div className="flex flex-col gap-2 mb-2">
                 {certifications.map((cert, idx) => (
                   <div key={idx} className="flex items-center gap-2 p-3 rounded-xl bg-accent/5 border border-border">
@@ -374,7 +377,7 @@ export default function ArtisanProfile() {
               </div>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Add a certification (e.g. OSHA Safety Certified)..."
+                  placeholder={tr('Add a certification (e.g. OSHA Safety Certified)...', 'Ajouter une certification (ex: certifie securite)...', 'أضف شهادة (مثل معتمد السلامة)...')}
                   value={newCertification}
                   onChange={e => setNewCertification(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCertification(); } }}
@@ -388,46 +391,46 @@ export default function ArtisanProfile() {
 
             <Button type="submit" disabled={isLoading} className="text-white" style={{ backgroundColor: '#10B981' }}>
               {isLoading ? <Loader2 size={20} className="mr-2 animate-spin" /> : <Save size={20} className="mr-2" />}
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? tr('Saving...', 'Enregistrement...', 'جاري الحفظ...') : tr('Save Changes', 'Enregistrer les modifications', 'حفظ التغييرات')}
             </Button>
           </form>
         ) : (
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Full Name</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Full Name', 'Nom complet', 'Full Name')}</p>
                 <p style={{ color: 'var(--foreground)' }}>{fullName}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Email Address</p>
-                <p style={{ color: 'var(--foreground)' }}>{formData.email} <span className="text-xs bg-muted px-2 py-1 rounded ml-2">(Read-only)</span></p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Email Address', 'Adresse email', 'Email Address')}</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.email} <span className="text-xs bg-muted px-2 py-1 rounded ml-2">({tr('Read-only', 'Lecture seule', 'Read-only')})</span></p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Phone Number</p>
-                <p style={{ color: 'var(--foreground)' }}>{formData.phone || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Phone Number', 'Numero de telephone', 'رقم الهاتف')}</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.phone || tr('Not provided', 'Non renseigne', 'Not provided')}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Location</p>
-                <p style={{ color: 'var(--foreground)' }}>{formData.location || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Location', 'Localisation', 'الموقع')}</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.location || tr('Not provided', 'Non renseigne', 'Not provided')}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Specialization</p>
-                <p style={{ color: 'var(--foreground)' }}>{formData.domain || 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Specialization', 'Specialisation', 'التخصص')}</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.domain || tr('Not provided', 'Non renseigne', 'Not provided')}</p>
               </div>
               <div>
-                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Experience</p>
-                <p style={{ color: 'var(--foreground)' }}>{formData.yearsExperience ? `${formData.yearsExperience} years` : 'Not provided'}</p>
+                <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Experience', 'Experience', 'Experience')}</p>
+                <p style={{ color: 'var(--foreground)' }}>{formData.yearsExperience ? `${formData.yearsExperience} ${tr('years', 'ans', 'years')}` : tr('Not provided', 'Non renseigne', 'Not provided')}</p>
               </div>
             </div>
 
             <div>
-              <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>Bio</p>
-              <p style={{ color: 'var(--foreground)' }}>{formData.bio || 'No bio written yet.'}</p>
+              <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Bio', 'Bio', 'النبذة الشخصية')}</p>
+              <p style={{ color: 'var(--foreground)' }}>{formData.bio || tr('No bio written yet.', 'Aucune bio pour le moment.', 'No bio written yet.')}</p>
             </div>
 
             {skills.length > 0 && (
               <div>
-                <p className="text-sm mb-2" style={{ color: 'var(--muted-foreground)' }}>Skills & Expertise</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--muted-foreground)' }}>{tr('Skills & Expertise', 'Competences et expertise', 'المهارات والخبرة')}</p>
                 <div className="flex flex-wrap gap-2">
                   {skills.map((skill, idx) => (
                     <Badge key={idx} className="bg-primary/10 text-primary border-0 px-3 py-1 text-sm">{skill}</Badge>
@@ -438,7 +441,7 @@ export default function ArtisanProfile() {
 
             {certifications.length > 0 && (
               <div>
-                <p className="text-sm mb-2" style={{ color: 'var(--muted-foreground)' }}>Certifications</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--muted-foreground)' }}>{tr('Certifications', 'Certifications', 'الشهادات')}</p>
                 <div className="space-y-2">
                   {certifications.map((cert, idx) => (
                     <div key={idx} className="flex items-center gap-2 p-3 rounded-xl bg-accent/5">
@@ -455,21 +458,21 @@ export default function ArtisanProfile() {
 
       {/* Security Settings */}
       <Card className="p-6 bg-card">
-        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>Security Settings</h3>
+        <h3 className="text-xl mb-6" style={{ color: 'var(--foreground)' }}>{tr('Security Settings', 'Parametres de securite', 'Security Settings')}</h3>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p style={{ color: 'var(--foreground)' }}>Change Password</p>
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Update your password regularly for security</p>
+              <p style={{ color: 'var(--foreground)' }}>{tr('Change Password', 'Changer le mot de passe', 'Change Password')}</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{tr('Update your password regularly for security', 'Mettez a jour votre mot de passe regulierement pour plus de securite', 'Update your password regularly for security')}</p>
             </div>
-            <Button variant="outline">Change</Button>
+            <Button variant="outline">{tr('Change', 'Modifier', 'Change')}</Button>
           </div>
           <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid #E5E7EB' }}>
             <div>
-              <p style={{ color: 'var(--foreground)' }}>Two-Factor Authentication</p>
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Add an extra layer of security</p>
+              <p style={{ color: 'var(--foreground)' }}>{tr('Two-Factor Authentication', 'Authentification a deux facteurs', 'Two-Factor Authentication')}</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{tr('Add an extra layer of security', 'Ajoutez une couche de securite supplementaire', 'Add an extra layer of security')}</p>
             </div>
-            <Button variant="outline">Enable</Button>
+            <Button variant="outline">{tr('Enable', 'Activer', 'Enable')}</Button>
           </div>
         </div>
       </Card>

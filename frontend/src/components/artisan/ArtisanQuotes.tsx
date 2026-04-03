@@ -11,8 +11,11 @@ import StatsCard from '../common/StatsCard';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ArtisanQuotes() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const { guard, PopupElement } = useSubscriptionGuard();
   const [view, setView] = useState<'list' | 'create' | 'details'>('list');
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
@@ -72,25 +75,46 @@ export default function ArtisanQuotes() {
   const availableProjects = projects.filter(isProjectEligibleForQuote);
 
   const selectedProject = projects.find((proj) => proj._id === formData.project);
-  const groupedMaterials = Array.isArray(selectedProject?.materials)
+  const groupedMarketplaceMaterials = Array.isArray(selectedProject?.materials)
     ? Object.values(
-        selectedProject.materials.reduce((acc: Record<string, { item: any; quantity: number }>, mat: any) => {
+        selectedProject.materials.reduce((acc: Record<string, { item: any; quantity: number; source: 'marketplace' }>, mat: any) => {
           const matId = String((mat && (mat._id || mat)) || '');
           if (!matId) return acc;
           if (!acc[matId]) {
-            acc[matId] = { item: mat, quantity: 0 };
+            acc[matId] = { item: mat, quantity: 0, source: 'marketplace' };
           }
           acc[matId].quantity += 1;
           return acc;
         }, {})
       )
     : [];
-  const materialsAmount = Array.isArray(selectedProject?.materials)
-    ? selectedProject.materials.reduce((sum: number, item: any) => {
-        const price = Number(item?.price);
-        return sum + (Number.isFinite(price) ? price : 0);
-      }, 0)
-    : 0;
+  const personalMaterialEntries = Array.isArray(selectedProject?.personalMaterials)
+    ? selectedProject.personalMaterials
+        .filter((item: any) => item && item.name)
+        .map((item: any, index: number) => {
+          const qty = Number(item?.stock);
+          return {
+            item,
+            quantity: Number.isFinite(qty) && qty > 0 ? qty : 1,
+            source: 'personal' as const,
+            key: String(item?._id || `personal-${index}`),
+          };
+        })
+    : [];
+  const groupedMaterials = [
+    ...groupedMarketplaceMaterials.map((entry: any) => ({
+      ...entry,
+      key: String(entry?.item?._id || ''),
+    })),
+    ...personalMaterialEntries,
+  ];
+  const materialsAmount = groupedMaterials.reduce((sum: number, entry: any) => {
+    const price = Number(entry?.item?.price);
+    const quantity = Number(entry?.quantity);
+    const safePrice = Number.isFinite(price) ? price : 0;
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    return sum + (safePrice * safeQuantity);
+  }, 0);
   const laborHandAmount = Number(formData.laborHand || 0);
   const totalAmount = (Number.isFinite(laborHandAmount) ? laborHandAmount : 0) + materialsAmount;
   const upfrontRaw = Number(formData.upfrontValue || 0);
@@ -186,7 +210,9 @@ export default function ArtisanQuotes() {
         if (!value) return 'Project is required';
         if (!availableProjects.some((proj) => proj._id === value)) return 'Selected project is already completed';
         const projForQuote = projects.find((proj) => proj._id === value);
-        if (!projForQuote?.materials?.length) return 'The selected project must have at least one material before creating a quote';
+        const marketplaceCount = Array.isArray(projForQuote?.materials) ? projForQuote.materials.length : 0;
+        const personalCount = Array.isArray(projForQuote?.personalMaterials) ? projForQuote.personalMaterials.length : 0;
+        if (marketplaceCount + personalCount <= 0) return 'The selected project must have at least one material before creating a quote';
         return '';
       }
       case 'clientName':
@@ -472,12 +498,12 @@ export default function ArtisanQuotes() {
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText size={32} className="text-muted-foreground" />
               </div>
-              <h3 className="text-3xl font-bold text-foreground mb-2">Generate Invoice?</h3>
+              <h3 className="text-3xl font-bold text-foreground mb-2">{tr('Generate Invoice?', 'Generer une facture ?', 'Generate Invoice?')}</h3>
               <p className="text-muted-foreground font-medium">{invoiceTargetQuote?.quoteNumber || selectedQuote?.quoteNumber}</p>
             </div>
 
             <div className="space-y-2 mb-6">
-              <Label htmlFor="dueDateOverlay" className="text-base">Due Date</Label>
+              <Label htmlFor="dueDateOverlay" className="text-base">{tr('Due Date', 'Date d\'echeance')}</Label>
               <Input
                 id="dueDateOverlay"
                 type="date"
@@ -500,7 +526,7 @@ export default function ArtisanQuotes() {
                 }}
                 disabled={isGeneratingInvoice}
               >
-                Non
+                {tr('No', 'Non', 'No')}
               </Button>
               <Button
                 variant="outline"
@@ -508,7 +534,7 @@ export default function ArtisanQuotes() {
                 onClick={handleGenerateInvoiceFromQuote}
                 disabled={isGeneratingInvoice}
               >
-                {isGeneratingInvoice ? 'Oui...' : 'Oui'}
+                {isGeneratingInvoice ? tr('Yes...', 'Oui...', 'Yes...') : tr('Yes', 'Oui', 'Yes')}
               </Button>
             </div>
           </div>
@@ -526,14 +552,14 @@ export default function ArtisanQuotes() {
               <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${deleteQuoteError ? 'bg-amber-50' : 'bg-red-50'}`}>
                 <Trash2 size={32} className={deleteQuoteError ? 'text-amber-600' : 'text-red-600'} />
               </div>
-              <h3 className="text-3xl font-bold text-foreground mb-2">Delete Quote?</h3>
+              <h3 className="text-3xl font-bold text-foreground mb-2">{tr('Delete Quote?', 'Supprimer le devis ?', 'Delete Quote?')}</h3>
               <p className="text-muted-foreground font-medium">{quoteToDelete?.quoteNumber || ''}</p>
               {deleteQuoteError ? (
                 <div className="mt-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 font-medium text-left">
                   ⚠️ {deleteQuoteError}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground mt-2">Are you sure you want to delete this quote?</p>
+                <p className="text-sm text-muted-foreground mt-2">{tr('Are you sure you want to delete this quote?', 'Voulez-vous vraiment supprimer ce devis ?', 'Are you sure you want to delete this quote?')}</p>
               )}
             </div>
 
@@ -549,7 +575,7 @@ export default function ArtisanQuotes() {
                 }}
                 disabled={isDeletingQuote}
               >
-                {deleteQuoteError ? 'Close' : 'Cancel'}
+                {deleteQuoteError ? tr('Close', 'Fermer', 'Close') : tr('Cancel', 'Annuler', 'إلغاء')}
               </Button>
               {!deleteQuoteError && (
                 <Button
@@ -559,7 +585,7 @@ export default function ArtisanQuotes() {
                   onClick={handleDeleteQuote}
                   disabled={isDeletingQuote}
                 >
-                  {isDeletingQuote ? 'Deleting...' : 'Delete'}
+                  {isDeletingQuote ? tr('Deleting...', 'Suppression...', 'Deleting...') : tr('Delete', 'Supprimer', 'حذف')}
                 </Button>
               )}
             </div>
@@ -643,10 +669,10 @@ export default function ArtisanQuotes() {
     return (
       <div className="max-w-4xl mx-auto">
         <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
-          <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Quotes
+          <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Quotes', 'Retour aux devis', 'العودة إلى العروض')}
         </Button>
         <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
-          <h2 className="text-3xl font-bold text-foreground mb-8">Generate New Quote</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-8">{tr('Generate New Quote', 'Generer un nouveau devis', 'إنشاء عرض أسعار جديد')}</h2>
           <form className="space-y-6" onSubmit={handleCreateQuote}>
             {/* Projet */}
             <div className="space-y-2">
@@ -749,8 +775,13 @@ export default function ArtisanQuotes() {
                     ) : (
                       <div className="space-y-2">
                         {groupedMaterials.map((entry: any, index: number) => (
-                          <div key={String(entry.item?._id || index)} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2">
-                            <p className="text-sm font-medium text-foreground truncate pr-2">{entry.item?.name || 'Material'}</p>
+                          <div key={String(entry.key || entry.item?._id || index)} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2">
+                            <p className="text-sm font-medium text-foreground truncate pr-2">
+                              {entry.item?.name || 'Material'}
+                              <span className="ml-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                {entry.source === 'personal' ? 'Personal' : 'Marketplace'}
+                              </span>
+                            </p>
                             <p className="text-sm text-muted-foreground whitespace-nowrap">
                               x{entry.quantity} • {formatAmount(Number(entry.item?.price || 0) * entry.quantity)}
                             </p>
@@ -966,7 +997,7 @@ export default function ArtisanQuotes() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center print:hidden">
           <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2">
-            <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Quotes
+            <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Quotes', 'Retour aux devis', 'العودة إلى العروض')}
           </Button>
           <div className="flex gap-3">
             {selectedQuote.status === 'pending' && (
@@ -1052,14 +1083,14 @@ export default function ArtisanQuotes() {
             <Card className="p-5 bg-card rounded-2xl border border-green-200 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h4 className="text-lg font-semibold text-foreground">Ready to generate invoice</h4>
-                  <p className="text-sm text-muted-foreground">Create an invoice linked to this approved quote. Issue date will be generated automatically.</p>
+                  <h4 className="text-lg font-semibold text-foreground">{tr('Ready to generate invoice', 'Pret a generer la facture', 'Ready to generate invoice')}</h4>
+                  <p className="text-sm text-muted-foreground">{tr('Create an invoice linked to this approved quote. Issue date will be generated automatically.', 'Creez une facture liee a ce devis approuve. La date d\'emission sera generee automatiquement.')}</p>
                 </div>
                 <Button
                   className="bg-primary hover:bg-primary/90 text-white rounded-xl"
                   onClick={() => openGenerateInvoiceModal(selectedQuote)}
                 >
-                  Generate Invoice
+                  {tr('Generate Invoice', 'Generer la facture', 'إنشاء فاتورة')}
                 </Button>
               </div>
             </Card>
@@ -1078,17 +1109,17 @@ export default function ArtisanQuotes() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="text-lg text-muted-foreground">Manage project quotes and estimates</p>
+          <p className="text-lg text-muted-foreground">{tr('Manage project quotes and estimates', 'Gerez les devis et estimations des projets', 'Manage project quotes and estimates')}</p>
         </div>
         <Button onClick={() => guard(() => setView('create'))} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
-          <Plus size={20} className="mr-2" /> Generate Quote
+          <Plus size={20} className="mr-2" /> {tr('Generate Quote', 'Generer un devis', 'إنشاء عرض أسعار')}
         </Button>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        <StatsCard label="Total Quotes" value={quotes.length.toString()} icon={<FileText size={28} />} color="#1E40AF" subtitle="All time" />
-        <StatsCard label="Approved" value={quotes.filter(q => q.status === 'approved').length.toString()} icon={<CheckCircle size={28} />} color="#10B981" />
-        <StatsCard label="Pending" value={quotes.filter(q => q.status === 'pending').length.toString()} icon={<Clock size={28} />} color="#F59E0B" subtitle="Awaiting response" />
+        <StatsCard label={tr('Total Quotes', 'Total devis', 'Total Quotes')} value={quotes.length.toString()} icon={<FileText size={28} />} color="#1E40AF" subtitle={tr('All time', 'Depuis toujours', 'All time')} />
+        <StatsCard label={tr('Approved', 'Approuve', 'Approved')} value={quotes.filter(q => q.status === 'approved').length.toString()} icon={<CheckCircle size={28} />} color="#10B981" />
+        <StatsCard label={tr('Pending', 'En attente', 'Pending')} value={quotes.filter(q => q.status === 'pending').length.toString()} icon={<Clock size={28} />} color="#F59E0B" subtitle={tr('Awaiting response', 'En attente de reponse', 'Awaiting response')} />
       </div>
 
       <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
@@ -1096,7 +1127,7 @@ export default function ArtisanQuotes() {
           <div className="flex-1 h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2">
             <Search className="text-muted-foreground shrink-0" size={18} />
             <Input
-              placeholder="Search quotes..."
+              placeholder={tr('Search quotes...', 'Rechercher des devis...', 'Search quotes...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-full px-0"
@@ -1111,10 +1142,10 @@ export default function ArtisanQuotes() {
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >
-                <option value="all">All Status</option>
-                <option value="approved">Approved</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
+                <option value="all">{tr('All Status', 'Tous les statuts', 'All Status')}</option>
+                <option value="approved">{tr('Approved', 'Approuve', 'Approved')}</option>
+                <option value="pending">{tr('Pending', 'En attente', 'Pending')}</option>
+                <option value="rejected">{tr('Rejected', 'Rejete', 'Rejected')}</option>
               </select>
             </div>
             <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
@@ -1124,9 +1155,9 @@ export default function ArtisanQuotes() {
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >
-                <option value="all">All Invoice</option>
-                <option value="withInvoice">With Invoice</option>
-                <option value="withoutInvoice">Without Invoice</option>
+                <option value="all">{tr('All Invoice', 'Toutes les factures', 'All Invoice')}</option>
+                <option value="withInvoice">{tr('With Invoice', 'Avec facture', 'With Invoice')}</option>
+                <option value="withoutInvoice">{tr('Without Invoice', 'Sans facture', 'Without Invoice')}</option>
               </select>
             </div>
           </div>
@@ -1135,11 +1166,11 @@ export default function ArtisanQuotes() {
 
       <div className="space-y-4">
         {isLoading ? (
-          <div className="text-center py-10">Loading quotes...</div>
+          <div className="text-center py-10">{tr('Loading quotes...', 'Chargement des devis...', 'Loading quotes...')}</div>
         ) : filteredQuotes.length === 0 ? (
           <div className="text-center py-10 bg-card rounded-2xl border border-border shadow-lg border border-border">
             <FileText className="mx-auto text-gray-300 mb-4" size={48} />
-            <p className="text-xl font-semibold text-muted-foreground">No quotes found.</p>
+            <p className="text-xl font-semibold text-muted-foreground">{tr('No quotes found.', 'Aucun devis trouve.', 'No quotes found.')}</p>
           </div>
         ) : (
           filteredQuotes.map((quote) => (
@@ -1147,34 +1178,34 @@ export default function ArtisanQuotes() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
-                    <h3 className="text-xl font-bold text-foreground">Quote {quote.quoteNumber}</h3>
+                    <h3 className="text-xl font-bold text-foreground">{tr('Quote', 'Devis', 'Quote')} {quote.quoteNumber}</h3>
                     <Badge className={`${getStatusColor(quote.status)} px-4 py-1.5 text-sm font-semibold flex items-center gap-2 border-2`}>
                       {getStatusIcon(quote.status)}
                       {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
                     </Badge>
                   </div>
                   <p className="mb-3 text-muted-foreground">
-                    <strong className="text-foreground">Project:</strong> {quote.project?.title || 'Unknown'}
+                    <strong className="text-foreground">{tr('Project:', 'Projet :', 'المشروع:')}</strong> {quote.project?.title || tr('Unknown', 'Inconnu', 'Unknown')}
                   </p>
                   <p className="mb-3 text-muted-foreground">
-                    <strong className="text-foreground">Client:</strong> {quote.clientName || 'N/A'}
+                    <strong className="text-foreground">{tr('Client:', 'Client :', 'Client:')}</strong> {quote.clientName || 'N/A'}
                   </p>
                   <p className="text-muted-foreground mb-4 leading-relaxed line-clamp-2">
                     {quote.description}
                   </p>
                   <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-                    <span>Created: <strong className="text-foreground">{formatDate(quote.createdAt)}</strong></span>
-                    <span>Valid until: <strong className="text-foreground">{formatDate(quote.validUntil)}</strong></span>
+                    <span>{tr('Created:', 'Cree le :', 'Created:')} <strong className="text-foreground">{formatDate(quote.createdAt)}</strong></span>
+                    <span>{tr('Valid until:', 'Valide jusqu\'au :')} <strong className="text-foreground">{formatDate(quote.validUntil)}</strong></span>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground font-medium mb-2">Total</p>
+                    <p className="text-sm text-muted-foreground font-medium mb-2">{tr('Total', 'Total', 'Total')}</p>
                     <p className="text-3xl font-bold text-primary">
                       {formatAmount(Number(quote.amount || 0))}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Labor {formatAmount(Number(quote.laborHand || quote.amount || 0))} + Materials {formatAmount(Number(quote.materialsAmount || 0))}
+                      {tr('Labor', 'Main d\'oeuvre')} {formatAmount(Number(quote.laborHand || quote.amount || 0))} + {tr('Materials', 'Materiaux', 'Materials')} {formatAmount(Number(quote.materialsAmount || 0))}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -1184,7 +1215,7 @@ export default function ArtisanQuotes() {
                       className="rounded-xl border-2 h-10 bg-card text-foreground hover:bg-muted/50"
                       onClick={() => { setSelectedQuote(quote); setView('details'); }}
                     >
-                      <Eye size={16} className="mr-2" /> View
+                      <Eye size={16} className="mr-2" /> {tr('View', 'Voir', 'عرض')}
                     </Button>
                     <Button
                       variant="outline"
@@ -1200,7 +1231,7 @@ export default function ArtisanQuotes() {
                         className="rounded-xl h-10 bg-primary hover:bg-primary/90 text-white"
                         onClick={() => openGenerateInvoiceModal(quote)}
                       >
-                        Generate Invoice
+                        {tr('Generate Invoice', 'Generer la facture', 'إنشاء فاتورة')}
                       </Button>
                     )}
                     <Button
@@ -1209,7 +1240,7 @@ export default function ArtisanQuotes() {
                       className="rounded-xl border-2 h-10 hover:bg-red-600 hover:text-white dark:!bg-destructive dark:!border-destructive dark:!text-white dark:hover:!bg-destructive/90"
                       onClick={() => openDeleteQuoteModal(quote)}
                     >
-                      <Trash2 size={16} className="mr-2" /> Delete
+                      <Trash2 size={16} className="mr-2" /> {tr('Delete', 'Supprimer', 'حذف')}
                     </Button>
                   </div>
                 </div>

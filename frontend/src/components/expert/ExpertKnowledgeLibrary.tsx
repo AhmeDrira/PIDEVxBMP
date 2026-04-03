@@ -8,8 +8,12 @@ import KnowledgeLibraryDetail from '../knowledge/KnowledgeLibraryDetail';
 import knowledgeService, { KnowledgeArticle } from '../../services/knowledgeService';
 import { toast } from 'sonner';
 import FilterSidebar, { KnowledgeFilters } from '../common/FilterSidebar';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ExpertKnowledgeLibrary() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -28,7 +32,7 @@ export default function ExpertKnowledgeLibrary() {
         const data = await knowledgeService.list();
         setArticles(data);
       } catch (error: any) {
-        const message = error.response?.data?.message || 'Unable to load knowledge articles.';
+        const message = error.response?.data?.message || t('expert.knowledge.unableToLoad');
         toast.error(message);
       } finally {
         setLoading(false);
@@ -39,12 +43,12 @@ export default function ExpertKnowledgeLibrary() {
 
   const categories = useMemo(() => {
     const defaults = [
-      'Structural Engineering',
-      'Materials Science',
-      'Safety & Compliance',
-      'Technical Guide',
-      'Best Practices',
-      'Project Management',
+      t('expert.knowledge.structuralEngineering'),
+      t('expert.knowledge.materialsScience'),
+      t('expert.knowledge.safetyCompliance'),
+      t('expert.knowledge.technicalGuide'),
+      t('expert.knowledge.bestPractices'),
+      t('expert.knowledge.projectManagement'),
     ];
     const dynamic = Array.from(new Set(articles.map((a) => a.category)));
     return Array.from(new Set([...defaults, ...dynamic]));

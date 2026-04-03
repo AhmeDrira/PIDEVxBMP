@@ -1,13 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import { Crown, X, Zap, CheckCircle } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 /** Returns true if the artisan has an active subscription */
 export const isSubscriptionActive = (): boolean =>
   sessionStorage.getItem('artisan-sub-active') === '1';
 
 /** Popup shown when a non-subscribed artisan tries a gated action */
 export function SubscriptionPopup({ onClose }: { onClose: () => void }) {
-  const goToSubscription = () => {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const goToSubscription = () => {
     onClose();
     window.location.href = '/?artisanView=subscription';
   };

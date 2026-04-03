@@ -11,6 +11,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
 import CheckoutWizard from './CheckoutWizard';
+import { useLanguage } from '../../context/LanguageContext';
 
 // Get user-specific cart key to prevent sharing across accounts on same browser
 const getUserCartKey = () => {
@@ -26,6 +27,8 @@ const getUserCartKey = () => {
 };
 
 export default function ArtisanMarketplace() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const { guard, PopupElement } = useSubscriptionGuard();
   const [view, setView] = useState<'products' | 'cart' | 'checkout' | 'confirmation' | 'detail'>('products');
   const [cart, setCart] = useState<any[]>([]);
@@ -237,7 +240,7 @@ export default function ArtisanMarketplace() {
       setIsSubmittingRating(true);
       const token = getToken();
       if (!token) {
-        showToast('Session expired. Please sign in again.', 'error');
+        showToast(tr('Session expired. Please sign in again.', 'Session expiree. Veuillez vous reconnecter.', 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.'), 'error');
         return;
       }
 
@@ -259,7 +262,7 @@ export default function ArtisanMarketplace() {
       }
 
       if (!isMongoObjectId(ratingTargetId)) {
-        showToast('Unable to submit rating for this material.', 'error');
+        showToast(tr('Unable to submit rating for this material.', 'Impossible d\'envoyer une note pour ce materiau.', 'تعذر إرسال التقييم لهذه المادة.'), 'error');
         return;
       }
 
@@ -267,7 +270,7 @@ export default function ArtisanMarketplace() {
         { rating: ratingValue }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      showToast('Thank you for your rating! ⭐');
+      showToast(tr('Thank you for your rating! ⭐', 'Merci pour votre note ! ⭐', 'شكراً لتقييمك! ⭐'));
       setUserRating(ratingValue);
       // Mettre à jour localement pour l'affichage
       const updatedProduct = {
@@ -290,7 +293,7 @@ export default function ArtisanMarketplace() {
         markProductAsRated(locallyLockedProduct);
         showToast(backendMessage || 'You already rated this material.', 'error');
       } else {
-        showToast('Failed to submit rating.', 'error');
+        showToast(tr('Failed to submit rating.', 'Echec de l\'envoi de la note.', 'فشل إرسال التقييم.'), 'error');
       }
     } finally {
       setIsSubmittingRating(false);
@@ -308,7 +311,7 @@ export default function ArtisanMarketplace() {
       const signature = getMaterialSignature(product);
       const alreadyInProject = signature !== '::' && projectMaterialSignatures.has(signature);
       if (alreadyInProject) {
-        showToast('This material already exists in project materials.', 'error');
+        showToast(tr('This material already exists in project materials.', 'Ce materiau existe deja dans les materiaux du projet.', 'هذه المادة موجودة بالفعل في مواد المشروع.'), 'error');
         return;
       }
       setProductToAdd(product);
@@ -336,16 +339,16 @@ export default function ArtisanMarketplace() {
         const maxStock = Number(current.stock || 0);
         const nextQty = Number(current.quantity || 0) + 1;
         if (maxStock > 0 && nextQty > maxStock) {
-          showToast('Maximum stock quantity reached for this material.', 'warning');
+          showToast(tr('Maximum stock quantity reached for this material.', 'Quantite maximale de stock atteinte pour ce materiau.', 'تم الوصول إلى الكمية القصوى للمخزون لهذه المادة.'), 'warning');
           return prev;
         }
         updated[existingIndex] = { ...current, quantity: nextQty };
         return updated;
       });
-      showToast('Quantity updated in cart.', 'success');
+      showToast(tr('Quantity updated in cart.', 'Quantite mise a jour dans le panier.', 'تم تحديث الكمية في السلة.'), 'success');
     } else {
       setCart((prev) => [...prev, { ...product, quantity: 1 }]);
-      showToast('Material added to cart successfully.', 'success');
+      showToast(tr('Material added to cart successfully.', 'Materiau ajoute au panier avec succes.', 'تمت إضافة المادة إلى السلة بنجاح.'), 'success');
     }
   };
 
@@ -407,7 +410,7 @@ export default function ArtisanMarketplace() {
         setShowProjectConfirm(false);
         setProductToAdd(null);
         setConfirmMessage('');
-        showToast('This material already exists in project materials.', 'error');
+        showToast(tr('This material already exists in project materials.', 'Ce materiau existe deja dans les materiaux du projet.', 'هذه المادة موجودة بالفعل في مواد المشروع.'), 'error');
         return;
       }
 
@@ -422,7 +425,7 @@ export default function ArtisanMarketplace() {
       setProjectMaterialSignatures(nextSignatures);
 
       setConfirmMessage(`${productToAdd.name} added to project successfully!`);
-      showToast('Material added to project materials successfully.', 'success');
+      showToast(tr('Material added to project materials successfully.', 'Materiau ajoute aux materiaux du projet avec succes.', 'تمت إضافة المادة إلى مواد المشروع بنجاح.'), 'success');
 
       setTimeout(() => {
         setShowProjectConfirm(false);
@@ -531,7 +534,7 @@ export default function ArtisanMarketplace() {
       const maxStock = Number(current.stock || 0);
 
       if (delta > 0 && maxStock > 0 && currentQty >= maxStock) {
-        showToast('You reached the maximum stock quantity for this material.', 'warning');
+        showToast(tr('You reached the maximum stock quantity for this material.', 'Vous avez atteint la quantite maximale de stock pour ce materiau.', 'لقد وصلت إلى الكمية القصوى للمخزون لهذه المادة.'), 'warning');
         return prev;
       }
 
@@ -561,7 +564,7 @@ export default function ArtisanMarketplace() {
     };
 
     if (paymentState === 'cancel') {
-      showToast('Payment cancelled. Your cart is still available.', 'warning');
+      showToast(tr('Payment cancelled. Your cart is still available.', 'Paiement annule. Votre panier est toujours disponible.', 'تم إلغاء الدفع. سلتك لا تزال متاحة.'), 'warning');
       clearPaymentParams();
       return;
     }
@@ -589,7 +592,7 @@ export default function ArtisanMarketplace() {
         setIsConfirmingStripePayment(true);
         const token = getToken();
         if (!token) {
-          showToast('Session expired. Please sign in again.', 'error');
+          showToast(tr('Session expired. Please sign in again.', 'Session expiree. Veuillez vous reconnecter.', 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.'), 'error');
           return;
         }
 
@@ -621,7 +624,7 @@ export default function ArtisanMarketplace() {
         }
 
         if (!checkoutItems.length) {
-          showToast('Cart details missing for payment confirmation.', 'error');
+          showToast(tr('Cart details missing for payment confirmation.', 'Details du panier manquants pour confirmer le paiement.', 'تفاصيل السلة مفقودة لتأكيد الدفع.'), 'error');
           return;
         }
 
@@ -642,7 +645,7 @@ export default function ArtisanMarketplace() {
         window.dispatchEvent(new Event('artisan-cart-updated'));
         window.dispatchEvent(new Event('artisan-marketplace-payment-success'));
         localStorage.removeItem(`artisan-stripe-checkout:${stripeSessionId}`);
-        showToast('Payment successful. Stock updated.', 'success');
+        showToast(tr('Payment successful. Stock updated.', 'Paiement reussi. Stock mis a jour.', 'ناجح الدفع. تم تحديث المخزون.'), 'success');
         setView('confirmation');
       } catch (error: any) {
         console.error('Stripe confirm-session failed:', {
@@ -725,7 +728,7 @@ export default function ArtisanMarketplace() {
         {renderGlobalOverlay()}
 
         <Button variant="outline" onClick={() => setView('products')} className="rounded-xl border-2">
-          <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Products
+          <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Products', 'Retour aux produits', 'العودة للمنتجات')}
         </Button>
 
         <div className="grid lg:grid-cols-2 gap-8">
@@ -747,14 +750,14 @@ export default function ArtisanMarketplace() {
                       <FileText size={24} className="text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-blue-900 text-sm">Technical Sheet Available</p>
-                      <p className="text-blue-600 text-xs mt-0.5">PDF document from manufacturer</p>
+                      <p className="font-semibold text-blue-900 text-sm">{tr('Technical Sheet Available', 'Fiche technique disponible', 'الورقة الفنية متاحة')}</p>
+                      <p className="text-blue-600 text-xs mt-0.5">{tr('PDF document from manufacturer', 'Édocument PDF du fabricant', 'وثيقة PDF من المصنع')}</p>
                     </div>
                     <Button
                       className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold flex-shrink-0"
                       onClick={() => window.open(pdfUrl, '_blank')}
                     >
-                      <ExternalLink size={15} className="mr-1.5" /> Open
+                      <ExternalLink size={15} className="mr-1.5" /> {tr('Open', 'Ouvrir', 'فتح')}
                     </Button>
                   </div>
                 </Card>
@@ -781,10 +784,10 @@ export default function ArtisanMarketplace() {
                       <Star key={star} size={20} fill={star <= displayedAverage ? "currentColor" : "none"} className="text-yellow-400" />
                     ))}
                   </div>
-                  <span className="text-muted-foreground">({displayedReviews} reviews)</span>
+                  <span className="text-muted-foreground">({displayedReviews} {tr('reviews', 'avis', 'تقييمات')})</span>
                 </div>
                 <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
-                  <span className="text-sm text-muted-foreground mr-2">Rate this product:</span>
+                  <span className="text-sm text-muted-foreground mr-2">{tr('Rate this product:', 'Noter ce produit :', 'قيّم هذا المنتج:')}</span>
                   {Array.from({ length: maxStars }, (_, i) => i + 1).map((star) => (
                     <Star
                       key={star}
@@ -809,28 +812,28 @@ export default function ArtisanMarketplace() {
                     onClick={() => submitRating(userRating)}
                   >
                     {isCurrentProductAlreadyRated
-                      ? 'Already rated'
+                      ? tr('Already rated', 'Deja note', 'تم تقييمه بالفعل')
                       : isSubmittingRating
-                        ? 'Sending...'
-                        : 'Submit rating'}
+                        ? tr('Sending...', 'Envoi...', 'جاري الإرسال...')
+                        : tr('Submit rating', 'Envoyer la note', 'إرسال التقييم')}
                   </Button>
                   {canPreviewAverage && (
-                    <p className="text-xs text-muted-foreground">Preview average based on your selected stars.</p>
+                    <p className="text-xs text-muted-foreground">{tr('Preview average based on your selected stars.', 'Apercu de la moyenne selon vos etoiles selectionnees.', 'معاينة المتوسط بناءً على النجوم المختارة.')}</p>
                   )}
                 </div>
               </div>
 
-              <p className="text-muted-foreground mb-6 leading-relaxed">{selectedProduct.description || 'No description available for this product.'}</p>
+              <p className="text-muted-foreground mb-6 leading-relaxed">{selectedProduct.description || tr('No description available for this product.', 'Aucune description disponible pour ce produit.', 'لا توجد وصف متاح لهذا المنتج.')}</p>
 
               <div className="flex items-center justify-between p-4 rounded-xl border-2 border-primary/10 mb-6">
-                <span className="text-lg font-medium text-muted-foreground">Price:</span>
+                <span className="text-lg font-medium text-muted-foreground">{tr('Price:', 'Prix :', 'السعر:')}</span>
                 <span className="text-3xl font-bold text-primary">{selectedProduct.price.toLocaleString()} TND</span>
               </div>
 
               <div className="flex items-center justify-between mb-6">
-                <span className="text-muted-foreground">Stock Availability:</span>
+                <span className="text-muted-foreground">{tr('Stock Availability:', 'Disponibilite du stock :', 'توفر المخزون:')}</span>
                 <span className={`font-semibold px-3 py-1 rounded-full ${selectedProduct.stock > 10 ? 'bg-green-100 text-green-700' : selectedProduct.stock > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                  {selectedProduct.stock > 0 ? `${selectedProduct.stock} units available` : 'Out of stock'}
+                  {selectedProduct.stock > 0 ? `${selectedProduct.stock} ${tr('units available', 'unites disponibles', 'وحدات متاحة')}` : tr('Out of stock', 'Rupture de stock', 'رافد مالبخت')}
                 </span>
               </div>
 
@@ -839,7 +842,7 @@ export default function ArtisanMarketplace() {
                 className="w-full h-14 text-lg text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-lg disabled:opacity-50"
                 onClick={() => guard(() => addToCart(selectedProduct))}
               >
-                <ShoppingCart size={20} className="mr-2" /> {projectId ? 'Add to Project' : 'Add to Cart'}
+                <ShoppingCart size={20} className="mr-2" /> {projectId ? tr('Add to Project', 'Ajouter au projet', 'إضافة إلى المشروع') : tr('Add to Cart', 'Ajouter au panier', 'إضافة إلى السلة')}
               </Button>
             </Card>
           </div>
@@ -859,7 +862,7 @@ export default function ArtisanMarketplace() {
         setIsCheckoutLoading(true);
         const token = getToken();
         if (!token) {
-          showToast('Session expired. Please sign in again.', 'error');
+          showToast(tr('Session expired. Please sign in again.', 'Session expiree. Veuillez vous reconnecter.'), 'error');
           return;
         }
 
@@ -901,7 +904,7 @@ export default function ArtisanMarketplace() {
         const sessionId = String(response?.data?.sessionId || '').trim();
         const checkoutUrl = response?.data?.url;
         if (!checkoutUrl) {
-          showToast('Unable to initialize Stripe checkout.', 'error');
+          showToast(tr('Unable to initialize Stripe checkout.', 'Impossible d\'initialiser le paiement Stripe.'), 'error');
           return;
         }
 
@@ -955,12 +958,12 @@ export default function ArtisanMarketplace() {
           <div className="flex items-center justify-center w-24 h-24 rounded-full bg-accent/10 mb-6 mx-auto">
             <Check size={48} className="text-accent" />
           </div>
-          <h2 className="text-4xl font-bold text-foreground mb-4">Order Placed Successfully!</h2>
-          <p className="text-xl text-muted-foreground mb-3">Your order has been confirmed and will be processed soon.</p>
-          <p className="text-sm text-muted-foreground mb-4">You can track your order in <strong>My Orders</strong>.</p>
+          <h2 className="text-4xl font-bold text-foreground mb-4">{tr('Order Placed Successfully!', 'Commande passee avec succes !', 'تم طلب الطلبية بنجاح!')}</h2>
+          <p className="text-xl text-muted-foreground mb-3">{tr('Your order has been confirmed and will be processed soon.', 'Votre commande a ete confirmee et sera traitee bientot.', 'تم تأكيد طلبيتك وسيتم معالجتها قريباً.')}</p>
+          <p className="text-sm text-muted-foreground mb-4">{tr('You can track your order in', 'Vous pouvez suivre votre commande dans', 'يمكنك تتبع طلبيتك في')} <strong>{tr('My Orders', 'Mes commandes', 'طلبياتي')}</strong>.</p>
           <div className="flex gap-3 justify-center">
             <Button onClick={() => { setView('products'); setCart([]); }} className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
-              Continue Shopping
+              {tr('Continue Shopping', 'Continuer les achats', 'متابعة التسوق')}
             </Button>
           </div>
         </Card>
@@ -975,16 +978,16 @@ export default function ArtisanMarketplace() {
     return (
       <div className="space-y-6">
         <Button variant="outline" onClick={() => setView('products')} className="rounded-xl border-2">
-          <ArrowRight size={20} className="mr-2 rotate-180" /> Continue Shopping
+          <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Continue Shopping', 'Continuer les achats', 'متابعة التسوق')}
         </Button>
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-              <h2 className="text-3xl font-bold text-foreground mb-6">Shopping Cart ({cart.length})</h2>
+              <h2 className="text-3xl font-bold text-foreground mb-6">{tr('Shopping Cart', 'Panier', 'سلة التسوق')} ({cart.length})</h2>
               {cart.length === 0 ? (
                 <div className="text-center py-16">
                   <ShoppingCart size={64} className="mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-xl text-muted-foreground">Your cart is empty</p>
+                  <p className="text-xl text-muted-foreground">{tr('Your cart is empty', 'Votre panier est vide', 'سلتك فارغة')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1029,20 +1032,20 @@ export default function ArtisanMarketplace() {
           </div>
           <div>
             <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg sticky top-8">
-              <h3 className="text-xl font-bold text-foreground mb-6">Order Summary</h3>
+              <h3 className="text-xl font-bold text-foreground mb-6">{tr('Order Summary', 'Resume de la commande', 'ملخص الطلب')}</h3>
               <div className="space-y-4 mb-6">
-                <div className="flex justify-between text-muted-foreground"><span>Items</span><span className="font-semibold text-foreground">{totalItems}</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Materials amount</span><span className="font-semibold text-foreground">{itemsSubtotalAmount.toFixed(2)} DT</span></div>
-                <div className="flex justify-between text-muted-foreground text-sm"><span>Shipping</span><span className="text-muted-foreground italic">Calculated at checkout</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>{tr('Items', 'Articles', 'العناصر')}</span><span className="font-semibold text-foreground">{totalItems}</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>{tr('Materials amount', 'Montant des materiaux', 'ما مبلغ المواد')}</span><span className="font-semibold text-foreground">{itemsSubtotalAmount.toFixed(2)} DT</span></div>
+                <div className="flex justify-between text-muted-foreground text-sm"><span>{tr('Shipping', 'Livraison', 'الشحن')}</span><span className="text-muted-foreground italic">{tr('Calculated at checkout', 'Calcule au paiement', 'محسوبة عند الدفع')}</span></div>
                 <div className="pt-4 border-t-2 border-border">
                   <div className="flex justify-between">
-                    <span className="text-lg font-semibold text-foreground">Subtotal</span>
+                    <span className="text-lg font-semibold text-foreground">{tr('Subtotal', 'Sous-total', 'للمجموع')}</span>
                     <span className="text-2xl font-bold text-primary">{itemsSubtotalAmount.toFixed(2)} DT</span>
                   </div>
                 </div>
               </div>
               <Button className="w-full h-12 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-lg" onClick={() => setView('checkout')} disabled={cart.length === 0}>
-                Proceed to Checkout
+                {tr('Proceed to Checkout', 'Passer au paiement', 'المتابعة إلى الدفع')}
               </Button>
             </Card>
           </div>
@@ -1060,12 +1063,12 @@ export default function ArtisanMarketplace() {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">{projectId ? 'Select Materials for Project' : 'Marketplace'}</h1>
-          <p className="text-lg text-muted-foreground">{projectId ? 'Add construction materials directly to your project.' : 'Browse and order construction materials'}</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{projectId ? tr('Select Materials for Project', 'Selectionner des materiaux pour le projet', 'اختر مواد للمشروع') : tr('Marketplace', 'Marketplace', 'سوق البناء')}</h1>
+          <p className="text-lg text-muted-foreground">{projectId ? tr('Add construction materials directly to your project.', 'Ajoutez des materiaux de construction directement a votre projet.', 'أضف مواد بناء مباشرة لمشروعك.') : tr('Browse and order construction materials', 'Parcourez et commandez des materiaux de construction', 'استعرض واطلب مواد البناء')}</p>
         </div>
         {projectId && (
           <Button onClick={() => window.location.href = '/?artisanView=projects'} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-card shadow-sm">
-            <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Projects
+            <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Projects', 'Retour aux projets', 'العودة للمشاريع')}
           </Button>
         )}
       </div>
@@ -1074,10 +1077,10 @@ export default function ArtisanMarketplace() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <Input placeholder="Search materials or tools..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary bg-muted/50" />
+            <Input placeholder={tr('Search materials or tools...', 'Rechercher des materiaux ou outils...', 'ابحث عن مواد أو أدوات...')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary bg-muted/50" />
           </div>
           <Button variant={showFilters ? "default" : "outline"} className={`h-12 px-6 rounded-xl border-2 transition-all ${showFilters ? 'bg-primary dark:bg-blue-600 text-white shadow-md' : 'hover:bg-muted/50'}`} onClick={() => setShowFilters(!showFilters)}>
-            <SlidersHorizontal size={20} className="mr-2" /> Filters
+            <SlidersHorizontal size={20} className="mr-2" /> {tr('Filters', 'Filtres', 'المرشحات')}
           </Button>
         </div>
       </Card>
@@ -1089,18 +1092,18 @@ export default function ArtisanMarketplace() {
             <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg sticky top-8 border-t-4 border-t-primary">
               <div className="flex items-center justify-between mb-6 border-b pb-4">
                 <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <SlidersHorizontal size={20} className="text-primary"/> Filters
+                  <SlidersHorizontal size={20} className="text-primary"/> {tr('Filters', 'Filtres', 'المرشحات')}
                 </h3>
                 <Button variant="ghost" size="sm" onClick={() => { setSelectedCategory('all'); setPriceRange([0, maxPrice]); setSelectedManufacturer('all'); setAvailableOnly(false); }} className="text-muted-foreground hover:text-primary">
-                  Clear All
+                  {tr('Clear All', 'Tout effacer', 'مسح الكل')}
                 </Button>
               </div>
 
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Category</Label>
+                  <Label className="text-sm font-bold text-foreground uppercase tracking-wider">{tr('Category', 'Categorie', 'الفئة')}</Label>
                   <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card transition-colors outline-none cursor-pointer">
-                    {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+                    {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? tr('All Categories', 'Toutes les categories', 'جميع الفئات') : cat}</option>)}
                   </select>
                 </div>
 
@@ -1113,9 +1116,9 @@ export default function ArtisanMarketplace() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-sm font-bold text-foreground uppercase tracking-wider">Manufacturer</Label>
+                  <Label className="text-sm font-bold text-foreground uppercase tracking-wider">{tr('Manufacturer', 'Fabricant', 'المصنع')}</Label>
                   <select value={selectedManufacturer} onChange={(e) => setSelectedManufacturer(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card transition-colors outline-none cursor-pointer">
-                    {manufacturers.map(mfr => <option key={mfr} value={mfr}>{mfr === 'all' ? 'All Manufacturers' : mfr}</option>)}
+                    {manufacturers.map(mfr => <option key={mfr} value={mfr}>{mfr === 'all' ? tr('All Manufacturers', 'Tous les fabricants', 'جميع المصنعين') : mfr}</option>)}
                   </select>
                 </div>
 
@@ -1125,7 +1128,7 @@ export default function ArtisanMarketplace() {
                       {availableOnly && <Check size={14} className="text-white" />}
                     </div>
                     <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} className="hidden" />
-                    <span className="text-sm font-semibold text-foreground select-none">In Stock Only</span>
+                    <span className="text-sm font-semibold text-foreground select-none">{tr('In Stock Only', 'En stock uniquement', 'الموجود ليس العرض فقط')}</span>
                   </label>
                 </div>
               </div>
@@ -1136,12 +1139,12 @@ export default function ArtisanMarketplace() {
         {/* Grille Produits */}
         <div className="flex-1">
           {isLoading ? (
-            <div className="text-center py-20 text-muted-foreground">Loading marketplace...</div>
+            <div className="text-center py-20 text-muted-foreground">{tr('Loading marketplace...', 'Chargement de la marketplace...', 'جاري تحميل سوق...')}</div>
           ) : filteredProducts.length === 0 ? (
             <Card className="p-16 text-center bg-card rounded-2xl border border-border shadow-lg">
               <Package size={64} className="mx-auto mb-4 text-gray-300" />
-              <h3 className="text-xl font-bold text-foreground mb-2">No Products Found</h3>
-              <p className="text-muted-foreground">Try adjusting your filters to find what you need.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">{tr('No Products Found', 'Aucun produit trouve', 'لم يتم العثور على منتجات')}</h3>
+              <p className="text-muted-foreground">{tr('Try adjusting your filters to find what you need.', 'Essayez d\'ajuster vos filtres pour trouver ce dont vous avez besoin.', 'حاول ضبط مرشحاتك بالبحث عما تبحث عنه.')}</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -1169,16 +1172,16 @@ export default function ArtisanMarketplace() {
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border mb-4">
                       <span className="text-2xl font-bold text-primary">{product.price.toLocaleString()} <span className="text-sm">TND</span></span>
                       <span className={`text-xs font-bold px-2 py-1 rounded-md ${product.stock > 10 ? 'bg-green-100 text-green-700' : product.stock > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                        {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+                        {product.stock > 0 ? `${product.stock} ${tr('in stock', 'en stock', 'في المخزون')}` : tr('Out of stock', 'Rupture de stock', 'رافد مالبخت')}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-auto">
                       <Button variant="outline" className="h-11 rounded-xl border-2 hover:bg-muted/50 hover:text-primary transition-colors" onClick={() => { setSelectedProduct(product); setView('detail'); }}>
-                        <Eye size={16} className="mr-1" /> View
+                        <Eye size={16} className="mr-1" /> {tr('View', 'Voir', 'عرض')}
                       </Button>
                       <Button disabled={product.stock === 0} className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors" onClick={() => guard(() => addToCart(product))}>
-                        <ShoppingCart size={16} className="mr-1" /> {projectId ? 'Add to Project' : 'Add'}
+                        <ShoppingCart size={16} className="mr-1" /> {projectId ? tr('Add to Project', 'Ajouter au projet', 'إضافة إلى المشروع') : tr('Add', 'Ajouter', 'إضافة')}
                       </Button>
                     </div>
                   </div>
@@ -1201,9 +1204,9 @@ export default function ArtisanMarketplace() {
               </Button>
 
               <div className="text-xl font-semibold text-foreground">
-                <span className="text-muted-foreground">Page </span>
+                <span className="text-muted-foreground">{tr('Page', 'Page', 'الصفحة')} </span>
                 <span>{safeCurrentPage}</span>
-                <span className="text-muted-foreground"> of </span>
+                <span className="text-muted-foreground"> {tr('of', 'sur', 'من')} </span>
                 <span>{totalPages}</span>
               </div>
 

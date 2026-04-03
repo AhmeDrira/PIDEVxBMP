@@ -10,12 +10,15 @@ import Logo from '../common/Logo';
 import authService from '../../services/authService';
 import { forgotPasswordSchema, ForgotPasswordFormValues } from '../../lib/validations';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface SubAdminForgotPasswordPageProps {
   onBackToLogin: () => void;
 }
 
 export default function SubAdminForgotPasswordPage({ onBackToLogin }: SubAdminForgotPasswordPageProps) {
-  const [loading, setLoading] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [loading, setLoading] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
 
   const { register, handleSubmit, formState: { errors } } = useForm<ForgotPasswordFormValues>({

@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban } from 'lucide-react';
+import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban, X, Upload, CheckCircle } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
+import { useLanguage } from '../../context/LanguageContext';
 
 // Composant d'autocomplétion pour la localisation
 const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates = []  }: {
@@ -116,6 +117,8 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
 };
 
 export default function ArtisanProjects() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   // Vues
   const [view, setView] = useState<'list' | 'create' | 'details' | 'edit' | 'materials'>('list');
   const [selectedProject, setSelectedProject] = useState<any>(null);
@@ -132,6 +135,8 @@ export default function ArtisanProjects() {
   // --- Quantités locales pour la vue matériaux (avant confirmation) ---
   const [localQuantities, setLocalQuantities] = useState<Record<string, number>>({});
   const [confirmingMaterialId, setConfirmingMaterialId] = useState<string | null>(null);
+  const [localPersonalQuantities, setLocalPersonalQuantities] = useState<Record<string, number>>({});
+  const [confirmingPersonalMaterialId, setConfirmingPersonalMaterialId] = useState<string | null>(null);
 
   // --- Redirection depuis marketplace (viewMaterials param) ---
   const [pendingViewMaterialsId, setPendingViewMaterialsId] = useState<string | null>(null);
@@ -161,8 +166,30 @@ export default function ArtisanProjects() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [addingToPortfolio, setAddingToPortfolio] = useState(false);
+  const [showAddMaterialOptions, setShowAddMaterialOptions] = useState(false);
+  const [materialProjectContext, setMaterialProjectContext] = useState<any>(null);
+  const [showPersonalMaterialForm, setShowPersonalMaterialForm] = useState(false);
+  const [isSavingPersonalMaterial, setIsSavingPersonalMaterial] = useState(false);
+  const [selectedPersonalImageFile, setSelectedPersonalImageFile] = useState<File | null>(null);
+  const personalMaterialImageInputRef = useRef<HTMLInputElement>(null);
+  const [personalMaterialForm, setPersonalMaterialForm] = useState({
+    name: '',
+    category: 'Maçonnerie',
+    price: '',
+    stock: '1',
+    description: '',
+  });
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const SERVER_URL = import.meta.env.VITE_SERVER_URL || API_URL.replace(/\/api\/?$/, '') || 'http://localhost:5000';
+
+  const toPublicAssetUrl = (rawPath: string) => {
+    const trimmed = String(rawPath || '').trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    const normalized = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
+    return `${SERVER_URL}/${normalized}`;
+  };
 
   const fetchProjects = async () => {
     try {
@@ -228,8 +255,17 @@ export default function ArtisanProjects() {
         if (id) initial[id] = (initial[id] || 0) + 1;
       });
       setLocalQuantities(initial);
+
+      const personalInitial: Record<string, number> = {};
+      const personalMats = Array.isArray(selectedProject.personalMaterials) ? selectedProject.personalMaterials : [];
+      personalMats.forEach((mat: any, index: number) => {
+        const id = String(mat?._id || `personal-${index}`);
+        const stock = Number(mat?.stock);
+        personalInitial[id] = Number.isFinite(stock) && stock > 0 ? stock : 1;
+      });
+      setLocalPersonalQuantities(personalInitial);
     }
-  }, [view, selectedProject?._id]);
+  }, [view, selectedProject]);
 
   // --- Chargement de la localisation du profil artisan ---
   useEffect(() => {
@@ -376,7 +412,7 @@ export default function ArtisanProjects() {
       );
       setFormData({ title: '', description: '', location: '', budget: '', startDate: '', endDate: '', progress: 0 });
       setLocationSelected(false);
-      toast.success('Project created successfully');
+      toast.success(tr('Project created successfully', 'Projet cree avec succes', 'Project created successfully'));
       setView('list');
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
@@ -531,11 +567,141 @@ export default function ArtisanProjects() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success('Project added to portfolio. You can now enrich it with images and videos in Portfolio.');
+      toast.success(tr('Project added to portfolio. You can now enrich it with images and videos in Portfolio.', 'Projet ajoute au portfolio. Vous pouvez maintenant l\'enrichir avec des images et des videos dans Portfolio.'));
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Unable to add this project to portfolio.');
+      toast.error(error?.response?.data?.message || tr('Unable to add this project to portfolio.', 'Impossible d\'ajouter ce projet au portfolio.'));
     } finally {
       setAddingToPortfolio(false);
+    }
+  };
+
+  const openAddMaterialOptions = (project: any) => {
+    setMaterialProjectContext(project);
+    setShowAddMaterialOptions(true);
+  };
+
+  const handleAddFromMarketplace = () => {
+    if (!materialProjectContext?._id) return;
+    guard(() => { window.location.href = '/?artisanView=marketplace&projectId=' + materialProjectContext._id; });
+    setShowAddMaterialOptions(false);
+  };
+
+  const handleOpenPersonalMaterialForm = () => {
+    if (!materialProjectContext) return;
+    setSelectedProject(materialProjectContext);
+    setView('materials');
+    setShowPersonalMaterialForm(true);
+    setShowAddMaterialOptions(false);
+  };
+
+  const resetPersonalMaterialForm = () => {
+    setPersonalMaterialForm({
+      name: '',
+      category: 'Maçonnerie',
+      price: '',
+      stock: '1',
+      description: '',
+    });
+    setSelectedPersonalImageFile(null);
+  };
+
+  const savePersonalMaterial = async () => {
+    if (!selectedProject?._id) return;
+    if (!personalMaterialForm.name.trim()) {
+      toast.error(tr('Material name is required', 'Le nom du materiau est obligatoire', 'Material name is required'));
+      return;
+    }
+    if (!personalMaterialForm.category.trim()) {
+      toast.error(tr('Category is required', 'La categorie est obligatoire', 'Category is required'));
+      return;
+    }
+
+    const parsedPrice = Number(personalMaterialForm.price);
+    const parsedStock = Math.max(1, Number(personalMaterialForm.stock || 1));
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      toast.error(tr('Price must be a valid non-negative number', 'Le prix doit etre un nombre valide non negatif', 'Price must be a valid non-negative number'));
+      return;
+    }
+
+    try {
+      setIsSavingPersonalMaterial(true);
+      const token = getToken();
+      const existing = Array.isArray(selectedProject.personalMaterials) ? selectedProject.personalMaterials : [];
+      const newPersonalMaterial = {
+        name: personalMaterialForm.name.trim(),
+        category: personalMaterialForm.category.trim(),
+        price: parsedPrice,
+        stock: parsedStock,
+        image: '',
+        description: personalMaterialForm.description.trim(),
+      };
+
+      const res = await axios.put(
+        `${API_URL}/projects/${selectedProject._id}`,
+        { personalMaterials: [...existing, newPersonalMaterial] },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      let latestProject = res.data;
+
+      if (selectedPersonalImageFile) {
+        const createdMaterials = Array.isArray(res.data?.personalMaterials)
+          ? res.data.personalMaterials
+          : [];
+        const createdMaterial = createdMaterials[createdMaterials.length - 1];
+        const createdMaterialId = createdMaterial?._id;
+
+        if (createdMaterialId) {
+          const imageFormData = new FormData();
+          imageFormData.append('document', selectedPersonalImageFile);
+
+          const uploadRes = await axios.post(
+            `${API_URL}/projects/${selectedProject._id}/personal-materials/${createdMaterialId}/image`,
+            imageFormData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data',
+              },
+            }
+          );
+
+          if (uploadRes.data?.project) {
+            latestProject = uploadRes.data.project;
+          }
+        }
+      }
+
+      setSelectedProject(latestProject);
+      await fetchProjects();
+      resetPersonalMaterialForm();
+      setShowPersonalMaterialForm(false);
+      toast.success(tr('Personal material added successfully', 'Materiau personnel ajoute avec succes', 'Personal material added successfully'));
+    } catch (error) {
+      console.error('Failed to save personal material', error);
+      toast.error(tr('Error saving personal material', 'Erreur lors de l\'enregistrement du materiau personnel'));
+    } finally {
+      setIsSavingPersonalMaterial(false);
+    }
+  };
+
+  const removePersonalMaterial = async (materialId: string) => {
+    if (!selectedProject?._id) return;
+    try {
+      const token = getToken();
+      const existing = Array.isArray(selectedProject.personalMaterials) ? selectedProject.personalMaterials : [];
+      const updated = existing.filter((mat: any) => String(mat._id || '') !== String(materialId));
+      const res = await axios.put(
+        `${API_URL}/projects/${selectedProject._id}`,
+        { personalMaterials: updated },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedProject(res.data);
+      await fetchProjects();
+      toast.success(tr('Personal material removed', 'Materiau personnel supprime', 'Personal material removed'));
+    } catch (error) {
+      console.error('Failed to remove personal material', error);
+      toast.error(tr('Error removing personal material', 'Erreur lors de la suppression du materiau personnel', 'Error removing personal material'));
     }
   };
 
@@ -879,7 +1045,7 @@ export default function ArtisanProjects() {
     return (
       <div className="space-y-6">
         <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2">
-          <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Projects
+          <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Projects', 'Retour aux projets', 'Back to Projects')}
         </Button>
         <div className="grid lg:grid-cols-1 gap-6">
           <div className="space-y-6">
@@ -913,7 +1079,7 @@ export default function ArtisanProjects() {
 
                 <div className="pt-6 border-t-2 border-border">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold text-foreground">Project Progress</h4>
+                    <h4 className="text-lg font-semibold text-foreground">{tr('Project Progress', 'Progression du projet', 'Project Progress')}</h4>
                     <span className="text-4xl font-bold text-primary">{progress}%</span>
                   </div>
                   <div className="h-4 rounded-full overflow-hidden bg-gray-200">
@@ -927,7 +1093,7 @@ export default function ArtisanProjects() {
                     <Input
                       value={newTaskTitle}
                       onChange={(e) => setNewTaskTitle(e.target.value)}
-                      placeholder="Add a new task..."
+                      placeholder={tr('Add a new task...', 'Ajouter une nouvelle tache...', 'Add a new task...')}
                       className="h-11 rounded-xl border-2 border-border"
                     />
                     <Button
@@ -943,7 +1109,7 @@ export default function ArtisanProjects() {
                   <div className="space-y-3">
                     <h5 className="font-semibold text-foreground">To Do</h5>
                     {todoTasks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No tasks in To Do.</p>
+                      <p className="text-sm text-muted-foreground">{tr('No tasks in To Do.', 'Aucune tache a faire.', 'No tasks in To Do.')}</p>
                     ) : (
                       todoTasks.map((task) => (
                         <div key={task._id} className="p-4 rounded-xl border border-border bg-muted/50">
@@ -1003,7 +1169,7 @@ export default function ArtisanProjects() {
                   <div className="space-y-3">
                     <h5 className="font-semibold text-foreground">Done</h5>
                     {doneTasks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No completed tasks yet.</p>
+                      <p className="text-sm text-muted-foreground">{tr('No completed tasks yet.', 'Aucune tache terminee pour le moment.', 'No completed tasks yet.')}</p>
                     ) : (
                       doneTasks.map((task) => (
                         <div key={task._id} className="p-4 rounded-xl border border-green-200 bg-green-50/50">
@@ -1067,6 +1233,7 @@ export default function ArtisanProjects() {
     const selectedProjectProgress = getProjectProgress(selectedProject);
     const isSelectedProjectCompleted = selectedProjectProgress >= 100;
     const materialsList = Array.isArray(selectedProject.materials) ? selectedProject.materials : [];
+    const personalMaterialsList = Array.isArray(selectedProject.personalMaterials) ? selectedProject.personalMaterials : [];
     const groupedMaterials = Object.values(
       materialsList.reduce((acc: Record<string, { item: any; quantity: number }>, mat: any) => {
         const matId = String((mat && (mat._id || mat)) || '');
@@ -1078,16 +1245,6 @@ export default function ArtisanProjects() {
         return acc;
       }, {})
     );
-
-    const buildMaterialLookup = () => {
-      const map: Record<string, any> = {};
-      const source = Array.isArray(selectedProject.materials) ? selectedProject.materials : [];
-      source.forEach((mat: any) => {
-        const id = String((mat && (mat._id || mat)) || '');
-        if (id) map[id] = mat;
-      });
-      return map;
-    };
 
     // +/- local uniquement (sans appel API)
     const handleAdjustLocalQuantity = (materialId: string, delta: number) => {
@@ -1142,12 +1299,50 @@ export default function ArtisanProjects() {
         setLocalQuantities(newLocal);
 
         await fetchProjects();
-        toast.success('Quantity confirmed!');
+        toast.success(tr('Quantity confirmed!', 'Quantite confirmee !', 'Quantity confirmed!'));
       } catch (err) {
         console.error('Failed to confirm quantity', err);
-        toast.error('Error saving quantity');
+        toast.error(tr('Error saving quantity', 'Erreur lors de l\'enregistrement de la quantite'));
       } finally {
         setConfirmingMaterialId(null);
+      }
+    };
+
+    const handleAdjustPersonalLocalQuantity = (materialId: string, delta: number) => {
+      const material = personalMaterialsList.find((m: any, idx: number) => String(m?._id || `personal-${idx}`) === materialId);
+      const savedQty = Number(material?.stock);
+      const currentCount = localPersonalQuantities[materialId] ?? (Number.isFinite(savedQty) && savedQty > 0 ? savedQty : 1);
+      if (delta < 0 && currentCount <= 1) return;
+      setLocalPersonalQuantities((prev) => ({ ...prev, [materialId]: currentCount + delta }));
+    };
+
+    const confirmPersonalMaterialQuantity = async (materialId: string) => {
+      if (!selectedProject?._id) return;
+      try {
+        setConfirmingPersonalMaterialId(materialId);
+        const token = getToken();
+        const existing = Array.isArray(selectedProject.personalMaterials) ? selectedProject.personalMaterials : [];
+        const updatedPersonalMaterials = existing.map((mat: any, idx: number) => {
+          const id = String(mat?._id || `personal-${idx}`);
+          if (id !== materialId) return mat;
+          const newQty = Math.max(1, Number(localPersonalQuantities[materialId] ?? mat?.stock ?? 1));
+          return { ...mat, stock: newQty };
+        });
+
+        const res = await axios.put(
+          `${API_URL}/projects/${selectedProject._id}`,
+          { personalMaterials: updatedPersonalMaterials },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setSelectedProject(res.data);
+        await fetchProjects();
+        toast.success(tr('Quantity saved!', 'Quantite enregistree !', 'Quantity saved!'));
+      } catch (error) {
+        console.error('Failed to save personal material quantity', error);
+        toast.error(tr('Error saving quantity', 'Erreur lors de l\'enregistrement de la quantite'));
+      } finally {
+        setConfirmingPersonalMaterialId(null);
       }
     };
 
@@ -1155,20 +1350,158 @@ export default function ArtisanProjects() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2">
-            <ArrowRight size={20} className="mr-2 rotate-180" /> Back to Projects
+            <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Projects', 'Retour aux projets', 'Back to Projects')}
           </Button>
-          <h2 className="text-2xl font-bold">Materials for {selectedProject.title}</h2>
+          <h2 className="text-2xl font-bold">{tr('Materials for', 'Materiaux pour', 'Materials for')} {selectedProject.title}</h2>
           {!isSelectedProjectCompleted ? (
-            <Button onClick={() => guard(() => { window.location.href = '/?artisanView=marketplace&projectId=' + selectedProject._id; })} className="rounded-xl bg-secondary hover:bg-secondary/90 text-white">
-              <ShoppingCart size={20} className="mr-2" /> Add More
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => guard(() => { window.location.href = '/?artisanView=marketplace&projectId=' + selectedProject._id; })}
+                className="rounded-xl bg-secondary hover:bg-secondary/90 text-white"
+              >
+                <ShoppingCart size={20} className="mr-2" /> From Marketplace
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowPersonalMaterialForm((prev) => !prev)}
+                className="rounded-xl border-2"
+              >
+                <Plus size={16} className="mr-2" /> Personal Material
+              </Button>
+            </div>
           ) : (
             <span className="text-sm font-semibold px-3 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
               Project completed
             </span>
           )}
         </div>
+
+        {showPersonalMaterialForm && !isSelectedProjectCompleted && (
+          <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
+            <h3 className="text-2xl font-bold text-foreground mb-6">Add Personal Material</h3>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label className="font-semibold text-foreground">Product Name</Label>
+                <Input
+                  value={personalMaterialForm.name}
+                  onChange={(e) => setPersonalMaterialForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="h-12 rounded-xl border-2 border-border"
+                  placeholder="Enter material name"
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="font-semibold text-foreground">Category</Label>
+                  <select
+                    value={personalMaterialForm.category}
+                    onChange={(e) => setPersonalMaterialForm((prev) => ({ ...prev, category: e.target.value }))}
+                    className="w-full h-12 px-4 border-2 border-border rounded-xl bg-card outline-none"
+                  >
+                    <option value="Maçonnerie">Maçonnerie</option>
+                    <option value="Béton & Ciment">Béton & Ciment</option>
+                    <option value="Ferraillage">Ferraillage</option>
+                    <option value="Électricité">Électricité</option>
+                    <option value="Plomberie">Plomberie</option>
+                    <option value="Menuiserie">Menuiserie</option>
+                    <option value="Outillage">Outillage</option>
+                    <option value="EPI">EPI (Sécurité)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-semibold text-foreground">Price (TND)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={personalMaterialForm.price}
+                    onChange={(e) => setPersonalMaterialForm((prev) => ({ ...prev, price: e.target.value }))}
+                    className="h-12 rounded-xl border-2 border-border"
+                    placeholder="0.000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="font-semibold text-foreground">Stock (Units)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={personalMaterialForm.stock}
+                    onChange={(e) => setPersonalMaterialForm((prev) => ({ ...prev, stock: e.target.value }))}
+                    className="h-12 rounded-xl border-2 border-border"
+                    placeholder="e.g. 10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-semibold text-foreground">Image (JPG, PNG)</Label>
+                  <div
+                    onClick={() => personalMaterialImageInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-6 h-32 flex flex-col items-center justify-center cursor-pointer transition-colors ${selectedPersonalImageFile ? 'border-green-500 bg-green-50' : 'border-border hover:border-primary hover:bg-muted/50'}`}
+                  >
+                    {selectedPersonalImageFile ? (
+                      <>
+                        <CheckCircle size={32} className="text-green-500 mb-2" />
+                        <p className="text-xs text-green-700 font-medium truncate max-w-full">{selectedPersonalImageFile.name}</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={32} className="text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">Click to upload photo</p>
+                      </>
+                    )}
+                    <input
+                      ref={personalMaterialImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setSelectedPersonalImageFile(file);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-semibold text-foreground">Description (Optional)</Label>
+                <Textarea
+                  rows={4}
+                  value={personalMaterialForm.description}
+                  onChange={(e) => setPersonalMaterialForm((prev) => ({ ...prev, description: e.target.value }))}
+                  className="rounded-xl border-2 border-border"
+                  placeholder="Material details, dimensions, usage..."
+                />
+              </div>
+
+              <div className="flex gap-4 pt-2 border-t border-border">
+                <Button
+                  onClick={savePersonalMaterial}
+                  disabled={isSavingPersonalMaterial}
+                  className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg"
+                >
+                  {isSavingPersonalMaterial ? 'Saving...' : 'Save Material'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowPersonalMaterialForm(false);
+                    resetPersonalMaterialForm();
+                  }}
+                  className="h-12 px-8 rounded-xl border-2"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
+          <h3 className="text-xl font-bold mb-4">Marketplace Materials</h3>
           {groupedMaterials.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No materials added to this project yet.</p>
           ) : (
@@ -1240,11 +1573,90 @@ export default function ArtisanProjects() {
                         const res = await axios.put(`${API_URL}/projects/${selectedProject._id}`, { materials: updatedMaterials }, { headers: { Authorization: `Bearer ${token}` } });
                         setSelectedProject(res.data);
                         await fetchProjects();
-                      } catch (err) { console.error('Failed to remove', err); toast.error('Error removing material'); }
+                      } catch (err) { console.error('Failed to remove', err); toast.error(tr('Error removing material', 'Erreur lors de la suppression du materiau', 'Error removing material')); }
                     }}>🗑 Remove</Button>
                   </div>
                 </div>
               )})}
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
+          <h3 className="text-xl font-bold mb-4">Personal Materials</h3>
+          {personalMaterialsList.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No personal materials yet.</p>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {personalMaterialsList.map((material: any, idx: number) => (
+                <div key={material._id || `personal-${idx}`} className="border p-5 rounded-2xl flex flex-col gap-3 hover:shadow-md transition-shadow">
+                  {material.image ? (
+                    <img src={toPublicAssetUrl(material.image)} alt={material.name} className="w-full h-32 object-cover rounded-xl" />
+                  ) : (
+                    <div className="w-full h-32 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-sm">No image</div>
+                  )}
+                  <p className="font-bold text-base truncate">{material.name || 'Material'}</p>
+                  <p className="text-sm text-primary font-semibold">{Number(material.price || 0).toFixed(3)} TND</p>
+                  <p className="text-xs text-muted-foreground">Category: {material.category || 'N/A'}</p>
+                  {(() => {
+                    const materialId = String(material._id || `personal-${idx}`);
+                    const savedQtyRaw = Number(material.stock);
+                    const savedQty = Number.isFinite(savedQtyRaw) && savedQtyRaw > 0 ? savedQtyRaw : 1;
+                    const draftQty = localPersonalQuantities[materialId] ?? savedQty;
+                    const hasQtyChange = draftQty !== savedQty;
+
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">Qty:</span>
+                          <div className="flex items-center gap-1 rounded-xl border-2 border-border overflow-hidden">
+                            <button
+                              type="button"
+                              className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors disabled:opacity-40"
+                              disabled={draftQty <= 1}
+                              onClick={() => handleAdjustPersonalLocalQuantity(materialId, -1)}
+                            >
+                              −
+                            </button>
+                            <div className="min-w-[32px] text-center font-bold text-sm">{draftQty}</div>
+                            <button
+                              type="button"
+                              className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors"
+                              onClick={() => handleAdjustPersonalLocalQuantity(materialId, 1)}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Saved: {savedQty} unit{savedQty > 1 ? 's' : ''} · Total: {(Number(material.price || 0) * savedQty).toFixed(2)} TND
+                        </p>
+                        <button
+                          type="button"
+                          disabled={confirmingPersonalMaterialId === materialId || !hasQtyChange}
+                          onClick={() => confirmPersonalMaterialQuantity(materialId)}
+                          className="w-full rounded-xl py-2 text-sm font-semibold border border-emerald-600 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                          style={{ backgroundColor: hasQtyChange ? '#10b981' : 'rgba(16,185,129,0.15)', color: hasQtyChange ? 'white' : '#065f46' }}
+                        >
+                          {confirmingPersonalMaterialId === materialId ? 'Saving…' : hasQtyChange ? '✓ Confirm Qty' : '✓ Saved'}
+                        </button>
+                      </>
+                    );
+                  })()}
+                  {material.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-3">{material.description}</p>
+                  )}
+                  {!isSelectedProjectCompleted && (
+                    <Button
+                      variant="outline"
+                      onClick={() => removePersonalMaterial(String(material._id || ''))}
+                      className="rounded-xl text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </Card>
@@ -1260,10 +1672,10 @@ export default function ArtisanProjects() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="text-lg text-muted-foreground">Manage and track all your construction projects</p>
+          <p className="text-lg text-muted-foreground">{tr('Manage and track all your construction projects', 'Gerez et suivez tous vos projets de construction', 'Manage and track all your construction projects')}</p>
         </div>
         <Button onClick={() => guard(handleCreateView)} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
-          <Plus size={20} className="mr-2" /> Create Project
+          <Plus size={20} className="mr-2" /> {tr('Create Project', 'Creer un projet', 'Create Project')}
         </Button>
       </div>
 
@@ -1272,7 +1684,7 @@ export default function ArtisanProjects() {
           <div className="flex-1 h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2">
             <Search className="text-muted-foreground shrink-0" size={18} />
             <Input
-              placeholder="Search projects..."
+              placeholder={tr('Search projects...', 'Rechercher des projets...', 'Search projects...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-full px-0"
@@ -1287,7 +1699,7 @@ export default function ArtisanProjects() {
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >
-                <option value="all">All Status</option>
+                <option value="all">{tr('All Status', 'Tous les statuts', 'All Status')}</option>
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
@@ -1300,7 +1712,7 @@ export default function ArtisanProjects() {
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >
-                <option value="all">All Priority</option>
+                <option value="all">{tr('All Priority', 'Toutes les priorites', 'All Priority')}</option>
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
@@ -1316,7 +1728,7 @@ export default function ArtisanProjects() {
         <div className="text-center py-10 bg-card rounded-2xl border border-border shadow-lg border border-border">
           <FolderKanban className="mx-auto text-gray-300 mb-4" size={48} />
           <p className="text-xl font-semibold text-muted-foreground">No projects found.</p>
-          <p className="text-muted-foreground mt-2">Click "Create Project" to get started!</p>
+          <p className="text-muted-foreground mt-2">{tr('Click "Create Project" to get started!', 'Cliquez sur "Creer un projet" pour commencer !', 'Click "Create Project" to get started!')}</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
@@ -1383,22 +1795,23 @@ export default function ArtisanProjects() {
 
                 <div className="space-y-2 mb-4">
                   {!isProjectCompleted && (
-                    <Button onClick={() => guard(() => { window.location.href = '/?artisanView=marketplace&projectId=' + project._id; })} className="w-full h-10 justify-start text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md">
-                      <ShoppingCart size={16} className="mr-2" /> Add Material
+                    <Button onClick={() => guard(() => openAddMaterialOptions(project))} className="w-full h-10 justify-start text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md">
+                      <ShoppingCart size={16} className="mr-2" /> {tr('Add Material', 'Ajouter un materiau', 'Add Material')}
                     </Button>
                   )}
-                  {project.materials && project.materials.length > 0 && (
+                  {(Array.isArray(project.materials) && project.materials.length > 0)
+                    || (Array.isArray(project.personalMaterials) && project.personalMaterials.length > 0) ? (
                     <Button onClick={() => guard(() => { setSelectedProject(project); setView('materials'); })} className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md">
-                      <FolderKanban size={16} className="mr-2" /> View Materials
+                      <FolderKanban size={16} className="mr-2" /> {tr('View Materials', 'Voir les materiaux', 'View Materials')}
                     </Button>
-                  )}
+                  ) : null}
                   <Button
                     className="w-full h-10 justify-start text-white bg-accent hover:bg-accent/90 rounded-xl shadow-md"
                     onClick={() => guard(() => {
                       window.location.href = '/?artisanView=quotes&projectId=' + project._id;
                     })}
                   >
-                    <FileText size={16} className="mr-2" /> Create Quote
+                    <FileText size={16} className="mr-2" /> {tr('Create Quote', 'Creer un devis', 'Create Quote')}
                   </Button>
                   <Button
                     className="w-full h-10 justify-start text-white bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 rounded-xl shadow-md"
@@ -1406,7 +1819,7 @@ export default function ArtisanProjects() {
                       // Generate Invoice action
                     })}
                   >
-                    <Receipt size={16} className="mr-2" /> Generate Invoice
+                    <Receipt size={16} className="mr-2" /> {tr('Generate Invoice', 'Generer une facture', 'إنشاء فاتورة')}
                   </Button>
                 </div>
 
@@ -1435,7 +1848,94 @@ export default function ArtisanProjects() {
           })}
         </div>
       )}
+
+      {showAddMaterialOptions && materialProjectContext && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+          onClick={() => {
+            setShowAddMaterialOptions(false);
+            setMaterialProjectContext(null);
+          }}
+        >
+          <Card
+            className="w-full max-w-xl rounded-2xl border border-border shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+          >
+            <div className="h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
+            <div className="p-6 md:p-7">
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-foreground mb-1">{tr('Add Materials', 'Ajouter des materiaux', 'Add Materials')}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {tr('Choose how you want to add materials to', 'Choisissez comment ajouter des materiaux a', 'Choose how you want to add materials to')} <span className="font-semibold text-foreground">{materialProjectContext.title}</span>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="h-9 w-9 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center justify-center"
+                  onClick={() => {
+                    setShowAddMaterialOptions(false);
+                    setMaterialProjectContext(null);
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="grid gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={handleAddFromMarketplace}
+                  className="w-full text-left rounded-2xl border border-secondary/30 bg-secondary/10 hover:bg-secondary/15 transition-colors p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-secondary text-white flex items-center justify-center shrink-0">
+                      <ShoppingCart size={18} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Add From Marketplace</p>
+                      <p className="text-xs text-muted-foreground mt-1">Browse products, choose quantity, and attach them to this project.</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenPersonalMaterialForm}
+                  className="w-full text-left rounded-2xl border border-primary/30 bg-primary/10 hover:bg-primary/15 transition-colors p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary text-white flex items-center justify-center shrink-0">
+                      <Plus size={18} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Add Personal Material</p>
+                      <p className="text-xs text-muted-foreground mt-1">Create your own material with custom price, quantity, image, and description.</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddMaterialOptions(false);
+                    setMaterialProjectContext(null);
+                  }}
+                  className="flex-1 h-11 rounded-xl border-2"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
       {PopupElement}
     </div>
   );
 }
+

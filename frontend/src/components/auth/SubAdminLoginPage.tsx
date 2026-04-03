@@ -11,13 +11,16 @@ import authService from '../../services/authService';
 import { toast } from 'sonner';
 import { loginSchema, LoginFormValues } from '../../lib/validations';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface SubAdminLoginPageProps {
   onLogin: (role: 'admin') => void;
   onForgotPassword: () => void;
 }
 
 export default function SubAdminLoginPage({ onLogin, onForgotPassword }: SubAdminLoginPageProps) {
-  const [isLoading, setIsLoading] = useState(false);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isLoading, setIsLoading] = useState(false);
   const {
     register,
     handleSubmit,

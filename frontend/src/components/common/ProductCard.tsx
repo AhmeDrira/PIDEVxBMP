@@ -5,6 +5,7 @@ import { ShoppingCart, Star } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ProductCardProps {
   id: number;
   name: string;
@@ -21,6 +22,8 @@ interface ProductCardProps {
 export default function ProductCard({ 
   id, name, category, price, manufacturer, stock, image, rating, onAddToCart, onViewDetails 
 }: ProductCardProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   return (
     <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
       <div className="relative mb-4 aspect-square rounded-xl overflow-hidden bg-muted">

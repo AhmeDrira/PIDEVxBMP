@@ -9,6 +9,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
+import { useLanguage } from '../../context/LanguageContext';
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIconRetina,
@@ -69,7 +70,9 @@ interface LocationMapPickerProps {
 }
 
 export function LocationMapPicker({ value, onChange, height = 320 }: LocationMapPickerProps) {
-  const [position, setPosition] = useState<[number, number] | null>(null);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [position, setPosition] = useState<[number, number] | null>(null);
   const [isResolving, setIsResolving] = useState(false);
 
   const handlePick = async (lat: number, lng: number) => {

@@ -6,6 +6,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface EditProductProps {
   productId: number;
   onBack: () => void;
@@ -13,7 +14,9 @@ interface EditProductProps {
 }
 
 export default function EditProduct({ productId, onBack, onSave }: EditProductProps) {
-  const [formData, setFormData] = useState({
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [formData, setFormData] = useState({
     name: 'Premium Cement - 50kg',
     category: 'Building Materials',
     price: 45,

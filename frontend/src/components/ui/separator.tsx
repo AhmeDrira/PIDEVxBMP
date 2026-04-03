@@ -5,6 +5,7 @@ import * as SeparatorPrimitive from "@radix-ui/react-separator@1.1.2";
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Separator({
   className,
   orientation = "horizontal",

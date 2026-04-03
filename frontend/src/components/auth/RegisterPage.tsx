@@ -3,6 +3,7 @@ import RegisterLeftSection from './RegisterLeftSection';
 import RegisterRoleSelection from './RegisterRoleSelection';
 import RegisterForm from './RegisterForm';
 
+import { useLanguage } from '../../context/LanguageContext';
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin';
 
 interface RegisterPageProps {
@@ -11,7 +12,9 @@ interface RegisterPageProps {
 }
 
 export default function RegisterPage({ onRegister, onBackToLogin }: RegisterPageProps) {
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);

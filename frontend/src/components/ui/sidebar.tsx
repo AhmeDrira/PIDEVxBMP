@@ -19,7 +19,8 @@ import {
 } from "./sheet";
 import { Skeleton } from "./skeleton";
 import {
-  Tooltip,
+
+import { useLanguage } from '../../context/LanguageContext';  Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   ArrowRight,
@@ -30,6 +30,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import ProfileCompletionBanner from '../common/ProfileCompletionBanner';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ArtisanHomeProps {
   onNavigate: (view: string, projectId?: string) => void;
@@ -100,23 +101,24 @@ const parseDate = (value?: string) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const getTimeAgo = (date: Date) => {
+const getTimeAgo = (date: Date, language: string) => {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  const isFr = language === 'fr';
   const years = Math.floor(seconds / 31536000);
-  if (years > 0) return `${years} year${years > 1 ? 's' : ''} ago`;
+  if (years > 0) return isFr ? `Il y a ${years} an${years > 1 ? 's' : ''}` : `${years} year${years > 1 ? 's' : ''} ago`;
   const months = Math.floor(seconds / 2592000);
-  if (months > 0) return `${months} month${months > 1 ? 's' : ''} ago`;
+  if (months > 0) return isFr ? `Il y a ${months} mois` : `${months} month${months > 1 ? 's' : ''} ago`;
   const days = Math.floor(seconds / 86400);
-  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+  if (days > 0) return isFr ? `Il y a ${days} jour${days > 1 ? 's' : ''}` : `${days} day${days > 1 ? 's' : ''} ago`;
   const hours = Math.floor(seconds / 3600);
-  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  if (hours > 0) return isFr ? `Il y a ${hours} heure${hours > 1 ? 's' : ''}` : `${hours} hour${hours > 1 ? 's' : ''} ago`;
   const minutes = Math.floor(seconds / 60);
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  return 'Just now';
+  if (minutes > 0) return isFr ? `Il y a ${minutes} minute${minutes > 1 ? 's' : ''}` : `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  return isFr ? 'À l’instant' : 'Just now';
 };
 
-const monthLabel = (date: Date) =>
-  date.toLocaleString('en-US', { month: 'short' });
+const monthLabel = (date: Date, language: string) =>
+  date.toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' });
 
 function ChartEmptyState({ message }: { message: string }) {
   return (
@@ -127,6 +129,8 @@ function ChartEmptyState({ message }: { message: string }) {
 }
 
 export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [projects, setProjects] = useState<Project[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -151,7 +155,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       setError(null);
       const token = getToken();
       if (!token) {
-        setError('Session expired. Please login again.');
+        setError(tr('Session expired. Please login again.', 'Session expirée. Veuillez vous reconnecter.', 'Session expired. Please login again.'));
         return;
       }
 
@@ -174,11 +178,11 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       }
     } catch (err) {
       console.error('Erreur chargement dashboard:', err);
-      setError('Unable to load dashboard data.');
+      setError(tr('Unable to load dashboard data.', 'Impossible de charger les données du tableau de bord.', 'Unable to load dashboard data.'));
     } finally {
       if (showLoader) setLoading(false);
     }
-  }, [API_URL]);
+  }, [API_URL, language]);
 
   useEffect(() => {
     fetchAllData(true);
@@ -201,7 +205,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
       return {
         key: `${d.getFullYear()}-${d.getMonth()}`,
-        month: monthLabel(d),
+        month: monthLabel(d, language),
         paid: 0,
         pending: 0,
         total: 0,
@@ -227,7 +231,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     });
 
     return months;
-  }, [invoices]);
+  }, [invoices, language]);
 
   const activitySeries = useMemo(() => {
     const now = new Date();
@@ -235,7 +239,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
       return {
         key: `${d.getFullYear()}-${d.getMonth()}`,
-        month: monthLabel(d),
+        month: monthLabel(d, language),
         projects: 0,
         quotes: 0,
         invoices: 0,
@@ -269,7 +273,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     });
 
     return months;
-  }, [invoices, projects, quotes]);
+  }, [invoices, language, projects, quotes]);
 
   const projectCompletionData = useMemo(() => {
     const activeCount = projects.filter((p) => p.status === 'active' || p.status === 'in-progress').length;
@@ -290,11 +294,11 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       completedThisMonth,
       avgCompletion,
       bars: [
-        { name: 'Active', value: activeCount, color: '#1E40AF' },
-        { name: 'Completed', value: completedThisMonth, color: '#10B981' },
+         { name: tr('Active', 'Actif', 'نشط'), value: activeCount, color: '#1E40AF' },
+         { name: tr('Completed', 'Terminé', 'مكتمل'), value: completedThisMonth, color: '#10B981' },
       ],
     };
-  }, [projects]);
+  }, [projects, language]);
 
   const quoteConversion = useMemo(() => {
     const sent = quotes.length;
@@ -312,19 +316,19 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     const completed = projects.filter((p) => p.status === 'completed').length;
 
     return [
-      { name: 'Active', value: active, color: '#1E40AF' },
-      { name: 'Pending', value: pending, color: '#F59E0B' },
-      { name: 'Completed', value: completed, color: '#10B981' },
+      { name: tr('Active', 'Actif', 'نشط'), value: active, color: '#1E40AF' },
+      { name: tr('Pending', 'En attente', 'قيد الانتظار'), value: pending, color: '#F59E0B' },
+      { name: tr('Completed', 'Terminé', 'مكتمل'), value: completed, color: '#10B981' },
     ];
-  }, [projects]);
+  }, [projects, language]);
 
   const quoteStatusSeries = useMemo(
     () => [
-      { name: 'Accepted', value: quoteConversion.accepted, color: '#10B981' },
-      { name: 'Pending', value: quoteConversion.pending, color: '#F59E0B' },
-      { name: 'Rejected', value: quoteConversion.rejected, color: '#EF4444' },
+      { name: tr('Accepted', 'Accepté', 'مقبول'), value: quoteConversion.accepted, color: '#10B981' },
+      { name: tr('Pending', 'En attente', 'قيد الانتظار'), value: quoteConversion.pending, color: '#F59E0B' },
+      { name: tr('Rejected', 'Rejeté', 'مرفوض'), value: quoteConversion.rejected, color: '#EF4444' },
     ],
-    [quoteConversion.accepted, quoteConversion.pending, quoteConversion.rejected],
+    [quoteConversion.accepted, quoteConversion.pending, quoteConversion.rejected, language],
   );
 
   const paymentDelayData = useMemo(() => {
@@ -362,11 +366,11 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     return {
       avgPaymentDays,
       bars: [
-        { name: 'Paid On Time', value: paidOnTime, color: '#10B981' },
-        { name: 'Late / Overdue', value: paidLate + unpaidLate, color: '#EF4444' },
+        { name: tr('Paid On Time', 'Payée à temps', 'تم الدفع في الوقت المحدد'), value: paidOnTime, color: '#10B981' },
+        { name: tr('Late / Overdue', 'En retard / Échue', 'متأخر/منتهي الصلاحية'), value: paidLate + unpaidLate, color: '#EF4444' },
       ],
     };
-  }, [invoices]);
+  }, [invoices, language]);
 
   const topMaterials = useMemo(() => {
     const materialCount = new Map<string, number>();
@@ -399,35 +403,35 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
 
     return [
       {
-        label: 'Active Projects',
+        label: tr('Active Projects', 'Projets actifs', 'المشاريع النشطة'),
         value: activeProjects,
         icon: <FolderKanban size={28} />,
         color: '#1E40AF',
-        subtitle: `${projects.length} total projects`,
+        subtitle: `${projects.length} ${tr('total projects', 'projets au total', 'إجمالي المشاريع')}`,
       },
       {
-        label: 'Quote Conversion',
+        label: tr('Quote Conversion', 'Conversion des devis', 'تحويل العروض'),
         value: `${quoteConversion.rate}%`,
         icon: <FileText size={28} />,
         color: '#F59E0B',
-        subtitle: `${quoteConversion.accepted}/${quoteConversion.sent || 0} accepted`,
+        subtitle: `${quoteConversion.accepted}/${quoteConversion.sent || 0} ${tr('accepted', 'acceptés', 'مقبول')}`,
       },
       {
-        label: 'Paid Invoices',
+        label: tr('Paid Invoices', 'Factures payées', 'الفواتير المدفوعة'),
         value: paidInvoices,
         icon: <Receipt size={28} />,
         color: '#10B981',
-        subtitle: `${invoices.length} invoices tracked`,
+        subtitle: `${invoices.length} ${tr('invoices tracked', 'factures suivies', 'الفواتير المتتبعة')}`,
       },
       {
-        label: 'Revenue (This Month)',
+        label: tr('Revenue (This Month)', 'Revenus (ce mois)', 'الإيرادات (هذا الشهر)'),
         value: `${Math.round(monthlyRevenue)} TND`,
         icon: <TrendingUp size={28} />,
         color: '#8B5CF6',
-        subtitle: 'Paid + pending invoices',
+        subtitle: tr('Paid + pending invoices', 'Factures payées + en attente', 'الفواتير المدفوعة + المعلقة'),
       },
     ];
-  }, [invoices, projects.length, projectCompletionData.activeCount, quoteConversion.accepted, quoteConversion.rate, quoteConversion.sent]);
+  }, [invoices, projects.length, projectCompletionData.activeCount, quoteConversion.accepted, quoteConversion.rate, quoteConversion.sent, language]);
 
   const keyMetrics = useMemo(() => {
     const avgInvoiceAmount = invoices.length
@@ -436,13 +440,13 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     const overdueInvoices = invoices.filter((invoice) => invoice.status === 'overdue').length;
 
     return [
-      { label: 'Average Completion', value: `${projectCompletionData.avgCompletion}%`, tone: 'Live' },
-      { label: 'Avg Invoice Amount', value: `${avgInvoiceAmount} TND`, tone: 'Live' },
-      { label: 'Pending Quotes', value: `${quoteConversion.pending}`, tone: 'Live' },
-      { label: 'Overdue Invoices', value: `${overdueInvoices}`, tone: 'Monitor' },
-      { label: 'Tracked Materials', value: `${topMaterials.length}`, tone: 'Live' },
+      { label: tr('Average Completion', 'Progression moyenne', 'متوسط الإنجاز'), value: `${projectCompletionData.avgCompletion}%`, tone: 'live' as const },
+      { label: tr('Avg Invoice Amount', 'Montant moyen facture', 'متوسط مبلغ الفاتورة'), value: `${avgInvoiceAmount} TND`, tone: 'live' as const },
+      { label: tr('Pending Quotes', 'Devis en attente', 'العروض المعلقة'), value: `${quoteConversion.pending}`, tone: 'live' as const },
+      { label: tr('Overdue Invoices', 'Factures en retard', 'الفواتير المتأخرة'), value: `${overdueInvoices}`, tone: 'monitor' as const },
+      { label: tr('Tracked Materials', 'Matériaux suivis', 'المواد المتتبعة'), value: `${topMaterials.length}`, tone: 'live' as const },
     ];
-  }, [invoices, projectCompletionData.avgCompletion, quoteConversion.pending, topMaterials.length]);
+  }, [invoices, projectCompletionData.avgCompletion, quoteConversion.pending, topMaterials.length, language]);
 
   const recentProjects = useMemo(() => projects.slice(0, 5), [projects]);
 
@@ -468,7 +472,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       if (created) {
         items.push({
           date: created,
-          text: `Project "${project.title || 'Untitled'}" created`,
+            text: `${tr('Project', 'Projet', 'مشروع')} "${project.title || tr('Untitled', 'Sans titre', 'بدون عنوان')}" ${tr('created', 'créé', 'تم إنشاء')}`,
           icon: <FolderKanban size={18} />,
           color: '#1E40AF',
         });
@@ -479,7 +483,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         if (updated) {
           items.push({
             date: updated,
-            text: `Project "${project.title || 'Untitled'}" reached ${safeNumber(project.progress)}%`,
+            text: `${tr('Project', 'Projet', 'مشروع')} "${project.title || tr('Untitled', 'Sans titre', 'بدون عنوان')}" ${tr('reached', 'a atteint', 'وصل إلى')} ${safeNumber(project.progress)}%`,
             icon: <TrendingUp size={18} />,
             color: '#10B981',
           });
@@ -492,7 +496,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       if (created) {
         items.push({
           date: created,
-          text: `Quote ${quote.quoteNumber || quote._id.slice(-6)} generated`,
+          text: `${tr('Quote', 'Devis', 'عرض سعر')} ${quote.quoteNumber || quote._id.slice(-6)} ${tr('generated', 'généré', 'تم إنشاء')}`,
           icon: <FileText size={18} />,
           color: '#F59E0B',
         });
@@ -502,7 +506,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         if (updated) {
           items.push({
             date: updated,
-            text: `Quote ${quote.quoteNumber || quote._id.slice(-6)} approved`,
+            text: `${tr('Quote', 'Devis', 'عرض سعر')} ${quote.quoteNumber || quote._id.slice(-6)} ${tr('approved', 'approuvé', 'وافق عليه')}`,
             icon: <CheckCircle size={18} />,
             color: '#10B981',
           });
@@ -513,7 +517,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         if (updated) {
           items.push({
             date: updated,
-            text: `Quote ${quote.quoteNumber || quote._id.slice(-6)} rejected`,
+            text: `${tr('Quote', 'Devis', 'عرض سعر')} ${quote.quoteNumber || quote._id.slice(-6)} ${tr('rejected', 'rejeté', 'مرفوض')}`,
             icon: <XCircle size={18} />,
             color: '#EF4444',
           });
@@ -526,7 +530,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       if (created) {
         items.push({
           date: created,
-          text: `Invoice ${invoice.invoiceNumber || invoice._id.slice(-6)} generated for ${invoice.clientName || 'client'}`,
+          text: `${tr('Invoice', 'Facture', 'فاتورة')} ${invoice.invoiceNumber || invoice._id.slice(-6)} ${tr('generated for', 'générée pour', 'تم إنشاء لـ')} ${invoice.clientName || tr('client', 'client', 'عميل')}`,
           icon: <Receipt size={18} />,
           color: '#8B5CF6',
         });
@@ -536,7 +540,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         if (updated) {
           items.push({
             date: updated,
-            text: `Payment received for invoice ${invoice.invoiceNumber || invoice._id.slice(-6)}`,
+            text: `${tr('Payment received for invoice', 'Paiement reçu pour la facture', 'تم استلام الدفع للفاتورة')} ${invoice.invoiceNumber || invoice._id.slice(-6)}`,
             icon: <CheckCircle size={18} />,
             color: '#10B981',
           });
@@ -545,10 +549,10 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     });
 
     return items.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 6);
-  }, [invoices, projects, quotes]);
+  }, [invoices, projects, quotes, language]);
 
   const formatBudget = (budget: number) =>
-    new Intl.NumberFormat('fr-TN', {
+    new Intl.NumberFormat(language === 'fr' ? 'fr-TN' : 'en-US', {
       style: 'currency',
       currency: 'TND',
       maximumFractionDigits: 0,
@@ -561,11 +565,26 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     return 'bg-muted text-foreground';
   };
 
+  const getStatusLabel = (status?: string) => {
+    if (status === 'active') return tr('Active', 'Actif', 'نشط');
+    if (status === 'in-progress') return tr('In progress', 'En cours', 'جاري');
+    if (status === 'pending') return tr('Pending', 'En attente', 'قيد الانتظار');
+    if (status === 'completed') return tr('Completed', 'Terminé', 'مكتمل');
+    return status || tr('unknown', 'inconnu', 'غير معروف');
+  };
+
   const getPriorityColor = (priority?: string) => {
     if (priority === 'high') return 'bg-red-100 text-red-700';
     if (priority === 'medium') return 'bg-yellow-100 text-yellow-700';
     if (priority === 'low') return 'bg-green-100 text-green-700';
     return 'bg-muted text-foreground';
+  };
+
+  const getPriorityLabel = (priority?: string) => {
+    if (priority === 'high') return tr('High', 'Haute', 'عالية');
+    if (priority === 'medium') return tr('Medium', 'Moyenne', 'متوسطة');
+    if (priority === 'low') return tr('Low', 'Faible', 'منخفضة');
+    return priority || '';
   };
 
   const plans = [
@@ -577,20 +596,20 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
   const currentPlan = userData?.subscription?.status === 'active'
     ? {
         type: userData.subscription.planId.charAt(0).toUpperCase() + userData.subscription.planId.slice(1),
-        status: 'Active',
+        status: tr('Active', 'Actif', 'Active'),
         startDate: new Date(userData.subscription.startDate).toLocaleDateString(),
         endDate: new Date(userData.subscription.endDate).toLocaleDateString(),
         amount: plans.find((p) => p.id === userData.subscription.planId)?.price || 0,
       }
     : {
-        type: 'Free',
-        status: 'Inactive',
+        type: tr('Free', 'Gratuit', 'مجاني'),
+        status: tr('Inactive', 'Inactif', 'غير نشط'),
         startDate: '-',
         endDate: '-',
         amount: 0,
       };
 
-  if (loading) return <div className="p-10 text-center text-muted-foreground">Loading your dashboard...</div>;
+  if (loading) return <div className="p-10 text-center text-muted-foreground">{tr('Loading your dashboard...', 'Chargement de votre tableau de bord...', 'تحميل لوحة التحكم الخاصة بك...')}</div>;
 
   return (
     <div className="space-y-8">
@@ -606,13 +625,13 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
-              <h2 className="text-2xl font-bold text-foreground">My Subscription</h2>
-              <Badge className={`${currentPlan.status === 'Active' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-muted text-muted-foreground border-border'} border-2 px-4 py-1 text-xs font-bold`}>
+              <h2 className="text-2xl font-bold text-foreground">{tr('My Subscription', 'Mon abonnement', 'اشتراكي')}</h2>
+              <Badge className={`${userData?.subscription?.status === 'active' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-muted text-muted-foreground border-border'} border-2 px-4 py-1 text-xs font-bold`}>
                 {currentPlan.status.toUpperCase()}
               </Badge>
             </div>
             <p className="text-muted-foreground mb-6">
-              Plan: <strong className="text-foreground">{currentPlan.type}</strong>
+              {tr('Plan', 'Plan', 'الخطة')} : <strong className="text-foreground">{currentPlan.type}</strong>
             </p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               <div className="flex items-center gap-3">
@@ -620,7 +639,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                   <Calendar size={20} className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Start Date</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{tr('Start Date', 'Date de début', 'تاريخ البداية')}</p>
                   <p className="font-bold text-sm text-foreground">{currentPlan.startDate}</p>
                 </div>
               </div>
@@ -629,7 +648,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                   <Calendar size={20} className="text-secondary" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Renewal Date</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{tr('Renewal Date', 'Date de renouvellement', 'تاريخ التجديد')}</p>
                   <p className="font-bold text-sm text-foreground">{currentPlan.endDate}</p>
                 </div>
               </div>
@@ -638,7 +657,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                   <CreditCard size={20} className="text-accent" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Price</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{tr('Price', 'Prix', 'السعر')}</p>
                   <p className="font-bold text-sm text-foreground">{currentPlan.amount} TND</p>
                 </div>
               </div>
@@ -648,7 +667,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             onClick={() => onNavigate('subscription')}
             className="h-12 px-8 bg-primary !text-white dark:!bg-secondary dark:!text-white hover:bg-primary/90 dark:hover:!bg-secondary/90 rounded-xl shadow-lg font-bold transition-all border-0"
           >
-            Manage Billing
+            {tr('Manage Billing', 'Gérer la facturation', 'إدارة الفواتير')}
           </Button>
         </div>
       </Card>
@@ -659,11 +678,11 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-foreground">Activity Timeline (6 Months)</h2>
-            <p className="text-sm text-muted-foreground">Projects, quotes, and invoices created over time.</p>
+            <h2 className="text-xl font-bold text-foreground">{tr('Activity Timeline (6 Months)', "Chronologie d'activité (6 mois)", 'الخط الزمني للنشاط (6 أشهر)')}</h2>
+            <p className="text-sm text-muted-foreground">{tr('Projects, quotes, and invoices created over time.', 'Projets, devis et factures créés au fil du temps.', 'المشاريع والعروض والفواتير التي تم إنشاؤها بمرور الوقت.')}</p>
           </div>
           <div>
             {hasActivityData ? (
@@ -672,7 +691,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" />
                   <YAxis allowDecimals={false} />
-                  <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Count']} />
+                  <Tooltip formatter={(value: number | string) => [safeNumber(value), tr('Count', 'Nombre', 'Count')]} />
                   <Line type="monotone" dataKey="projects" stroke="#1E40AF" strokeWidth={3} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="quotes" stroke="#F59E0B" strokeWidth={3} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="invoices" stroke="#10B981" strokeWidth={3} dot={{ r: 3 }} />
@@ -680,7 +699,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
               </ResponsiveContainer>
             ) : (
               <div className="h-[300px]">
-                <ChartEmptyState message="No activity trend yet. Start creating projects and quotes to unlock this chart." />
+                  <ChartEmptyState message={tr('No activity trend yet. Start creating projects and quotes to unlock this chart.', "Pas encore de tendance d'activité. Commencez à créer des projets et des devis pour débloquer ce graphique.", 'لا توجد اتجاهات نشاط حتى الآن. ابدأ بإنشاء المشاريع والعروض لفتح هذا الرسم البياني.')} />
               </div>
             )}
           </div>
@@ -688,8 +707,8 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
 
         <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-foreground">Revenue Overview (6 Months)</h2>
-            <p className="text-sm text-muted-foreground">Paid and pending invoice amounts by month.</p>
+            <h2 className="text-xl font-bold text-foreground">{tr('Revenue Overview (6 Months)', 'Aperçu des revenus (6 mois)', 'نظرة عامة على الإيرادات (6 أشهر)')}</h2>
+            <p className="text-sm text-muted-foreground">{tr('Paid and pending invoice amounts by month.', 'Montants des factures payées et en attente par mois.', 'مبالغ الفواتير المدفوعة والمعلقة حسب الشهر.')}</p>
           </div>
           <div>
             {hasRevenueData ? (
@@ -698,7 +717,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value: number | string) => [`${safeNumber(value).toFixed(0)} TND`, 'Amount']} />
+                  <Tooltip formatter={(value: number | string) => [`${safeNumber(value).toFixed(0)} TND`, tr('Amount', 'Montant', 'المبلغ')]} />
                   <Line type="monotone" dataKey="paid" stroke="#10B981" strokeWidth={3} dot={{ r: 4 }} />
                   <Line type="monotone" dataKey="pending" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="total" stroke="#1E40AF" strokeWidth={3} dot={{ r: 4 }} />
@@ -706,18 +725,18 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
               </ResponsiveContainer>
             ) : (
               <div className="h-[300px]">
-                <ChartEmptyState message="Revenue insights will appear as soon as invoices are generated." />
+                  <ChartEmptyState message={tr('Revenue insights will appear as soon as invoices are generated.', 'Les analyses de revenus apparaîtront dès que des factures seront générées.', 'ستظهر رؤى الإيرادات بمجرد إنشاء الفواتير.')} />
               </div>
             )}
           </div>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-foreground">Project Pipeline</h2>
-            <p className="text-sm text-muted-foreground">Distribution by project status and execution progress.</p>
+            <h2 className="text-xl font-bold text-foreground">{tr('Project Pipeline', 'Pipeline des projets', 'خط أنابيب المشروع')}</h2>
+            <p className="text-sm text-muted-foreground">{tr('Distribution by project status and execution progress.', "Répartition par statut du projet et progression d'exécution.", 'التوزيع حسب حالة المشروع وتقدم التنفيذ.')}</p>
           </div>
           <div>
             {hasProjectStatusData ? (
@@ -726,7 +745,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" />
                   <YAxis allowDecimals={false} />
-                  <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Projects']} />
+                  <Tooltip formatter={(value: number | string) => [safeNumber(value), tr('Projects', 'Projets', 'المشاريع')]} />
                   <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                     {projectStatusSeries.map((item) => (
                       <Cell key={item.name} fill={item.color} />
@@ -736,13 +755,13 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
               </ResponsiveContainer>
             ) : (
               <div className="h-[240px]">
-                <ChartEmptyState message="No project status data yet." />
+                <ChartEmptyState message={tr('No project status data yet.', 'Aucune donnée de statut de projet pour le moment.', 'لا توجد بيانات حالة مشروع حتى الآن.')} />
               </div>
             )}
           </div>
           <div className="mt-4">
             <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-muted-foreground">Average Completion</span>
+               <span className="text-muted-foreground">{tr('Average Completion', 'Progression moyenne', 'متوسط الإنجاز')}</span>
               <span className="font-semibold text-foreground">{projectCompletionData.avgCompletion}%</span>
             </div>
             <div className="h-2.5 rounded-full bg-gray-200 overflow-hidden">
@@ -756,8 +775,8 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
 
         <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-foreground">Quote Conversion</h2>
-            <p className="text-sm text-muted-foreground">Accepted, pending, and rejected quote distribution.</p>
+            <h2 className="text-xl font-bold text-foreground">{tr('Quote Conversion', 'Conversion des devis', 'تحويل العروض')}</h2>
+            <p className="text-sm text-muted-foreground">{tr('Accepted, pending, and rejected quote distribution.', 'Répartition des devis acceptés, en attente et rejetés.', 'توزيع العروض المقبولة والمعلقة والمرفوضة.')}</p>
           </div>
           <div>
             {quoteConversion.sent > 0 ? (
@@ -777,12 +796,12 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Quotes']} />
+                  <Tooltip formatter={(value: number | string) => [safeNumber(value), tr('Quotes', 'Devis', 'العروض')]} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-[240px]">
-                <ChartEmptyState message="Create your first quote to visualize conversion performance." />
+                  <ChartEmptyState message={tr('Create your first quote to visualize conversion performance.', 'Créez votre premier devis pour visualiser la performance de conversion.', 'أنشئ عرضك الأول لتصور أداء التحويل.')} />
               </div>
             )}
           </div>
@@ -801,11 +820,13 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             />
           </div>
         </Card>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-foreground">Payment Health</h2>
-            <p className="text-sm text-muted-foreground">Current behavior from available payment records.</p>
+            <h2 className="text-xl font-bold text-foreground">{tr('Payment Health', 'Santé des paiements', 'صحة الدفع')}</h2>
+            <p className="text-sm text-muted-foreground">{tr('Current behavior from available payment records.', 'Comportement actuel basé sur les paiements disponibles.', 'السلوك الحالي بناءً على سجلات الدفع المتاحة.')}</p>
           </div>
           <div>
             {hasPaymentData ? (
@@ -814,7 +835,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" />
                   <YAxis allowDecimals={false} />
-                  <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Invoices']} />
+                  <Tooltip formatter={(value: number | string) => [safeNumber(value), tr('Invoices', 'Factures', 'الفواتير')]} />
                   <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                     {paymentDelayData.bars.map((item) => (
                       <Cell key={item.name} fill={item.color} />
@@ -824,25 +845,23 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
               </ResponsiveContainer>
             ) : (
               <div className="h-[240px]">
-                <ChartEmptyState message="Payment delay analytics will become richer once payment flow is implemented." />
+                  <ChartEmptyState message={tr('Payment delay analytics will become richer once payment flow is implemented.', 'Les analyses de retard de paiement seront plus riches une fois le flux de paiement en place.', 'ستصبح تحليلات تأخير الدفع أكثر ثراءً بمجرد تطبيق تدفق الدفع.')} />
               </div>
             )}
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Average payment time: <span className="font-semibold text-foreground">{paymentDelayData.avgPaymentDays} days</span>
+            {tr('Average payment time', 'Délai moyen de paiement', 'متوسط وقت الدفع')} : <span className="font-semibold text-foreground">{paymentDelayData.avgPaymentDays} {tr('days', 'jours', 'أيام')}</span>
           </p>
         </Card>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg xl:col-span-2">
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-foreground">Top Purchased Materials</h2>
-            <p className="text-sm text-muted-foreground">Most used materials across your active projects.</p>
+            <h2 className="text-xl font-bold text-foreground">{tr('Top Purchased Materials', 'Matériaux les plus achetés', 'المواد الأكثر شراءً')}</h2>
+            <p className="text-sm text-muted-foreground">{tr('Most used materials across your active projects.', 'Matériaux les plus utilisés dans vos projets actifs.', 'المواد الأكثر استخداماً في مشاريعك النشطة.')}</p>
           </div>
           {topMaterials.length === 0 ? (
             <div className="h-56 flex items-center justify-center text-muted-foreground">
-              No material usage data yet. Add materials to projects to unlock insights.
+              {tr('No material usage data yet. Add materials to projects to unlock insights.', 'Aucune donnée d’usage des matériaux pour le moment. Ajoutez des matériaux aux projets pour débloquer des analyses.', 'No material usage data yet. Add materials to projects to unlock insights.')}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
@@ -863,7 +882,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                         <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number | string) => [safeNumber(value), 'Uses']} />
+                    <Tooltip formatter={(value: number | string) => [safeNumber(value), tr('Uses', 'Utilisations', 'الاستخدامات')]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -884,47 +903,47 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
             </div>
           )}
         </Card>
-
-        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-          <h2 className="text-xl font-bold text-foreground mb-4">Key Metrics</h2>
-          <div className="space-y-3">
-            {keyMetrics.map((metric) => (
-              <div key={metric.label} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <div>
-                  <p className="text-sm text-muted-foreground">{metric.label}</p>
-                  <p className="text-lg font-semibold text-foreground">{metric.value}</p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    metric.tone === 'Monitor' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                  }`}
-                >
-                  {metric.tone}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
       </div>
+
+      <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
+        <h2 className="text-xl font-bold text-foreground mb-4">{tr('Key Metrics', 'Indicateurs clés', 'المقاييس الرئيسية')}</h2>
+        <div className="space-y-3">
+          {keyMetrics.map((metric) => (
+            <div key={metric.label} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div>
+                <p className="text-sm text-muted-foreground">{metric.label}</p>
+                <p className="text-lg font-semibold text-foreground">{metric.value}</p>
+              </div>
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  metric.tone === 'monitor' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                }`}
+              >
+                {metric.tone === 'monitor' ? tr('Monitor', 'À surveiller', 'مراقبة') : tr('Live', 'En direct', 'مباشر')}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Recent Projects</h2>
-            <p className="text-muted-foreground mt-1">Your active construction projects</p>
+            <h2 className="text-2xl font-bold text-foreground">{tr('Recent Projects', 'Projets récents', 'المشاريع الأخيرة')}</h2>
+            <p className="text-muted-foreground mt-1">{tr('Your active construction projects', 'Vos projets de construction actifs', 'مشاريعك الإنشائية النشطة')}</p>
           </div>
           <Button
             variant="outline"
             onClick={() => onNavigate('projects')}
             className="rounded-xl border-2 hover:border-primary hover:text-primary"
           >
-            View All Projects
+            {tr('View All Projects', 'Voir tous les projets', 'عرض جميع المشاريع')}
             <ArrowRight size={16} className="ml-2" />
           </Button>
         </div>
 
         {recentProjects.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">No projects yet. Create your first project.</div>
+          <div className="text-center py-10 text-muted-foreground">{tr('No projects yet. Create your first project.', 'Aucun projet pour le moment. Créez votre premier projet.', 'لا توجد مشاريع حتى الآن. أنشئ مشروعك الأول.')}</div>
         ) : (
           <div className="space-y-4">
             {recentProjects.map((project) => (
@@ -935,26 +954,26 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                 <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-xl font-semibold text-foreground">{project.title || 'Untitled project'}</h3>
+                      <h3 className="text-xl font-semibold text-foreground">{project.title || tr('Untitled project', 'Projet sans titre', 'مشروع بدون عنوان')}</h3>
                       <Badge className={`${getStatusColor(project.status || '')} px-3 py-1 text-xs font-semibold`}>
-                        {project.status || 'unknown'}
+                        {getStatusLabel(project.status)}
                       </Badge>
                       {project.priority && (
                         <Badge className={`${getPriorityColor(project.priority)} px-3 py-1 text-xs font-semibold`}>
-                          {project.priority}
+                          {getPriorityLabel(project.priority)}
                         </Badge>
                       )}
                     </div>
                     <p className="text-muted-foreground mb-4 flex flex-wrap items-center gap-2 text-sm">
-                      <span>📍 {(project.location || 'Unknown').slice(0, 28)}</span>
+                      <span>📍 {(project.location || tr('Unknown', 'Inconnu', 'غير معروف')).slice(0, 28)}</span>
                       <span className="text-gray-300">•</span>
-                      <span>Budget: <strong className="text-foreground">{formatBudget(safeNumber(project.budget))}</strong></span>
+                      <span>{tr('Budget', 'Budget', 'الميزانية')} : <strong className="text-foreground">{formatBudget(safeNumber(project.budget))}</strong></span>
                       <span className="text-gray-300">•</span>
-                      <span>Due: <strong className="text-foreground">{parseDate(project.endDate)?.toLocaleDateString('en-GB') || 'N/A'}</strong></span>
+                      <span>{tr('Due', 'Échéance', 'الاستحقاق')} : <strong className="text-foreground">{parseDate(project.endDate)?.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-GB') || tr('N/A', 'N/D', 'غير متاح')}</strong></span>
                     </p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-muted-foreground">Progress</span>
+                        <span className="font-medium text-muted-foreground">{tr('Progress', 'Progression', 'الترقية')}</span>
                         <span className="text-lg font-bold text-primary">{safeNumber(project.progress)}%</span>
                       </div>
                       <div className="h-2.5 rounded-full overflow-hidden bg-gray-200">
@@ -973,10 +992,10 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       </Card>
 
       <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-        <h2 className="text-2xl font-bold text-foreground mb-6">Recent Activity</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-6">{tr('Recent Activity', 'Activité récente', 'النشاط الأخير')}</h2>
         <div className="space-y-5">
           {recentActivities.length === 0 ? (
-            <p className="text-muted-foreground">No recent activity detected.</p>
+            <p className="text-muted-foreground">{tr('No recent activity detected.', 'Aucune activité récente détectée.', 'لم يتم الكشف عن أي نشاط حديث.')}</p>
           ) : (
             recentActivities.map((activity, index) => (
               <div key={`${activity.text}-${index}`} className="flex items-start gap-4">
@@ -988,7 +1007,7 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground font-medium leading-relaxed">{activity.text}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{getTimeAgo(activity.date)}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{getTimeAgo(activity.date, language)}</p>
                 </div>
               </div>
             ))
@@ -998,3 +1017,5 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
     </div>
   );
 }
+
+

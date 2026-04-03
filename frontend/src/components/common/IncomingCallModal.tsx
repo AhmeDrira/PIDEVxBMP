@@ -4,6 +4,7 @@ import { Phone, Video, X, Check } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { CallState } from '../../hooks/useCall';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface IncomingCallModalProps {
   callState: CallState;
   onAccept: () => void;
@@ -11,7 +12,9 @@ interface IncomingCallModalProps {
 }
 
 export default function IncomingCallModal({ callState, onAccept, onReject }: IncomingCallModalProps) {
-  if (callState.status !== 'ringing') return null;
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  if (callState.status !== 'ringing') return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">

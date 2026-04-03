@@ -7,8 +7,12 @@ import { Textarea } from '../ui/textarea';
 import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, CheckCircle, HardHat, FileText, FileDown, Tag, Layers, ExternalLink, BarChart2, Hash, Info, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ManufacturerProducts() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const { t } = useLanguage();
   const [view, setView] = useState<'list' | 'add' | 'edit' | 'detail'>('list');
   const [products, setProducts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -129,7 +133,7 @@ export default function ManufacturerProducts() {
       setSelectedPdf(null);
       setView('list');
     } catch (error) {
-      alert('Error saving product.');
+      alert(t('manufacturer.products.errorSaving'));
     } finally {
       setIsSubmitting(false);
     }
@@ -188,20 +192,20 @@ export default function ManufacturerProducts() {
     return (
       <div className="max-w-4xl mx-auto">
         <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
-          <ArrowRight size={20} className="mr-2 rotate-180" /> Back
+          <ArrowRight size={20} className="mr-2 rotate-180" /> {t('common.back')}
         </Button>
         <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg border">
           <HardHat size={40} className="text-primary mb-5"/>
-          <h2 className="text-3xl font-bold mb-8 text-foreground">{view === 'add' ? 'Add New Material' : 'Edit Material'}</h2>
+          <h2 className="text-3xl font-bold mb-8 text-foreground">{view === 'add' ? t('manufacturer.products.addNewMaterial') : t('manufacturer.products.editMaterial')}</h2>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label className="font-semibold text-foreground">Product Name</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="e.g. Ciment Portland CPJ-45" />
+              <Label className="font-semibold text-foreground">{t('manufacturer.products.productName')}</Label>
+              <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder={t('manufacturer.products.productNamePlaceholder')} />
             </div>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="font-semibold text-foreground">Category</Label>
+                <Label className="font-semibold text-foreground">{t('common.category')}</Label>
                 <select 
                   value={formData.category} 
                   onChange={(e) => setFormData({...formData, category: e.target.value})} 
@@ -224,13 +228,13 @@ export default function ManufacturerProducts() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label className="font-semibold text-foreground">Price (TND)</Label>
+                <Label className="font-semibold text-foreground">{t('common.price')} (TND)</Label>
                 <Input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="0.000"/>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="font-semibold text-foreground">Stock (Units)</Label>
+              <Label className="font-semibold text-foreground">{t('manufacturer.products.stock')} (Units)</Label>
               <Input type="number" value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="e.g. 500"/>
             </div>
 
@@ -253,15 +257,15 @@ export default function ManufacturerProducts() {
             </div>
 
             <div className="space-y-2">
-              <Label className="font-semibold text-foreground">Description / Technical Details</Label>
+              <Label className="font-semibold text-foreground">{t('common.description')} / Technical Details</Label>
               <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={4} className={`rounded-xl border-2 ${inputBorderClass}`} placeholder="Enter product specifications, dimensions, usage instructions..."/>
             </div>
 
             <div className="flex gap-4 pt-6 border-t border-border">
               <Button type="submit" disabled={isSubmitting} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 bg-primary dark:bg-primary text-white dark:text-white rounded-xl shadow-md hover:bg-primary/90 transition-all text-base font-semibold">
-                {isSubmitting ? 'Publishing...' : 'Publish Material'}
+                {isSubmitting ? 'Publishing...' : t('common.save')}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setView('list')} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 rounded-xl border-2 border-border text-muted-foreground hover:bg-muted/50 dark:hover:bg-gray-800 text-base font-semibold">Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setView('list')} style={{ paddingLeft: 40, paddingRight: 40 }} className="h-12 rounded-xl border-2 border-border text-muted-foreground hover:bg-muted/50 dark:hover:bg-gray-800 text-base font-semibold">{t('common.cancel')}</Button>
             </div>
           </form>
         </Card>
@@ -417,7 +421,7 @@ export default function ManufacturerProducts() {
           <p className="text-lg text-muted-foreground mt-1">Manage and track your construction materials stock</p>
         </div>
         <Button onClick={() => { setFormData({name:'', category:'Maçonnerie', price:'', stock:'', description:''}); setView('add'); setSelectedFile(null); setSelectedPdf(null); }} className="bg-primary dark:bg-blue-600 text-white rounded-xl h-12 px-6 shadow-lg hover:bg-primary/90 transition-all font-semibold whitespace-nowrap">
-          <Plus size={20} className="mr-2" /> Add New Material
+          <Plus size={20} className="mr-2" /> {t('manufacturer.products.addNewMaterial')}
         </Button>
       </div>
       
@@ -425,7 +429,7 @@ export default function ManufacturerProducts() {
         <div className="flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search materials by name or category..." className="pl-12 h-12 rounded-xl border-border focus:border-primary focus:ring-primary text-base" />
+            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('manufacturer.products.searchProducts')} className="pl-12 h-12 rounded-xl border-border focus:border-primary focus:ring-primary text-base" />
           </div>
           <Button
             variant={showFilters ? 'default' : 'outline'}
@@ -459,7 +463,7 @@ export default function ManufacturerProducts() {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Category</Label>
                   <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-border bg-muted/50 focus:border-primary focus:bg-card outline-none cursor-pointer text-sm">
-                    {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+                    {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? t('manufacturer.products.allCategories') : cat}</option>)}
                   </select>
                 </div>
 
@@ -493,7 +497,7 @@ export default function ManufacturerProducts() {
                       {inStockOnly && <CheckCircle size={14} className="text-white" />}
                     </div>
                     <input type="checkbox" checked={inStockOnly} onChange={e => setInStockOnly(e.target.checked)} className="hidden" />
-                    <span className="text-sm font-semibold text-muted-foreground select-none">In Stock Only</span>
+                    <span className="text-sm font-semibold text-muted-foreground select-none">{t('manufacturer.products.inStockOnly')}</span>
                   </label>
                 </div>
               </div>
@@ -515,7 +519,7 @@ export default function ManufacturerProducts() {
                 <h3 className='text-xl font-bold text-foreground'>No materials found</h3>
                 <p className='text-muted-foreground mt-1'>{searchQuery || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Start by adding your first material to the inventory.'}</p>
             </div>
-            {!searchQuery && activeFilterCount === 0 && <Button onClick={() => setView('add')} className="bg-primary dark:bg-blue-600 text-white rounded-lg mt-2"><Plus size={18} className='mr-1.5'/> Add First Material</Button>}
+            {!searchQuery && activeFilterCount === 0 && <Button onClick={() => setView('add')} className="bg-primary dark:bg-blue-600 text-white rounded-lg mt-2"><Plus size={18} className='mr-1.5'/> {t('manufacturer.products.addFirstMaterial')}</Button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

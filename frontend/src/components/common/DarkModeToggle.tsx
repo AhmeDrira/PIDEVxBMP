@@ -2,6 +2,7 @@ import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
+import { useLanguage } from '../../context/LanguageContext';
 export default function DarkModeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';

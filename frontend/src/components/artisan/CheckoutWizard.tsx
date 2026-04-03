@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface CartItem {
   _id: string;
   name: string;
@@ -60,7 +61,9 @@ const inputStyle = (hasError: boolean): React.CSSProperties =>
   hasError ? { borderColor: '#f87171', borderWidth: 2 } : {};
 
 export default function CheckoutWizard({ cart, onBack, onCheckout, isLoading, getManufacturerName, updateCartQuantity }: CheckoutWizardProps) {
-  const [step, setStep] = useState(0);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [step, setStep] = useState(0);
   const [data, setData] = useState<CheckoutData>({
     personalInfo: { fullName: '', email: '', phone: '' },
     shippingAddress: { address: '', city: '', state: '', postalCode: '', country: 'Tunisia' },

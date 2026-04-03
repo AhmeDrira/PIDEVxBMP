@@ -4,13 +4,16 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ArrowLeft, FileText, Calendar, MapPin, Download, DollarSign, CheckCircle, Clock, XCircle } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface QuoteDetailProps {
   quoteId: string;
   onBack: () => void;
 }
 
 export default function QuoteDetail({ quoteId, onBack }: QuoteDetailProps) {
-  const quote = {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const quote = {
     id: quoteId,
     project: {
       name: 'Villa Construction - Tunis',

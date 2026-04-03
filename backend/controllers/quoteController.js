@@ -16,6 +16,50 @@ const resolveChromeExecutablePath = () => {
   return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 };
 
+const escapeHtml = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+const extractProjectMaterialItems = (project) => {
+  const groupedMarketplace = Array.isArray(project?.materials)
+    ? Object.values(
+        project.materials.reduce((acc, mat) => {
+          const id = String((mat && (mat._id || mat)) || '');
+          if (!id) return acc;
+          if (!acc[id]) {
+            acc[id] = {
+              name: mat?.name || 'Marketplace material',
+              quantity: 0,
+              unitPrice: Number(mat?.price) || 0,
+              source: 'Marketplace',
+            };
+          }
+          acc[id].quantity += 1;
+          return acc;
+        }, {})
+      )
+    : [];
+
+  const personalItems = Array.isArray(project?.personalMaterials)
+    ? project.personalMaterials
+      .filter((item) => item && item.name)
+      .map((item) => {
+        const quantity = Number(item?.stock);
+        return {
+          name: item.name,
+          quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+          unitPrice: Number(item?.price) || 0,
+          source: 'Personal',
+        };
+      })
+    : [];
+
+  return [...groupedMarketplace, ...personalItems];
+};
+
 // @desc    Create a new quote
 // @route   POST /api/quotes
 const createQuote = async (req, res) => {
@@ -176,7 +220,14 @@ const downloadQuotePdf = async (req, res) => {
     }
 
     const quote = await Quote.findById(req.params.id)
-      .populate('project', 'title')
+      .populate({
+        path: 'project',
+        select: 'title materials personalMaterials',
+        populate: {
+          path: 'materials',
+          select: 'name price',
+        },
+      })
       .populate('artisan', 'firstName lastName email');
 
     if (!quote) {
@@ -192,6 +243,14 @@ const downloadQuotePdf = async (req, res) => {
     const laborHand = Number(quote.laborHand || 0);
     const materialsAmount = Number(quote.materialsAmount || 0);
     const total = Number(quote.amount || 0);
+    const materialItems = extractProjectMaterialItems(quote.project);
+    const materialRowsHtml = materialItems.map((item) => {
+      const lineTotal = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+      return `<div class="material-row">
+        <span>${escapeHtml(item.name)} <small>(${escapeHtml(item.source)})</small></span>
+        <strong>x${item.quantity} - ${lineTotal.toLocaleString()} TND</strong>
+      </div>`;
+    }).join('');
 
     const html = `
       <!doctype html>
@@ -216,6 +275,11 @@ const downloadQuotePdf = async (req, res) => {
           .section { margin-top: 20px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #f8fafc; }
           .section h4 { margin: 0 0 10px; font-size: 16px; }
           .section p { margin: 0; color: #475569; line-height: 1.5; white-space: pre-wrap; }
+          .material-list { margin-top: 20px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #ffffff; }
+          .material-list h4 { margin: 0 0 10px; font-size: 16px; }
+          .material-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+          .material-row:last-child { border-bottom: none; }
+          .material-row small { color: #64748b; font-weight: 600; }
           .totals { margin-top: 24px; border-top: 2px solid #e2e8f0; padding-top: 16px; display: grid; gap: 10px; }
           .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; }
           .row.total { background: #1d4ed8; color: #ffffff; border-color: #1d4ed8; font-size: 22px; font-weight: 800; }
@@ -258,10 +322,12 @@ const downloadQuotePdf = async (req, res) => {
 
             <div class="section">
               <h4>Description of Work / Items</h4>
-              <p>${quote.description || ''}</p>
+              <p>${escapeHtml(quote.description || '')}</p>
             </div>
 
-            ${quote.paymentTerms ? `<div class="section"><h4>Payment Terms</h4><p>${quote.paymentTerms}</p></div>` : ''}
+            ${materialItems.length > 0 ? `<div class="material-list"><h4>Materials Included</h4>${materialRowsHtml}</div>` : ''}
+
+            ${quote.paymentTerms ? `<div class="section"><h4>Payment Terms</h4><p>${escapeHtml(quote.paymentTerms)}</p></div>` : ''}
 
             <div class="totals">
               <div class="row"><span>Labor hand</span><strong>${laborHand.toLocaleString()} TND</strong></div>

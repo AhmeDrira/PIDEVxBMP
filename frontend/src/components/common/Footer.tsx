@@ -1,22 +1,24 @@
 import React from 'react';
 import { Facebook, Linkedin, Instagram, Mail, Phone, MapPin } from 'lucide-react';
 import Logo from './Logo';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function Footer() {
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
 
   const quickLinks = [
-    { label: 'Home', href: '#' },
-    { label: 'Knowledge Library', href: '#' },
-    { label: 'Artisan Directory', href: '#' },
-    { label: 'Marketplace', href: '#' },
+    { label: t('nav.home'), href: '#' },
+    { label: t('nav.knowledgeLibrary'), href: '#' },
+    { label: t('nav.artisanDirectory'), href: '#' },
+    { label: t('nav.marketplace'), href: '#' },
   ];
 
   const supportLinks = [
-    { label: 'Help Center', href: '#' },
-    { label: 'Contact Us', href: '#' },
-    { label: 'FAQ', href: '#' },
-    { label: 'Terms & Conditions', href: '#' },
+    { label: t('footer.helpCenter'), href: '#' },
+    { label: t('footer.contactUs'), href: '#' },
+    { label: t('footer.faq'), href: '#' },
+    { label: t('footer.terms'), href: '#' },
   ];
 
   const socialLinks = [
@@ -36,14 +38,14 @@ export default function Footer() {
               <Logo size="md" />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Connecting experts, artisans, and clients in the construction ecosystem.
+              {t('footer.tagline')}
             </p>
           </div>
 
           {/* Column 2: Quick Links */}
           <div>
             <h4 className="text-foreground font-semibold text-sm uppercase tracking-wider mb-4">
-              Quick Links
+              {t('footer.quickLinks')}
             </h4>
             <ul className="space-y-2.5">
               {quickLinks.map((link) => (
@@ -62,7 +64,7 @@ export default function Footer() {
           {/* Column 3: Support */}
           <div>
             <h4 className="text-foreground font-semibold text-sm uppercase tracking-wider mb-4">
-              Support
+              {t('footer.support')}
             </h4>
             <ul className="space-y-2.5">
               {supportLinks.map((link) => (
@@ -81,7 +83,7 @@ export default function Footer() {
           {/* Column 4: Contact Info */}
           <div>
             <h4 className="text-foreground font-semibold text-sm uppercase tracking-wider mb-4">
-              Contact Info
+              {t('footer.contactInfo')}
             </h4>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
@@ -104,7 +106,7 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-muted-foreground">Tunisia</span>
+                <span className="text-sm text-muted-foreground">{t('footer.tunisia')}</span>
               </li>
             </ul>
           </div>
@@ -117,7 +119,7 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Copyright */}
             <p className="text-sm text-muted-foreground">
-              © {currentYear} BMP.tn — All rights reserved
+              © {currentYear} BMP.tn — {t('footer.allRights')}
             </p>
 
             {/* Social Icons */}

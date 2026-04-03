@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, User, LogOut, Settings, KeyRound, Star } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ProfileDropdownProps {
   userName: string;
@@ -15,7 +16,10 @@ interface ProfileDropdownProps {
   onLogout: () => void;
 }
 
-export default function ProfileDropdown({ userName, userRole, profilePhoto, onViewProfile, onEditProfile, editProfileLabel = 'Edit Profile', onUpdatePassword, onViewReviews, onLogout }: ProfileDropdownProps) {
+export default function ProfileDropdown({ userName, userRole, profilePhoto, onViewProfile, onEditProfile, editProfileLabel, onUpdatePassword, onViewReviews, onLogout }: ProfileDropdownProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   const getRoleBadgeColor = (role: string) => {
@@ -80,7 +84,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
               >
                 <User size={18} className="text-muted-foreground" />
-                <span className="font-medium text-foreground">View Profile</span>
+                <span className="font-medium text-foreground">{t('profile.viewProfile')}</span>
               </button>
               
               <button
@@ -91,7 +95,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
               >
                 <Settings size={18} className="text-muted-foreground" />
-                <span className="font-medium text-foreground">{editProfileLabel}</span>
+                <span className="font-medium text-foreground">{editProfileLabel || t('profile.editProfile')}</span>
               </button>
 
               {onViewReviews && (
@@ -103,7 +107,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
                 >
                   <Star size={18} className="text-muted-foreground" />
-                  <span className="font-medium text-foreground">View Profile Reviews</span>
+                  <span className="font-medium text-foreground">{t('profile.viewReviews')}</span>
                 </button>
               )}
 
@@ -116,7 +120,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
                 >
                   <KeyRound size={18} className="text-muted-foreground" />
-                  <span className="font-medium text-foreground">Update Password</span>
+                  <span className="font-medium text-foreground">{t('profile.updatePassword')}</span>
                 </button>
               )}
               
@@ -130,7 +134,7 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-destructive/5 transition-colors text-left text-destructive"
               >
                 <LogOut size={18} />
-                <span className="font-medium">Logout</span>
+                <span className="font-medium">{t('profile.logout')}</span>
               </button>
             </div>
           </div>

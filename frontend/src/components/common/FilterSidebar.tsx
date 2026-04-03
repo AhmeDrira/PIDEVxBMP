@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { SlidersHorizontal } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface FilterSidebarProps {
   categories: string[];
   onApplyFilters: (filters: KnowledgeFilters) => void;
@@ -21,6 +22,8 @@ export default function FilterSidebar({
   onApplyFilters,
   onClearFilters,
 }: FilterSidebarProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [filters, setFilters] = useState<KnowledgeFilters>({
     categories: [],
     dateRange: 'alltime',

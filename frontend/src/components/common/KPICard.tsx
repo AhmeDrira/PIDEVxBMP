@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '../ui/card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface KPICardProps {
   label: string;
   value: string | number;
@@ -13,7 +14,9 @@ interface KPICardProps {
 }
 
 export default function KPICard({ label, value, icon, color, trend, trendUp = true, subtitle }: KPICardProps) {
-  return (
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  return (
     <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
       <div className="flex items-start justify-between mb-4">
         <div

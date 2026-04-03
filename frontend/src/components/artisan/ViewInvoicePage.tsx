@@ -4,13 +4,16 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ArrowRight, Download, Receipt, Calendar, User, Package, CreditCard } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface ViewInvoicePageProps {
   invoiceId?: string;
   onBack?: () => void;
 }
 
 export default function ViewInvoicePage({ invoiceId, onBack }: ViewInvoicePageProps) {
-  // Mock invoice data - in real app this would come from API/props
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  // Mock invoice data - in real app this would come from API/props
   const invoice = {
     id: invoiceId || 'INV-2024-001',
     title: 'Villa Construction Project - Phase 1',

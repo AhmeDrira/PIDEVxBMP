@@ -6,12 +6,16 @@ import AddKnowledgePage from './AddKnowledgePage';
 import KnowledgeDetailPage from '../knowledge/KnowledgeDetailPage';
 import knowledgeService, { KnowledgeArticle } from '../../services/knowledgeService';
 import { toast } from 'sonner';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface AdminKnowledgeManagementProps {
   canManageKnowledge?: boolean;
 }
 
 export default function AdminKnowledgeManagement({ canManageKnowledge = false }: AdminKnowledgeManagementProps) {
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
   const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -54,23 +58,23 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
     removeAttachmentUrls?: string[];
   }) => {
     if (!canManageKnowledge) {
-      toast.error('You do not have permission to manage articles.');
+      toast.error(t('admin.knowledge.noPermissionManage'));
       return;
     }
     setIsSaving(true);
     try {
       if (articleToEdit) {
         await knowledgeService.update(articleToEdit._id, payload);
-        toast.success('Article updated successfully');
+        toast.success(t('admin.knowledge.articleUpdated'));
       } else {
         await knowledgeService.create(payload);
-        toast.success('Article published successfully');
+        toast.success(t('admin.knowledge.articlePublished'));
       }
       setShowAddForm(false);
       setArticleToEdit(null);
       await loadArticles();
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Could not save article.';
+      const message = error.response?.data?.message || t('admin.knowledge.couldNotSave');
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -79,7 +83,7 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
 
   const handleEditArticle = (article: KnowledgeArticle) => {
     if (!canManageKnowledge) {
-      toast.error('You do not have permission to edit articles.');
+      toast.error(t('admin.knowledge.noPermissionEdit'));
       return;
     }
     setSelectedArticleId(null);
@@ -89,17 +93,17 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
 
   const handleDeleteArticle = async (id: string) => {
     if (!canManageKnowledge) {
-      toast.error('You do not have permission to delete articles.');
+      toast.error(t('admin.knowledge.noPermissionDelete'));
       return;
     }
-    const confirmed = window.confirm('Delete this article? This action cannot be undone.');
+    const confirmed = window.confirm(t('admin.knowledge.deleteConfirm'));
     if (!confirmed) return;
     try {
       await knowledgeService.remove(id);
-      toast.success('Article deleted');
+      toast.success(t('admin.knowledge.articleDeleted'));
       await loadArticles();
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Could not delete article.';
+      const message = error.response?.data?.message || t('admin.knowledge.couldNotDelete');
       toast.error(message);
     }
   };
@@ -152,7 +156,7 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p style={{ color: 'var(--muted-foreground)' }}>Manage platform articles and content</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{t('admin.knowledge.manageArticles')}</p>
         </div>
         <Button
           className="text-white"
@@ -165,7 +169,7 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
           disabled={!canManageKnowledge}
         >
           <Plus size={20} className="mr-2" />
-          Add Article
+          {t('admin.knowledge.addArticle')}
         </Button>
       </div>
 
@@ -173,19 +177,19 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
         <Card className="p-6 bg-card">
           <BookOpen size={32} style={{ color: '#1F3A8A' }} className="mb-2" />
           <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{articles.length}</p>
-          <p style={{ color: 'var(--muted-foreground)' }}>Total Articles</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{t('admin.knowledge.totalArticles')}</p>
         </Card>
         <Card className="p-6 bg-card">
           <Eye size={32} style={{ color: '#F59E0B' }} className="mb-2" />
           <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>
             {stats.totalViews.toLocaleString()}
           </p>
-          <p style={{ color: 'var(--muted-foreground)' }}>Total Views</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{t('admin.knowledge.totalViews')}</p>
         </Card>
         <Card className="p-6 bg-card">
           <BookOpen size={32} style={{ color: '#10B981' }} className="mb-2" />
           <p className="text-3xl mb-1" style={{ color: 'var(--foreground)' }}>{stats.categoryCount}</p>
-          <p style={{ color: 'var(--muted-foreground)' }}>Categories</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>{t('admin.knowledge.categories')}</p>
         </Card>
       </div>
 
@@ -194,12 +198,12 @@ export default function AdminKnowledgeManagement({ canManageKnowledge = false }:
           <table className="w-full">
             <thead>
               <tr style={{ borderBottom: '2px solid #E5E7EB' }}>
-                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Title</th>
-                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Author</th>
-                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Category</th>
-                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Views</th>
-                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Date</th>
-                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>Actions</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>{t('admin.knowledge.title')}</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>{t('admin.knowledge.author')}</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>{t('common.category')}</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>{t('admin.knowledge.views')}</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>{t('common.date')}</th>
+                <th className="text-left py-3" style={{ color: 'var(--muted-foreground)' }}>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>

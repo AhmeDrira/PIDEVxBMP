@@ -2,6 +2,12 @@ const Project = require('../models/Project');
 const mongoose = require('mongoose');
 const { logAction } = require('../utils/actionLogger');
 
+const normalizeUploadedPath = (filePath = '') => {
+  const normalized = String(filePath || '').replace(/\\/g, '/').trim();
+  if (!normalized) return '';
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+};
+
 // @desc    Create a new project
 // @route   POST /api/projects
 // @access  Private (Artisan only)
@@ -143,8 +149,58 @@ const updateProject = async (req, res) => {
   }
 };
 
+// @desc    Upload/update image for a personal material in a project
+// @route   POST /api/projects/:id/personal-materials/:materialId/image
+// @access  Private (Artisan only)
+const uploadPersonalMaterialImage = async (req, res) => {
+  try {
+    const { id: projectId, materialId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ message: 'Invalid project ID' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(materialId)) {
+      return res.status(400).json({ message: 'Invalid personal material ID' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'Image file is required' });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    if (project.artisan.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
+    const personalMaterial = project.personalMaterials.id(materialId);
+    if (!personalMaterial) {
+      return res.status(404).json({ message: 'Personal material not found' });
+    }
+
+    personalMaterial.image = normalizeUploadedPath(req.file.path);
+    await project.save();
+
+    const updatedProject = await Project.findById(projectId).populate('materials');
+
+    return res.status(200).json({
+      message: 'Personal material image uploaded successfully',
+      personalMaterial,
+      project: updatedProject,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error while uploading personal material image' });
+  }
+};
+
 module.exports = {
   createProject,
   getProjects,
-  updateProject 
+  updateProject,
+  uploadPersonalMaterialImage,
 };

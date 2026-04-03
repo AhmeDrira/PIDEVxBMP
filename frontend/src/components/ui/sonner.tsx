@@ -3,8 +3,11 @@
 import { useTheme } from "next-themes@0.4.6";
 import { Toaster as Sonner, ToasterProps } from "sonner@2.0.3";
 
+import { useLanguage } from '../../context/LanguageContext';
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { theme = "system" } = useTheme();
 
   return (
     <Sonner

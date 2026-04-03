@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCheck, Factory } from 'lucide-react';
 import axios from 'axios';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface NotificationItem {
   _id: string;
   type: string;
@@ -30,6 +31,8 @@ const getTimeAgo = (dateStr: string): string => {
 };
 
 export default function NotificationBell() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

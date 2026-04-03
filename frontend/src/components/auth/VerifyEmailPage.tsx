@@ -4,12 +4,15 @@ import { Card } from '../ui/card';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import authService from '../../services/authService';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface VerifyEmailPageProps {
   onBackToLogin: () => void;
 }
 
 export default function VerifyEmailPage({ onBackToLogin }: VerifyEmailPageProps) {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
 
   useEffect(() => {

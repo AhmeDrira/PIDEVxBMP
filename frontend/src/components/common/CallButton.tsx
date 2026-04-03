@@ -2,6 +2,7 @@ import React from 'react';
 import { Phone, Video } from 'lucide-react';
 import { Button } from '../ui/button';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface CallButtonProps {
   onAudioCall: () => void;
   onVideoCall: () => void;
@@ -9,7 +10,9 @@ interface CallButtonProps {
 }
 
 export default function CallButton({ onAudioCall, onVideoCall, disabled }: CallButtonProps) {
-  return (
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  return (
     <div className="flex items-center gap-2">
       <Button
         type="button"

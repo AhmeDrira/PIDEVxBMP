@@ -5,8 +5,12 @@ import { Badge } from '../ui/badge';
 import { CreditCard, Download, Printer, ArrowRight, Loader2, Package, Calendar, Wallet, Eye } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ExpertPayments() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const { t } = useLanguage();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
@@ -35,7 +39,7 @@ export default function ExpertPayments() {
         setPayments(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
         console.error('Error fetching payments:', error);
-        toast.error('Failed to load payments history');
+        toast.error(t('expert.payments.failedLoad'));
         setPayments([]);
       } finally {
         setLoading(false);
@@ -68,7 +72,7 @@ export default function ExpertPayments() {
     try {
       const token = getToken();
       if (!token) {
-        toast.error('Session expired. Please sign in again.');
+        toast.error(t('expert.payments.sessionExpired'));
         return;
       }
 
@@ -89,7 +93,7 @@ export default function ExpertPayments() {
       window.URL.revokeObjectURL(fileURL);
     } catch (error: any) {
       const backendMessage = error?.response?.data?.message;
-      toast.error(backendMessage || 'Failed to generate payment PDF');
+      toast.error(backendMessage || t('expert.payments.failedPdf'));
     } finally {
       setDownloadingPaymentId(null);
     }
@@ -99,7 +103,7 @@ export default function ExpertPayments() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Loader2 size={40} className="animate-spin text-primary" />
-        <p className="text-muted-foreground animate-pulse font-medium">Loading your payment history...</p>
+        <p className="text-muted-foreground animate-pulse font-medium">{t('expert.payments.loadingHistory')}</p>
       </div>
     );
   }
@@ -129,7 +133,7 @@ export default function ExpertPayments() {
         `}} />
         <div className="flex justify-between items-center print:hidden">
           <Button variant="outline" onClick={() => setView('list')} className="rounded-xl border-2 hover:border-primary hover:text-primary transition-colors">
-            <ArrowRight size={20} className="mr-2 rotate-180" /> Back to History
+            <ArrowRight size={20} className="mr-2 rotate-180" /> {t('expert.payments.backToHistory')}
           </Button>
           <Button
             onClick={() => handleDownloadPdf(selectedPayment)}
@@ -137,7 +141,7 @@ export default function ExpertPayments() {
             className="bg-primary dark:bg-blue-600 text-white rounded-xl shadow-lg hover:bg-primary/90 transition-all px-6 h-11"
           >
             {downloadingPaymentId === selectedPayment._id ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Printer size={18} className="mr-2" />}
-            Generate PDF
+            {t('expert.payments.generatePdf')}
           </Button>
         </div>
 
@@ -146,13 +150,13 @@ export default function ExpertPayments() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Wallet className="text-primary" size={32} />
-                <h1 className="text-3xl font-black text-foreground tracking-tight">RECEIPT</h1>
+                <h1 className="text-3xl font-black text-foreground tracking-tight">{t('expert.payments.receipt')}</h1>
               </div>
               <p className="text-muted-foreground font-mono bg-muted/50 px-3 py-1 rounded-md inline-block text-xs">ID: #{selectedPayment._id.slice(-8).toUpperCase()}</p>
             </div>
             <div className="text-right">
               <h3 className="font-bold text-xl text-primary">BMP Marketplace</h3>
-              <p className="text-xs text-muted-foreground font-medium">Digital Construction Platform</p>
+              <p className="text-xs text-muted-foreground font-medium">{t('expert.payments.digitalPlatform')}</p>
               <Badge className={`mt-2 ${getStatusColor(selectedPayment.status)} px-3 py-1 text-xs font-bold border-2`}>
                 {selectedPayment.status.toUpperCase()}
               </Badge>
@@ -162,26 +166,26 @@ export default function ExpertPayments() {
           <div className="grid grid-cols-2 gap-8 mb-6">
             <div className="space-y-4">
               <h4 className="font-bold text-sm text-foreground border-b border-border pb-2 flex items-center gap-2">
-                <Package size={16} className="text-primary" /> Order Info
+                <Package size={16} className="text-primary" /> {t('expert.payments.orderInfo')}
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Date</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{t('common.date')}</p>
                   <p className="font-semibold text-sm">{new Date(selectedPayment.paymentDate).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Time</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{t('common.time')}</p>
                   <p className="font-semibold text-sm">{new Date(selectedPayment.paymentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             </div>
             <div className="space-y-4">
               <h4 className="font-bold text-sm text-foreground border-b border-border pb-2 flex items-center gap-2">
-                <CreditCard size={16} className="text-primary" /> Payment
+                <CreditCard size={16} className="text-primary" /> {t('expert.payments.payment')}
               </h4>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Total Paid</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{t('expert.payments.totalPaid')}</p>
                   <p className="text-2xl font-black text-primary">
                     {selectedPayment.totalAmount.toFixed(2)} <span className="text-sm font-bold">{selectedPayment.currency}</span>
                   </p>
@@ -189,7 +193,7 @@ export default function ExpertPayments() {
                 <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <p className="text-xs font-bold text-green-600">Verified by Stripe</p>
+                    <p className="text-xs font-bold text-green-600">{t('expert.payments.verifiedByStripe')}</p>
                   </div>
                 </div>
               </div>
@@ -197,7 +201,7 @@ export default function ExpertPayments() {
           </div>
 
           <div className="mb-8 p-4 bg-muted/50 rounded-xl border border-border">
-            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Stripe Transaction ID</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">{t('expert.payments.stripeTransactionId')}</p>
             <p className="font-mono text-[10px] break-all text-muted-foreground tracking-tight leading-relaxed">{selectedPayment.stripeSessionId}</p>
           </div>
 

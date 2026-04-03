@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface LogoProps {
   variant?: 'dark' | 'light';
   size?: 'sm' | 'md' | 'lg';
@@ -7,7 +8,9 @@ interface LogoProps {
 }
 
 export default function Logo({ variant = 'dark', size = 'md', className = '' }: LogoProps) {
-  // Logo text is primary blue in both modes for the 'dark' variant
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  // Logo text is primary blue in both modes for the 'dark' variant
   const textColor = variant === 'dark' ? 'text-primary dark:text-blue-300' : 'text-white';
 
   const sizes = {
@@ -35,39 +38,24 @@ export default function Logo({ variant = 'dark', size = 'md', className = '' }: 
 
   return (
     <div className={`flex items-center ${sizeConfig.container} ${className}`}>
-      {/* Logo Image - Always Primary Blue */}
+      {/* Logo Image from File */}
       <div
-        className={`${sizeConfig.logoHeight} aspect-square flex items-center justify-center rounded-lg shadow-sm`}
-        style={{ backgroundColor: 'var(--sidebar-primary)' }}
+        className={`${sizeConfig.logoHeight} aspect-square flex items-center justify-center rounded-xl overflow-hidden`}
       >
-        <svg 
-          viewBox="0 0 100 100" 
-          className="w-full h-full p-2"
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* Building/Construction Icon */}
-          <path 
-            d="M20 80V30L50 10L80 30V80H20Z" 
-            fill="white" 
-            stroke="white" 
-            strokeWidth="3"
-          />
-          <rect x="35" y="40" width="10" height="10" fill="#1E40AF" />
-          <rect x="55" y="40" width="10" height="10" fill="#1E40AF" />
-          <rect x="35" y="55" width="10" height="10" fill="#1E40AF" />
-          <rect x="55" y="55" width="10" height="10" fill="#1E40AF" />
-          <rect x="42" y="70" width="16" height="10" fill="#1E40AF" />
-        </svg>
+        <img 
+          src="/logo.png" 
+          alt="BMP.tn Logo" 
+          className="w-full h-full object-contain"
+        />
       </div>
       
       {/* Logo Text */}
       <div>
-        <h1 className={`${sizeConfig.title} font-bold ${textColor} leading-none mb-0.5`}>
-          BMP.tn
+        <h1 className={`${sizeConfig.title} font-bold ${textColor} leading-none mb-0.5 tracking-tight`}>
+          bmp.tn
         </h1>
-        <p className={`${sizeConfig.subtitle} ${variant === 'dark' ? 'text-gray-500 dark:text-gray-400' : 'text-white/80'}`}>
-          Construction Marketplace
+        <p className={`${sizeConfig.subtitle} ${variant === 'dark' ? 'text-gray-500 dark:text-gray-400' : 'text-white/80'} font-medium`}>
+          Plateforme Construction
         </p>
       </div>
     </div>

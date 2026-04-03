@@ -10,6 +10,7 @@ import {
 
 import { cn } from "./utils";
 
+import { useLanguage } from '../../context/LanguageContext';
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {

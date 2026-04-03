@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+import { useLanguage } from '../../context/LanguageContext';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UserData {
@@ -147,6 +148,8 @@ export default function ProfileCompletionBanner({
   onNavigate,
   profileView = 'profile',
 }: ProfileCompletionBannerProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [apiUser, setApiUser]       = useState<UserData | null>(null);
   const [localUser, setLocalUser]   = useState<UserData>(readLocalUser);
   const [animatedPct, setAnimatedPct] = useState(0);

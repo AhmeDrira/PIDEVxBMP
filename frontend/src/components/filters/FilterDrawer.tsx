@@ -4,6 +4,7 @@ import { Label } from '../ui/label';
 import { Card } from '../ui/card';
 import { Check, SlidersHorizontal, X } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 export interface KnowledgeFilterState {
   categories: string[];
   dateRange: {
@@ -64,6 +65,8 @@ export default function FilterDrawer({
   onReset,
   onClose,
 }: FilterDrawerProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   if (!isOpen) return null;
 
   return (

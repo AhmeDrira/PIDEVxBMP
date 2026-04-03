@@ -11,6 +11,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
+import { useLanguage } from '../../context/LanguageContext';
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIconRetina,
@@ -76,7 +77,9 @@ async function reverseGeocode(lat: number, lng: number, setAddress: (addr: strin
 }
 
 export function MapLocationPicker({ value, onChange, onClose }: MapLocationPickerProps) {
-  const [position, setPosition] = useState<[number, number] | null>(null);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [position, setPosition] = useState<[number, number] | null>(null);
   const [address, setAddress] = useState(value);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);

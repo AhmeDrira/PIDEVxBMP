@@ -21,6 +21,7 @@ import {
   Video,
   View,
 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface PortfolioMedia {
   type: 'image' | 'video';
@@ -65,6 +66,8 @@ interface ArtisanPortfolioProps {
 }
 
 export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: ArtisanPortfolioProps = {}) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [subLocked] = useState(() => !isSubscriptionActive());
   const [showSubPopup, setShowSubPopup] = useState(subLocked);
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
@@ -117,7 +120,9 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
       if (file.size > maxSize) {
         const label = isVideo ? 'video' : 'image';
         const maxMB = isVideo ? 120 : 15;
-        return `${file.name}: ${label} exceeds ${maxMB}MB limit.`;
+        return language === 'fr'
+          ? `${file.name} : le ${label === 'video' ? 'format video' : 'format image'} depasse la limite de ${maxMB}MB.`
+          : `${file.name}: ${label} exceeds ${maxMB}MB limit.`;
       }
     }
     return '';
@@ -159,7 +164,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
       await axios.post(`${API_URL}/artisans/me/portfolio/from-project/${projectId}`, {}, authHeaders());
       await loadData();
     } catch (error: any) {
-      alert(error?.response?.data?.message || 'Unable to add project to portfolio');
+      alert(error?.response?.data?.message || tr('Unable to add project to portfolio', 'Impossible d\'ajouter le projet au portfolio'));
     } finally {
       setSubmitting(false);
     }
@@ -185,7 +190,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
   const handleCreateManualProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.description.trim()) {
-      alert('Project title and description are required.');
+      alert(tr('Project title and description are required.', 'Le titre et la description du projet sont obligatoires.', 'Project title and description are required.'));
       return;
     }
 
@@ -217,7 +222,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
       setViewMode('list');
       await loadData();
     } catch (error: any) {
-      alert(error?.response?.data?.message || 'Unable to create portfolio project');
+      alert(error?.response?.data?.message || tr('Unable to create portfolio project', 'Impossible de creer le projet portfolio', 'Unable to create portfolio project'));
     } finally {
       setSubmitting(false);
     }
@@ -228,7 +233,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
       await axios.delete(`${API_URL}/artisans/me/portfolio/${itemId}`, authHeaders());
       await loadData();
     } catch (error: any) {
-      alert(error?.response?.data?.message || 'Unable to delete portfolio project');
+      alert(error?.response?.data?.message || tr('Unable to delete portfolio project', 'Impossible de supprimer le projet portfolio', 'Unable to delete portfolio project'));
     }
   };
 
@@ -255,7 +260,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
   const handleUploadToExistingItem = async (item: PortfolioItem) => {
     const files = draftFilesByItem[item._id] || [];
     if (!files.length) {
-      alert('Please select image or video files first.');
+      alert(tr('Please select image or video files first.', 'Veuillez d\'abord selectionner des images ou des videos.'));
       return;
     }
 
@@ -280,7 +285,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
       await loadData();
     } catch (error: any) {
       const backendMessage = error?.response?.data?.message;
-      const fallback = error?.message || 'Unable to upload files to this project';
+      const fallback = error?.message || tr('Unable to upload files to this project', 'Impossible d\'envoyer des fichiers vers ce projet');
       alert(backendMessage || fallback);
     } finally {
       setSubmitting(false);
@@ -291,48 +296,48 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
     return (
       <div className="space-y-6">
         <Button variant="outline" className="rounded-xl border-2" onClick={() => setViewMode('list')}>
-          <ArrowLeft size={18} className="mr-2" /> Back to Portfolio
+          <ArrowLeft size={18} className="mr-2" /> {tr('Back to Portfolio', 'Retour au portfolio', 'العودة إلى المحفظة')}
         </Button>
 
         <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Add New Portfolio Project</h1>
-          <p className="text-muted-foreground mb-8">Add an external project and upload local images/videos from your computer.</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{tr('Add New Portfolio Project', 'Ajouter un nouveau projet portfolio', 'إضافة مشروع محفظة جديد')}</h1>
+          <p className="text-muted-foreground mb-8">{tr('Add an external project and upload local images/videos from your computer.', 'Ajoutez un projet externe et televersez des images/videos depuis votre ordinateur.', 'أضف مشروعاً خارجياً وحمّل صوراً/مقاطع فيديو محلية من جهاز الكمبيوتر الخاص بك.')}</p>
 
           <form className="space-y-6" onSubmit={handleCreateManualProject}>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Project Title</Label>
+                <Label>{tr('Project Title', 'Titre du projet', 'عنوان المشروع')}</Label>
                 <Input
                   value={form.title}
                   onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="e.g., Villa Residence - Carthage"
+                  placeholder={tr('e.g., Villa Residence - Carthage', 'ex: Residence villa - Carthage', 'e.g., Villa Residence - Carthage')}
                   className="h-11 rounded-xl"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Location</Label>
+                <Label>{tr('Location', 'Localisation', 'الموقع')}</Label>
                 <Input
                   value={form.location}
                   onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
-                  placeholder="City, Governorate"
+                  placeholder={tr('City, Governorate', 'Ville, Gouvernorat', 'City, Governorate')}
                   className="h-11 rounded-xl"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{tr('Description', 'Description', 'الوصف')}</Label>
               <Textarea
                 rows={4}
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Describe the project scope, quality of execution and outcomes"
+                placeholder={tr('Describe the project scope, quality of execution and outcomes', 'Decrivez la portee du projet, la qualite d\'execution et les resultats')}
                 className="rounded-xl"
               />
             </div>
 
             <div className="space-y-2 md:max-w-xs">
-              <Label>Completed Date</Label>
+              <Label>{tr('Completed Date', 'Date de fin', 'تاريخ الانتهاء')}</Label>
               <Input
                 type="date"
                 value={form.completedDate}
@@ -342,7 +347,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
             </div>
 
             <div className="space-y-3">
-              <Label>Project Media (local files)</Label>
+              <Label>{tr('Project Media (local files)', 'Medias du projet (fichiers locaux)', 'وسائط المشروع (ملفات محلية)')}</Label>
               <input
                 ref={manualFileInputRef}
                 type="file"
@@ -352,7 +357,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                 className="hidden"
               />
               <Button type="button" variant="outline" className="rounded-xl" onClick={() => manualFileInputRef.current?.click()}>
-                <Upload size={16} className="mr-2" /> Import Images / Videos From PC
+                <Upload size={16} className="mr-2" /> {tr('Import Images / Videos From PC', 'Importer images / videos depuis le PC', 'استيراد صور / مقاطع فيديو من الكمبيوتر')}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Formats supportes: images et videos. Vous pouvez selectionner plusieurs fichiers.
@@ -371,7 +376,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                         )}
                       </div>
                       <div className="flex items-center justify-between">
-                        <Badge className="bg-primary/10 text-primary border-0">{getFileType(file) === 'video' ? 'Video' : 'Image'}</Badge>
+                        <Badge className="bg-primary/10 text-primary border-0">{getFileType(file) === 'video' ? tr('Video', 'Video', 'Video') : tr('Image', 'Image', 'Image')}</Badge>
                         <Button
                           type="button"
                           variant="outline"
@@ -388,7 +393,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
             </div>
 
             <Button type="submit" className="h-11 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Publish Portfolio Project'}
+              {submitting ? tr('Saving...', 'Enregistrement...', 'جاري الحفظ...') : tr('Publish Portfolio Project', 'Publier le projet portfolio', 'Publish Portfolio Project')}
             </Button>
           </form>
         </Card>
@@ -400,30 +405,30 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Your Portfolio Projects</h1>
-          <p className="text-lg text-muted-foreground">Show your best completed work with strong visual proof.</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{tr('Your Portfolio Projects', 'Vos projets portfolio', 'Your Portfolio Projects')}</h1>
+          <p className="text-lg text-muted-foreground">{tr('Show your best completed work with strong visual proof.', 'Montrez vos meilleurs projets termines avec des preuves visuelles solides.', 'Show your best completed work with strong visual proof.')}</p>
         </div>
         <Button className="h-11 px-6 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90" onClick={() => {
           if (subLocked) { setShowSubPopup(true); return; }
           setViewMode('create');
         }}>
-          <FolderPlus size={18} className="mr-2" /> Add New Project
+          <FolderPlus size={18} className="mr-2" /> {tr('Add New Project', 'Ajouter un projet', 'إضافة مشروع جديد')}
         </Button>
       </div>
 
       {loading ? (
         <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-          <p className="text-muted-foreground">Loading portfolio...</p>
+          <p className="text-muted-foreground">{tr('Loading portfolio...', 'Chargement du portfolio...', 'Loading portfolio...')}</p>
         </Card>
       ) : portfolio.length === 0 ? (
         <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg text-center">
-          <p className="text-lg font-semibold text-foreground mb-2">No portfolio project yet</p>
-          <p className="text-muted-foreground mb-6">Add your first project to improve visibility for experts.</p>
+          <p className="text-lg font-semibold text-foreground mb-2">{tr('No portfolio project yet', 'Aucun projet portfolio pour le moment', 'No portfolio project yet')}</p>
+          <p className="text-muted-foreground mb-6">{tr('Add your first project to improve visibility for experts.', 'Ajoutez votre premier projet pour ameliorer votre visibilite aupres des experts.', 'Add your first project to improve visibility for experts.')}</p>
           <Button className="h-11 px-6 rounded-xl bg-primary dark:bg-blue-600 text-white hover:bg-primary/90" onClick={() => {
             if (subLocked) { setShowSubPopup(true); return; }
             setViewMode('create');
           }}>
-            <Plus size={18} className="mr-2" /> Create First Portfolio Project
+            <Plus size={18} className="mr-2" /> {tr('Create First Portfolio Project', 'Creer le premier projet portfolio', 'Create First Portfolio Project')}
           </Button>
         </Card>
       ) : (
@@ -443,7 +448,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                     )
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                      <ImageIcon size={22} className="mr-2" /> No media
+                      <ImageIcon size={22} className="mr-2" /> {tr('No media', 'Aucun media', 'No media')}
                     </div>
                   )}
                 </div>
@@ -451,7 +456,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                 <div className="p-5 space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-xl font-bold text-foreground">{item.title}</h3>
-                    <Badge className="bg-primary/10 text-primary border-0">{item.source === 'project' ? 'From Project' : 'Manual'}</Badge>
+                    <Badge className="bg-primary/10 text-primary border-0">{item.source === 'project' ? tr('From Project', 'Depuis projet', 'From Project') : tr('Manual', 'Manuel', 'Manual')}</Badge>
                   </div>
 
                   <p className="text-muted-foreground text-sm h-10 overflow-hidden">{item.description}</p>
@@ -473,11 +478,11 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <ImageIcon size={16} />
-                      <span>{item.media.filter((m) => m.type === 'image').length} Images</span>
+                      <span>{item.media.filter((m) => m.type === 'image').length} {tr('Images', 'Images', 'Images')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Video size={16} />
-                      <span>{item.media.filter((m) => m.type === 'video').length} Videos</span>
+                      <span>{item.media.filter((m) => m.type === 'video').length} {tr('Videos', 'Videos', 'Videos')}</span>
                     </div>
                   </div>
 
@@ -488,7 +493,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                         className="w-full rounded-lg"
                         onClick={() => onViewGallery?.(item._id)}
                       >
-                        <View size={16} className="mr-2" /> View Gallery
+                        <View size={16} className="mr-2" /> {tr('View Gallery', 'Voir la galerie', 'View Gallery')}
                       </Button>
                     </div>
                     <div className="space-y-3">
@@ -508,7 +513,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                           className="flex-1 rounded-lg"
                           onClick={() => itemFileInputRefs.current[item._id]?.click()}
                         >
-                          <Upload size={16} className="mr-2" /> Select Files
+                          <Upload size={16} className="mr-2" /> {tr('Select Files', 'Selectionner des fichiers', 'Select Files')}
                         </Button>
                         <Button
                           type="button"
@@ -516,13 +521,15 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                           onClick={() => handleUploadToExistingItem(item)}
                           disabled={submitting || selectedFiles.length === 0}
                         >
-                          Upload Media
+                          {tr('Upload Media', 'Televerser les medias', 'Upload Media')}
                         </Button>
                       </div>
 
                       {selectedFiles.length > 0 && (
                         <div className="text-xs text-muted-foreground">
-                          {selectedFiles.length} file(s) selected. Click Upload Media to save.
+                          {language === 'fr'
+                            ? `${selectedFiles.length} fichier(s) selectionne(s). Cliquez sur Televerser les medias pour enregistrer.`
+                            : `${selectedFiles.length} file(s) selected. Click Upload Media to save.`}
                         </div>
                       )}
 
@@ -538,7 +545,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                       className="w-full rounded-lg"
                       onClick={() => handleDeletePortfolioItem(item._id)}
                     >
-                      <Trash2 size={16} className="mr-2" /> Remove
+                      <Trash2 size={16} className="mr-2" /> {tr('Remove', 'Supprimer', 'Remove')}
                     </Button>
                   </div>
                 </div>
@@ -557,7 +564,7 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
                 <ChevronLeft />
               </Button>
               <span className="text-sm font-medium">
-                Page {currentPage} of {totalPages}
+                {tr('Page', 'Page', 'Page')} {currentPage} {tr('of', 'sur', 'of')} {totalPages}
               </span>
               <Button
                 variant="outline"
@@ -579,3 +586,4 @@ export default function ArtisanPortfolio({ onViewReviews, onViewGallery }: Artis
     </div>
   );
 }
+

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+import { useLanguage } from '../../context/LanguageContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const getToken = () => {
@@ -26,6 +27,8 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.R
 };
 
 export default function ArtisanOrders() {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +69,7 @@ export default function ArtisanOrders() {
   const toggleExpand = (id: string) => setExpandedOrder(prev => prev === id ? null : id);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>

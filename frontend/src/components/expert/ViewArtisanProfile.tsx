@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ArrowRight, MapPin, Briefcase, Calendar, Star, MessageSquare, Phone, Mail, Award, Image, ArrowLeft, Send } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ViewArtisanProfileProps {
   artisanId?: string;
@@ -60,13 +61,9 @@ const getToken = () => {
   }
 };
 
-const getMediaUrl = (url: string) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  return `${API_BASE}/${url.replace(/^\/+/, '')}`;
-};
-
 export default function ViewArtisanProfile({ artisanId, onBack, onContact, onViewPortfolio }: ViewArtisanProfileProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +78,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
 
   useEffect(() => {
     if (!artisanId) {
-      setError('Artisan not found');
+      setError(tr('Artisan not found', 'Artisan introuvable', 'Artisan not found'));
       setLoading(false);
       return;
     }
@@ -114,7 +111,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
             : '',
         });
       } catch (err: any) {
-        setError(err?.response?.data?.message || err?.message || 'Failed to load artisan');
+        setError(err?.response?.data?.message || err?.message || tr('Failed to load artisan', 'Echec du chargement de l\'artisan'));
       } finally {
         setLoading(false);
       }
@@ -137,12 +134,12 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
   }, [artisanId]);
 
   const handleSubmitReview = async () => {
-    if (!newRating) { setReviewError('Please select a rating'); return; }
+    if (!newRating) { setReviewError(tr('Please select a rating', 'Veuillez selectionner une note', 'Please select a rating')); return; }
     setReviewError('');
     try {
       setSubmittingReview(true);
       const token = getToken();
-      if (!token) { setReviewError('Please login to submit a review'); return; }
+      if (!token) { setReviewError(tr('Please login to submit a review', 'Veuillez vous connecter pour soumettre un avis', 'Please login to submit a review')); return; }
 
       const response = await axios.post(
         `${API_URL}/artisans/${artisanId}/reviews`,
@@ -176,7 +173,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
       setNewRating(0);
       setNewComment('');
     } catch (err: any) {
-      setReviewError(err?.response?.data?.message || 'Failed to submit review');
+      setReviewError(err?.response?.data?.message || tr('Failed to submit review', 'Echec de l\'envoi de l\'avis'));
     } finally {
       setSubmittingReview(false);
     }
@@ -188,10 +185,10 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
         {onBack && (
           <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
             <ArrowRight size={20} className="mr-2 rotate-180" />
-            Back to Artisan Directory
+            {tr('Back to Artisan Directory', 'Retour a l\'annuaire des artisans')}
           </Button>
         )}
-        <p className="text-sm text-muted-foreground">Loading artisan profile...</p>
+        <p className="text-sm text-muted-foreground">{tr('Loading artisan profile...', 'Chargement du profil artisan...', 'Loading artisan profile...')}</p>
       </div>
     );
   }
@@ -202,10 +199,10 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
         {onBack && (
           <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
             <ArrowRight size={20} className="mr-2 rotate-180" />
-            Back to Artisan Directory
+            {tr('Back to Artisan Directory', 'Retour a l\'annuaire des artisans')}
           </Button>
         )}
-        <p className="text-sm text-red-500">{error || 'Artisan not found'}</p>
+        <p className="text-sm text-red-500">{error || tr('Artisan not found', 'Artisan introuvable', 'Artisan not found')}</p>
       </div>
     );
   }
@@ -218,7 +215,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
       {onBack && (
         <Button variant="outline" onClick={onBack} className="rounded-xl border-2">
           <ArrowLeft size={20} className="mr-2" />
-          Back to Artisan Directory
+            {tr('Back to Artisan Directory', 'Retour a l\'annuaire des artisans', 'العودة إلى دليل الحرفيين')}
         </Button>
       )}
 
@@ -251,7 +248,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar size={18} className="text-muted-foreground" />
-                  <span className="text-muted-foreground">{artisan.yearsExperience} years of experience</span>
+                  <span className="text-muted-foreground">{artisan.yearsExperience} {tr('years of experience', 'ans d\'experience', 'سنوات من الخبرة')}</span>
                 </div>
               </div>
 
@@ -262,14 +259,14 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                   className="h-12 px-6 rounded-xl border-2"
                 >
                   <Image size={18} className="mr-2" />
-                  View Portfolio
+                  {tr('View Portfolio', 'Voir le portfolio', 'View Portfolio')}
                 </Button>
                 <Button
                   onClick={onContact}
                   className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg"
                 >
                   <MessageSquare size={20} className="mr-2" />
-                  Contact Artisan
+                  {tr('Contact Artisan', 'Contacter l\'artisan', 'اتصل بالحرفي')}
                 </Button>
               </div>
             </div>
@@ -283,17 +280,17 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                     {avgRating > 0 ? avgRating.toFixed(1) : '—'}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">{artisan.reviewCount} Reviews</p>
+                <p className="text-sm text-muted-foreground">{artisan.reviewCount} {tr('Reviews', 'Avis', 'Reviews')}</p>
               </div>
 
               <div className="p-4 rounded-xl bg-gradient-to-br from-accent/5 to-accent/10 text-center">
                 <p className="text-2xl font-bold text-foreground mb-1">{artisan.completedProjects}</p>
-                <p className="text-sm text-muted-foreground">Projects Done</p>
+                <p className="text-sm text-muted-foreground">{tr('Projects Done', 'Projets realises', 'المشاريع المنجزة')}</p>
               </div>
 
               <div className="p-4 rounded-xl bg-gradient-to-br from-secondary/5 to-secondary/10 text-center">
                 <p className="text-2xl font-bold text-foreground mb-1">{artisan.yearsExperience}</p>
-                <p className="text-sm text-muted-foreground">Years Experience</p>
+                <p className="text-sm text-muted-foreground">{tr('Years Experience', 'Annees d\'experience', 'سنوات الخبرة')}</p>
               </div>
             </div>
 
@@ -305,26 +302,26 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Contact Information */}
         <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg lg:col-span-1">
-          <h2 className="text-xl font-bold text-foreground mb-6">Contact Information</h2>
+          <h2 className="text-xl font-bold text-foreground mb-6">{tr('Contact Information', 'Informations de contact', 'Contact Information')}</h2>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Phone size={20} className="text-primary mt-1" />
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Phone</p>
+                <p className="text-sm text-muted-foreground mb-1">{tr('Phone', 'Telephone', 'الهاتف')}</p>
                 <p className="font-medium text-foreground">{artisan.phone || '—'}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <Mail size={20} className="text-primary mt-1" />
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Email</p>
+                <p className="text-sm text-muted-foreground mb-1">{tr('Email', 'Email', 'البريد الإلكتروني')}</p>
                 <p className="font-medium text-foreground">{artisan.email || '—'}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <MapPin size={20} className="text-primary mt-1" />
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Location</p>
+                <p className="text-sm text-muted-foreground mb-1">{tr('Location', 'Localisation', 'الموقع')}</p>
                 <p className="font-medium text-foreground">{artisan.location || '—'}</p>
               </div>
             </div>
@@ -335,7 +332,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
         <div className="lg:col-span-2 space-y-6">
           {/* Skills */}
           <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-            <h2 className="text-xl font-bold text-foreground mb-4">Skills & Expertise</h2>
+            <h2 className="text-xl font-bold text-foreground mb-4">{tr('Skills & Expertise', 'Competences et expertise', 'المهارات والخبرة')}</h2>
             {artisan.skills.length > 0 ? (
               <div className="flex flex-wrap gap-3">
                 {artisan.skills.map((skill, idx) => (
@@ -345,13 +342,13 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No skills listed yet.</p>
+              <p className="text-sm text-muted-foreground">{tr('No skills listed yet.', 'Aucune competence renseignee pour le moment.', 'لا توجد مهارات مدرجة حتى الآن.')}</p>
             )}
           </Card>
 
           {/* Certifications */}
           <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-            <h2 className="text-xl font-bold text-foreground mb-4">Certifications</h2>
+            <h2 className="text-xl font-bold text-foreground mb-4">{tr('Certifications', 'Certifications', 'الشهادات')}</h2>
             {artisan.certifications.length > 0 ? (
               <div className="space-y-3">
                 {artisan.certifications.map((cert, idx) => (
@@ -362,7 +359,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No certifications listed yet.</p>
+              <p className="text-sm text-muted-foreground">{tr('No certifications listed yet.', 'Aucune certification renseignee pour le moment.', 'لا توجد شهادات مدرجة حتى الآن.')}</p>
             )}
           </Card>
         </div>
@@ -370,7 +367,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
 
       {/* Reviews & Ratings */}
       <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-        <h2 className="text-xl font-bold text-foreground mb-6">Reviews & Ratings</h2>
+        <h2 className="text-xl font-bold text-foreground mb-6">{tr('Reviews & Ratings', 'Avis et notes', 'التقييمات والآراء')}</h2>
 
         {/* Rating summary */}
         <div className="flex items-center gap-4 mb-8 p-4 rounded-xl bg-gradient-to-br from-secondary/5 to-secondary/10">
@@ -387,14 +384,14 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                 />
               ))}
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{artisan.reviewCount} review{artisan.reviewCount !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-muted-foreground mt-1">{artisan.reviewCount} {artisan.reviewCount !== 1 ? tr('reviews', 'avis', 'تقييمات') : tr('review', 'avis', 'تقييم')}</p>
           </div>
         </div>
 
         {/* Submit review form */}
         <div className="mb-8 p-5 rounded-xl border-2 border-dashed border-border bg-muted/50">
-          <h3 className="text-base font-semibold text-foreground mb-1">Leave a Review</h3>
-          <p className="text-xs text-muted-foreground mb-3">Select a rating — comment is optional</p>
+          <h3 className="text-base font-semibold text-foreground mb-1">{tr('Leave a Review', 'Laisser un avis', 'اترك تقييماً')}</h3>
+          <p className="text-xs text-muted-foreground mb-3">{tr('Select a rating - comment is optional', 'Selectionnez une note - le commentaire est optionnel', 'اختر التقييم - التعليق اختياري')}</p>
           <div className="flex gap-1 mb-3">
             {[1,2,3,4,5].map(s => (
               <button
@@ -413,14 +410,14 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
             ))}
             {newRating > 0 && (
               <span className="ml-2 self-center text-sm font-medium text-muted-foreground">
-                {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][newRating]}
+                {['', tr('Poor', 'Mauvais', 'ضعيف'), tr('Fair', 'Passable', 'متوسط'), tr('Good', 'Bon', 'جيد'), tr('Very Good', 'Tres bon', 'جيد جداً'), tr('Excellent', 'Excellent', 'ممتاز')][newRating]}
               </span>
             )}
           </div>
           <textarea
             value={newComment}
             onChange={e => setNewComment(e.target.value)}
-            placeholder="Share your experience (optional)..."
+            placeholder={tr('Share your experience (optional)...', 'Partagez votre experience (optionnel)...', 'شارك تجربتك (اختياري)...')}
             className="w-full border-2 border-border rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-primary"
             rows={3}
           />
@@ -431,15 +428,15 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
             className="mt-8 h-11 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl disabled:opacity-50"
           >
             <Send size={16} className="mr-2" />
-            {submittingReview ? 'Submitting...' : 'Submit Review'}
+            {submittingReview ? tr('Submitting...', 'Envoi...', 'جاري الإرسال...') : tr('Submit Review', 'Envoyer l\'avis', 'إرسال التقييم')}
           </Button>
         </div>
 
         {/* Reviews list */}
         {loadingReviews ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Loading reviews...</p>
+          <p className="text-sm text-muted-foreground text-center py-6">{tr('Loading reviews...', 'Chargement des avis...', 'جاري تحميل التقييمات...')}</p>
         ) : reviews.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No reviews yet. Be the first to review!</p>
+          <p className="text-sm text-muted-foreground text-center py-6">{tr('No reviews yet. Be the first to review!', 'Aucun avis pour le moment. Soyez le premier a laisser un avis!', 'لا توجد تقييمات حتى الآن. كن الأول في ترك تقييم!')}</p>
         ) : (
           <div className="space-y-4">
             {reviews.filter(review => review.expert).map(review => (

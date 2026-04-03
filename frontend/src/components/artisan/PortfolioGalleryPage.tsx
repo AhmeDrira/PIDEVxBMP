@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ArrowLeft, ImageIcon, Film, ImageOff, X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 
+import { useLanguage } from '../../context/LanguageContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const BACKEND_ORIGIN = API_URL.replace(/\/api\/?$/, '');
 
@@ -39,7 +40,9 @@ interface PortfolioGalleryPageProps {
 }
 
 export default function PortfolioGalleryPage({ itemId, onBack }: PortfolioGalleryPageProps) {
-  const [item, setItem] = useState<PortfolioItem | null>(null);
+
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [item, setItem] = useState<PortfolioItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);

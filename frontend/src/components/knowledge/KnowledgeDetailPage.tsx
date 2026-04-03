@@ -7,6 +7,7 @@ import knowledgeService, { KnowledgeArticle } from '../../services/knowledgeServ
 import { toast } from 'sonner';
 import AddKnowledgePage from '../admin/AddKnowledgePage';
 
+import { useLanguage } from '../../context/LanguageContext';
 interface KnowledgeDetailPageProps {
   articleId?: string;
   onBack?: () => void;
@@ -24,6 +25,8 @@ export default function KnowledgeDetailPage({
   onDeleted,
   onUpdated,
 }: KnowledgeDetailPageProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [article, setArticle] = useState<KnowledgeArticle | null>(articleProp || null);
   const [loading, setLoading] = useState(Boolean(articleId) && !articleProp);
   const [isEditing, setIsEditing] = useState(false);

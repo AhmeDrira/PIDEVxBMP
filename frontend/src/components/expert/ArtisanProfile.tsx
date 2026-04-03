@@ -5,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { ArrowLeft, Star, MapPin, Briefcase, Calendar, Award, MessageSquare, Mail, Phone } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ArtisanProfileProps {
   artisanId: number;
@@ -13,6 +14,8 @@ interface ArtisanProfileProps {
 }
 
 export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: ArtisanProfileProps) {
+  const { language } = useLanguage();
+  const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const artisan = {
     id: artisanId,
     name: 'Ahmed Ben Salah',
@@ -41,7 +44,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
     <div className="space-y-8">
       <Button variant="ghost" onClick={onBack} className="hover:bg-card rounded-xl">
         <ArrowLeft size={20} className="mr-2" />
-        Back to Directory
+        {tr('Back to Directory', 'Retour a l\'annuaire')}
       </Button>
 
       {/* Profile Header */}
@@ -66,7 +69,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
                   <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/10">
                     <Star size={20} className="text-secondary fill-secondary" />
                     <span className="text-lg font-bold text-foreground">{artisan.rating}</span>
-                    <span className="text-sm text-muted-foreground">({artisan.reviews} reviews)</span>
+                    <span className="text-sm text-muted-foreground">({artisan.reviews} {tr('reviews', 'avis', 'reviews')})</span>
                   </div>
                 </div>
               </div>
@@ -76,7 +79,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
                 className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg"
               >
                 <MessageSquare size={20} className="mr-2" />
-                Send Message
+                {tr('Send Message', 'Envoyer un message', 'Send Message')}
               </Button>
             </div>
 
@@ -84,7 +87,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               <div className="flex items-center gap-3">
                 <MapPin size={20} className="text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Location</p>
+                  <p className="text-sm text-muted-foreground font-medium">{tr('Location', 'Localisation', 'الموقع')}</p>
                   <p className="font-bold text-foreground">{artisan.location}</p>
                 </div>
               </div>
@@ -92,7 +95,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               <div className="flex items-center gap-3">
                 <Briefcase size={20} className="text-secondary" />
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Experience</p>
+                  <p className="text-sm text-muted-foreground font-medium">{tr('Experience', 'Experience', 'Experience')}</p>
                   <p className="font-bold text-foreground">{artisan.experience}</p>
                 </div>
               </div>
@@ -100,7 +103,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               <div className="flex items-center gap-3">
                 <Award size={20} className="text-accent" />
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Completed Projects</p>
+                  <p className="text-sm text-muted-foreground font-medium">{tr('Completed Projects', 'Projets termines', 'Completed Projects')}</p>
                   <p className="font-bold text-foreground">{artisan.completedProjects}</p>
                 </div>
               </div>
@@ -114,13 +117,13 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
         <div className="lg:col-span-2 space-y-6">
           {/* About */}
           <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-            <h2 className="text-2xl font-bold text-foreground mb-6">About</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-6">{tr('About', 'A propos', 'About')}</h2>
             <p className="text-muted-foreground leading-relaxed">{artisan.bio}</p>
           </Card>
 
           {/* Skills */}
           <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Skills & Expertise</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-6">{tr('Skills & Expertise', 'Competences et expertise', 'المهارات والخبرة')}</h2>
             <div className="flex flex-wrap gap-3">
               {artisan.skills.map((skill, index) => (
                 <Badge
@@ -135,7 +138,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
 
           {/* Certifications */}
           <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Certifications</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-6">{tr('Certifications', 'Certifications', 'الشهادات')}</h2>
             <div className="space-y-3">
               {artisan.certifications.map((cert, index) => (
                 <div key={index} className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-br from-accent/5 to-accent/10 border-2 border-accent/20">
@@ -148,7 +151,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
 
           {/* Portfolio */}
           <Card className="p-8 bg-card rounded-2xl border border-border shadow-lg">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Portfolio</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-6">{tr('Portfolio', 'Portfolio', 'Portfolio')}</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {artisan.portfolio.map((project) => (
                 <div key={project.id} className="group cursor-pointer">
@@ -175,12 +178,12 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
         <div className="space-y-6">
           {/* Contact Information */}
           <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-            <h3 className="text-xl font-bold text-foreground mb-6">Contact Information</h3>
+            <h3 className="text-xl font-bold text-foreground mb-6">{tr('Contact Information', 'Informations de contact', 'Contact Information')}</h3>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Mail size={20} className="text-primary mt-1" />
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Email</p>
+                  <p className="text-sm text-muted-foreground font-medium mb-1">{tr('Email', 'Email', 'البريد الإلكتروني')}</p>
                   <p className="font-semibold text-foreground break-all">{artisan.email}</p>
                 </div>
               </div>
@@ -188,7 +191,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               <div className="flex items-start gap-3">
                 <Phone size={20} className="text-secondary mt-1" />
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Phone</p>
+                  <p className="text-sm text-muted-foreground font-medium mb-1">{tr('Phone', 'Telephone', 'الهاتف')}</p>
                   <p className="font-semibold text-foreground">{artisan.phone}</p>
                 </div>
               </div>
@@ -196,7 +199,7 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               <div className="flex items-start gap-3">
                 <Calendar size={20} className="text-accent mt-1" />
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">Member Since</p>
+                  <p className="text-sm text-muted-foreground font-medium mb-1">{tr('Member Since', 'Membre depuis', 'عضو منذ')}</p>
                   <p className="font-semibold text-foreground">{artisan.joinedDate}</p>
                 </div>
               </div>
@@ -207,17 +210,17 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               className="w-full h-12 mt-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-md"
             >
               <MessageSquare size={18} className="mr-2" />
-              Send Message
+              {tr('Send Message', 'Envoyer un message', 'Send Message')}
             </Button>
           </Card>
 
           {/* Statistics */}
           <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
-            <h3 className="text-xl font-bold text-foreground mb-6">Statistics</h3>
+            <h3 className="text-xl font-bold text-foreground mb-6">{tr('Statistics', 'Statistiques', 'Statistics')}</h3>
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-muted-foreground font-medium">Rating</p>
+                  <p className="text-sm text-muted-foreground font-medium">{tr('Rating', 'Note', 'Rating')}</p>
                   <div className="flex items-center gap-2">
                     <Star size={18} className="text-secondary fill-secondary" />
                     <span className="text-xl font-bold text-foreground">{artisan.rating}</span>
@@ -232,12 +235,12 @@ export default function ArtisanProfile({ artisanId, onBack, onSendMessage }: Art
               </div>
 
               <div>
-                <p className="text-sm text-muted-foreground font-medium mb-2">Reviews</p>
+                <p className="text-sm text-muted-foreground font-medium mb-2">{tr('Reviews', 'Avis', 'Reviews')}</p>
                 <p className="text-3xl font-bold text-foreground">{artisan.reviews}</p>
               </div>
 
               <div>
-                <p className="text-sm text-muted-foreground font-medium mb-2">Completed Projects</p>
+                <p className="text-sm text-muted-foreground font-medium mb-2">{tr('Completed Projects', 'Projets termines', 'Completed Projects')}</p>
                 <p className="text-3xl font-bold text-primary">{artisan.completedProjects}</p>
               </div>
             </div>
