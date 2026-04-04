@@ -28,6 +28,10 @@ const {
   updateProfile,
   requestEmailChange,
   confirmEmailChange,
+  faceLogin,
+  saveFaceDescriptor,
+  deleteFaceDescriptor,
+  getFaceDescriptorStatus,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { admin } = require('../middleware/authMiddleware');
@@ -37,6 +41,15 @@ const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Separate limiter for face-login: more lenient (detection retries are normal)
+const faceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: { message: 'Too many face login attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -98,5 +111,11 @@ const certUpload = multer({ storage: certStorage });
 
 // Override register to accept multipart with optional certificationFile
 router.post('/register', certUpload.single('certificationFile'), registerUser);
+
+// Face recognition routes
+router.post('/face-login', faceLimiter, faceLogin);
+router.get('/face-descriptor/status', protect, getFaceDescriptorStatus);
+router.post('/face-descriptor', protect, saveFaceDescriptor);
+router.delete('/face-descriptor', protect, deleteFaceDescriptor);
 
 module.exports = router;

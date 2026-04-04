@@ -6,12 +6,12 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card } from '../ui/card';
 import { PasswordInput } from '../ui/password-input';
-import { Mail, Lock, User, Phone, Upload, MapPin, Briefcase, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Upload, Loader2, ScanFace, CheckCircle2, X } from 'lucide-react';
 import authService from '../../services/authService';
 import { toast } from 'sonner';
 import { getRegisterSchema, RegisterFormValues } from '../../lib/validations';
 import { GoogleLoginButton } from './GoogleLoginButton';
-
+import FaceCaptureWidget from './FaceCaptureWidget';
 import { useLanguage } from '../../context/LanguageContext';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin';
@@ -29,6 +29,8 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
   const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const [isLoading, setIsLoading] = useState(false);
   const [certificationFile, setCertificationFile] = useState<File | null>(null);
   const certFileRef = useRef<HTMLInputElement>(null);
+  const [showFaceCapture, setShowFaceCapture] = useState(false);
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null);
 
   const registerSchema = useMemo(() => getRegisterSchema(selectedRole), [selectedRole]);
   const {
@@ -59,6 +61,8 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
         formData.append('password', data.password);
         formData.append('role', selectedRole);
         if (certificationFile) formData.append('certificationFile', certificationFile);
+        // Manufacturer uses multipart — send descriptor as JSON string
+        if (faceDescriptor) formData.append('faceDescriptor', JSON.stringify(faceDescriptor));
         response = await authService.register(formData);
       } else {
         const payload: any = {
@@ -67,19 +71,20 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
           email: data.email,
           password: data.password,
           role: selectedRole,
+          ...(faceDescriptor ? { faceDescriptor } : {}),
         };
         response = await authService.register(payload);
       }
-      
+
       if (response) {
-        toast.success(response.message || 'Registration successful! Please verify your email.');
+        toast.success(response.message || tr('Registration successful! Please verify your email.', 'Inscription réussie ! Veuillez vérifier votre email.'));
         onSubmit(selectedRole, false, data.email);
       }
     } catch (error: any) {
       console.error(error);
-      const message = error.response?.data?.message || 'Registration failed. Please try again.';
+      const message = error.response?.data?.message || tr('Registration failed. Please try again.', "L'inscription a échoué. Veuillez réessayer.");
       toast.error(message);
-      if (message === 'Email already in use') setError('email', { message: 'Email already in use' });
+      if (message === 'Email already in use') setError('email', { message: tr('Email already in use', 'Email déjà utilisé') });
     } finally {
       setIsLoading(false);
     }
@@ -215,8 +220,61 @@ export default function RegisterForm({ selectedRole, onSubmit, onBackToRoleSelec
           <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50">
             <input type="checkbox" id="terms" required className="mt-1 w-5 h-5 rounded border-border" />
             <label htmlFor="terms" className="text-sm text-muted-foreground">
-              I agree to the <a href="#" className="text-primary font-semibold hover:underline">Terms of Service</a> and <a href="#" className="text-primary font-semibold hover:underline">Privacy Policy</a>
+              {tr('I agree to the', "J'accepte les")}{' '}
+              <a href="#" className="text-primary font-semibold hover:underline">{tr('Terms of Service', "Conditions d'utilisation")}</a>
+              {' '}{tr('and', 'et')}{' '}
+              <a href="#" className="text-primary font-semibold hover:underline">{tr('Privacy Policy', 'Politique de confidentialité')}</a>
             </label>
+          </div>
+
+          {/* ── Optional Face Registration ── */}
+          <div className="rounded-2xl border-2 border-dashed border-border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ScanFace size={20} className="text-primary" />
+                <div>
+                  <p className="font-semibold text-foreground text-sm">
+                    {tr('Add Face Recognition', 'Ajouter la reconnaissance faciale')}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">({tr('optional', 'optionnel')})</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {tr('Enable face login for faster access', 'Activez la connexion faciale pour un accès rapide')}
+                  </p>
+                </div>
+              </div>
+              {faceDescriptor ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                    <CheckCircle2 size={16} /> {tr('Registered', 'Enregistré')}
+                  </span>
+                  <button type="button" onClick={() => { setFaceDescriptor(null); setShowFaceCapture(false); }} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFaceCapture(!showFaceCapture)}
+                  className="rounded-xl text-sm"
+                >
+                  {showFaceCapture ? tr('Hide camera', 'Masquer la caméra') : tr('Add my face', 'Ajouter mon visage')}
+                </Button>
+              )}
+            </div>
+
+            {showFaceCapture && !faceDescriptor && (
+              <FaceCaptureWidget
+                mode="register"
+                onCapture={(desc) => {
+                  setFaceDescriptor(desc);
+                  setShowFaceCapture(false);
+                  toast.success(tr('Face captured! It will be saved with your account.', 'Visage capturé ! Il sera sauvegardé avec votre compte.'));
+                }}
+                onCancel={() => setShowFaceCapture(false)}
+              />
+            )}
           </div>
 
           <div className="relative py-2">

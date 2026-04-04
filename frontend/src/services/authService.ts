@@ -203,6 +203,25 @@ const authService = {
     const response = await api.post(`/auth/admin/subadmins/${id}/reset-password`);
     return response.data;
   },
+  getFaceDescriptorStatus: async (): Promise<{ hasFaceDescriptor: boolean }> => {
+    const response = await api.get('/auth/face-descriptor/status');
+    return response.data;
+  },
+  faceLogin: async (descriptor: number[]) => {
+    const response = await axios.post(`${API_URL}/face-login`, { descriptor });
+    if (response.data) {
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
+    return response.data;
+  },
+  saveFaceDescriptor: async (descriptor: number[]) => {
+    const response = await api.post('/auth/face-descriptor', { descriptor });
+    return response.data;
+  },
+  deleteFaceDescriptor: async () => {
+    const response = await api.delete('/auth/face-descriptor');
+    return response.data;
+  },
   updateSubAdminPermissions: async (
     id: string,
     permissions: {

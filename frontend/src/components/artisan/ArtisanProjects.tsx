@@ -4,12 +4,13 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban, X, Upload, CheckCircle } from 'lucide-react';
+import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban, X, Upload, CheckCircle, Sparkles } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
 import { useLanguage } from '../../context/LanguageContext';
+import MaterialRecommendation from './MaterialRecommendation';
 
 // Composant d'autocomplétion pour la localisation
 const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates = []  }: {
@@ -168,6 +169,7 @@ export default function ArtisanProjects() {
   const [addingToPortfolio, setAddingToPortfolio] = useState(false);
   const [showAddMaterialOptions, setShowAddMaterialOptions] = useState(false);
   const [materialProjectContext, setMaterialProjectContext] = useState<any>(null);
+  const [showRecommendation, setShowRecommendation] = useState(false);
   const [showPersonalMaterialForm, setShowPersonalMaterialForm] = useState(false);
   const [isSavingPersonalMaterial, setIsSavingPersonalMaterial] = useState(false);
   const [selectedPersonalImageFile, setSelectedPersonalImageFile] = useState<File | null>(null);
@@ -584,6 +586,28 @@ export default function ArtisanProjects() {
     if (!materialProjectContext?._id) return;
     guard(() => { window.location.href = '/?artisanView=marketplace&projectId=' + materialProjectContext._id; });
     setShowAddMaterialOptions(false);
+  };
+
+  const handleOpenSmartRecommendation = () => {
+    if (!materialProjectContext) return;
+    setShowAddMaterialOptions(false);
+    setShowRecommendation(true);
+  };
+
+  const handleRecommendationAddToProject = async (productId: string) => {
+    if (!materialProjectContext?._id) return;
+    const token = getToken();
+    const currentMaterials = (materialProjectContext.materials || []).map((m: any) => m._id || m);
+    await axios.put(
+      `${API_URL}/projects/${materialProjectContext._id}`,
+      { materials: [...currentMaterials, productId] },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    // Refresh project list and update context reference
+    const updated = await axios.get(`${API_URL}/projects`, { headers: { Authorization: `Bearer ${token}` } });
+    setProjects(updated.data);
+    const refreshed = updated.data.find((p: any) => p._id === materialProjectContext._id);
+    if (refreshed) setMaterialProjectContext(refreshed);
   };
 
   const handleOpenPersonalMaterialForm = () => {
@@ -1916,6 +1940,36 @@ export default function ArtisanProjects() {
                     </div>
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenSmartRecommendation}
+                  className="w-full text-left rounded-2xl border p-4 transition-colors"
+                  style={{ borderColor: 'rgba(139,92,246,0.35)', backgroundColor: 'rgba(139,92,246,0.08)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(139,92,246,0.14)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(139,92,246,0.08)')}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-white"
+                      style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}
+                    >
+                      <Sparkles size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-foreground">Smart Recommendation</p>
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                          style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}
+                        >
+                          AI
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Get scored recommendations based on your need, budget, stock, and tech sheets.</p>
+                    </div>
+                  </div>
+                </button>
               </div>
 
               <div className="flex gap-3">
@@ -1934,6 +1988,18 @@ export default function ArtisanProjects() {
           </Card>
         </div>
       )}
+      {showRecommendation && materialProjectContext && (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-background">
+          <MaterialRecommendation
+            project={materialProjectContext}
+            onBack={() => {
+              setShowRecommendation(false);
+            }}
+            onAddToProject={handleRecommendationAddToProject}
+          />
+        </div>
+      )}
+
       {PopupElement}
     </div>
   );

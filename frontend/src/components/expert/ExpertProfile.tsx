@@ -6,6 +6,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { User, MapPin, Briefcase, Save, Camera, Loader2 } from 'lucide-react';
+import FaceIdSection from '../common/FaceIdSection';
 import { Checkbox } from '../ui/checkbox';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -422,6 +423,9 @@ export default function ExpertProfile() {
           </div>
         </div>
       </Card>
+
+      {/* Face Recognition */}
+      <FaceIdSection />
     </div>
   );
 }

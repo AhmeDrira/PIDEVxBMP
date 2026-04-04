@@ -48,7 +48,11 @@ router.route('/')
   .post(protect, productUploads, createProduct); // productUploads intercepte les fichiers
 
 router.route('/:id')
-  .put(protect, productUploads, updateProduct) // productUploads pour la modification
+  .put(protect, productUploads, updateProduct)
   .delete(protect, deleteProduct);
+
+// Tech-sheet analysis (force re-analysis / cache refresh)
+const { analyzeTechSheet } = require('../controllers/recommendationController');
+router.post('/:id/analyze-tech-sheet', protect, analyzeTechSheet);
 
 module.exports = router;
