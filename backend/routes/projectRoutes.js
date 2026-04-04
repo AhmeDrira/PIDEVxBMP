@@ -6,13 +6,17 @@ const {
 	updateProject,
 	uploadPersonalMaterialImage,
 } = require('../controllers/projectController');
-const { protect } = require('../middleware/authMiddleware'); // On utilise ton middleware existant
+const { getMaterialRecommendations } = require('../controllers/recommendationController');
+const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
-// Protège la route (seuls les utilisateurs connectés peuvent créer un projet)
+// Project CRUD
 router.post('/', protect, createProject);
 router.get('/', protect, getProjects);
 router.put('/:id', protect, updateProject);
 router.post('/:id/personal-materials/:materialId/image', protect, upload.single('document'), uploadPersonalMaterialImage);
+
+// Smart material recommendations
+router.post('/:projectId/material-recommendations', protect, getMaterialRecommendations);
 
 module.exports = router;

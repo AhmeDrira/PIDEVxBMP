@@ -6,6 +6,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Loader2, Plus, X, Award } from 'lucide-react';
+import FaceIdSection from '../common/FaceIdSection';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
@@ -476,6 +477,9 @@ export default function ArtisanProfile() {
           </div>
         </div>
       </Card>
+
+      {/* Face Recognition */}
+      <FaceIdSection />
     </div>
   );
 }

@@ -117,12 +117,13 @@ const findUserByEmail = async (email, options = {}) => {
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-  const { 
-    firstName, 
-    lastName, 
-    email, 
-    password, 
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
     role,
+    faceDescriptor,
   } = req.body;
 
   try {
@@ -141,6 +142,16 @@ const registerUser = async (req, res) => {
 
     let user;
 
+    // faceDescriptor may arrive as an array (JSON body) or as a JSON string (multipart FormData)
+    let parsedDescriptor = faceDescriptor;
+    if (typeof faceDescriptor === 'string') {
+      try { parsedDescriptor = JSON.parse(faceDescriptor); } catch { parsedDescriptor = null; }
+    }
+    const validDescriptor =
+      Array.isArray(parsedDescriptor) && parsedDescriptor.length === 128
+        ? parsedDescriptor.map(Number)
+        : null;
+
     const userData = {
       firstName,
       lastName,
@@ -151,6 +162,7 @@ const registerUser = async (req, res) => {
       isVerified: false,
       verificationToken: verificationTokenHash,
       verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      ...(validDescriptor ? { faceDescriptor: validDescriptor } : {}),
     };
 
     switch (role) {
@@ -815,6 +827,113 @@ async function updateSubAdminPermissions(req, res) {
   }
 }
 
+// @desc    Login with face descriptor
+// @route   POST /api/auth/face-login
+// @access  Public
+async function faceLogin(req, res) {
+  try {
+    const { descriptor } = req.body;
+
+    if (!Array.isArray(descriptor) || descriptor.length !== 128) {
+      return res.status(400).json({ message: 'Invalid face descriptor' });
+    }
+
+    // Fetch all users with a registered face descriptor
+    const users = await User.find({
+      faceDescriptor: { $exists: true, $ne: null, $not: { $size: 0 } },
+    }).select('+faceDescriptor');
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'Face not registered', noFace: true });
+    }
+
+    let bestMatch = null;
+    let bestDistance = Infinity;
+
+    for (const user of users) {
+      if (!Array.isArray(user.faceDescriptor) || user.faceDescriptor.length !== 128) continue;
+      let sum = 0;
+      for (let i = 0; i < 128; i++) {
+        const diff = descriptor[i] - user.faceDescriptor[i];
+        sum += diff * diff;
+      }
+      const distance = Math.sqrt(sum);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestMatch = user;
+      }
+    }
+
+    if (!bestMatch || bestDistance >= 0.6) {
+      return res.status(401).json({ message: 'Face not recognized. Please try again or use standard login.' });
+    }
+
+    if (bestMatch.status === 'suspended') {
+      return res.status(403).json({ message: 'Your account has been suspended.' });
+    }
+
+    const token = generateToken({ id: bestMatch._id, role: bestMatch.role });
+    return res.json({
+      _id: bestMatch._id,
+      firstName: bestMatch.firstName,
+      lastName: bestMatch.lastName,
+      email: bestMatch.email,
+      role: bestMatch.role,
+      profilePhoto: bestMatch.profilePhoto,
+      token,
+    });
+  } catch (error) {
+    console.error('faceLogin error:', error);
+    return res.status(500).json({ message: 'Server error during face authentication' });
+  }
+}
+
+// @desc    Check whether the logged-in user has a face descriptor registered
+// @route   GET /api/auth/face-descriptor/status
+// @access  Private
+async function getFaceDescriptorStatus(req, res) {
+  try {
+    const user = await User.findById(req.user._id).select('+faceDescriptor');
+    const hasFaceDescriptor = !!(user && Array.isArray(user.faceDescriptor) && user.faceDescriptor.length === 128);
+    return res.json({ hasFaceDescriptor });
+  } catch (error) {
+    console.error('getFaceDescriptorStatus error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// @desc    Save face descriptor for logged-in user
+// @route   POST /api/auth/face-descriptor
+// @access  Private
+async function saveFaceDescriptor(req, res) {
+  try {
+    const { descriptor } = req.body;
+
+    if (!Array.isArray(descriptor) || descriptor.length !== 128) {
+      return res.status(400).json({ message: 'Invalid face descriptor' });
+    }
+
+    await User.findByIdAndUpdate(req.user._id, { faceDescriptor: descriptor });
+    return res.json({ message: 'Face registered successfully' });
+  } catch (error) {
+    console.error('saveFaceDescriptor error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// @desc    Delete face descriptor for logged-in user
+// @route   DELETE /api/auth/face-descriptor
+// @access  Private
+async function deleteFaceDescriptor(req, res) {
+  try {
+    await User.findByIdAndUpdate(req.user._id, { faceDescriptor: null });
+    return res.json({ message: 'Face removed successfully' });
+  } catch (error) {
+    console.error('deleteFaceDescriptor error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   registerUser,
   loginUser,
@@ -847,6 +966,10 @@ module.exports = {
   activateUser,
   deleteUser,
   getCertificationFile,
+  faceLogin,
+  saveFaceDescriptor,
+  deleteFaceDescriptor,
+  getFaceDescriptorStatus,
 };
 
 // Email utilities

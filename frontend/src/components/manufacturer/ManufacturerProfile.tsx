@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Checkbox } from '../ui/checkbox';
 import { toast } from 'sonner';
 import { Building2, Mail, Phone, MapPin, Save, CheckCircle, AlertCircle, User, Camera, Loader2 } from 'lucide-react';
+import FaceIdSection from '../common/FaceIdSection';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { TUNISIA_STATES } from '../../lib/tunisiaStates';
@@ -338,7 +339,7 @@ export default function ManufacturerProfile() {
                 <p className="font-semibold text-foreground">{formData.certificationNumber || tr('Not provided', 'Non renseigne', 'Not provided')}</p>
               </div>
             </div>
-            
+
             <div>
               <p className="text-sm mb-2 text-muted-foreground font-medium">{tr('Company Description', 'Description de l\'entreprise')}</p>
               <div className="bg-muted/50 p-6 rounded-xl text-foreground leading-relaxed whitespace-pre-wrap">
@@ -348,6 +349,9 @@ export default function ManufacturerProfile() {
           </div>
         )}
       </Card>
+
+      {/* Face Recognition */}
+      <FaceIdSection />
     </div>
   );
 }

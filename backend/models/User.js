@@ -106,6 +106,11 @@ const userSchema = new mongoose.Schema({
     endDate: { type: Date },
     stripeSessionId: { type: String },
   },
+  faceDescriptor: {
+    type: [Number],
+    default: null,
+    select: false,
+  },
   pendingEmail: {
     type: String,
     select: false,
