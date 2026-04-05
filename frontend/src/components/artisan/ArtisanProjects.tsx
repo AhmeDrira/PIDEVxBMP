@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban, X, Upload, CheckCircle, Sparkles } from 'lucide-react';
+import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban, X, Upload, CheckCircle, Sparkles, Mic, MicOff } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -12,14 +12,53 @@ import { useSubscriptionGuard } from './SubscriptionGuard';
 import { useLanguage } from '../../context/LanguageContext';
 import MaterialRecommendation from './MaterialRecommendation';
 
+type SpeechField = 'title' | 'description' | 'location' | 'startDate' | 'endDate';
+
+type BrowserSpeechRecognitionEvent = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = Event & {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
+
 // Composant d'autocomplétion pour la localisation
-const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates = []  }: {
+const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates = [], inputId = 'location'  }: {
   value: string; 
   onChange: (value: string) => void; 
   onSelect: (location: string) => void;
   error?: string;
   onBlur?: () => void;
   allowedStates?: string[];
+  inputId?: string;
 }) => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,6 +120,7 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
   return (
     <div className="relative">
       <Input
+        id={inputId}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -120,6 +160,7 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
 export default function ArtisanProjects() {
   const { language } = useLanguage();
   const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const isSpeechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   // Vues
   const [view, setView] = useState<'list' | 'create' | 'details' | 'edit' | 'materials'>('list');
   const [selectedProject, setSelectedProject] = useState<any>(null);
@@ -159,6 +200,8 @@ export default function ArtisanProjects() {
   // État pour les erreurs de validation
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [activeSpeechField, setActiveSpeechField] = useState<SpeechField | null>(null);
+  const [isListening, setIsListening] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [artisanProfileLocation, setArtisanProfileLocation] = useState('');
@@ -174,6 +217,10 @@ export default function ArtisanProjects() {
   const [isSavingPersonalMaterial, setIsSavingPersonalMaterial] = useState(false);
   const [selectedPersonalImageFile, setSelectedPersonalImageFile] = useState<File | null>(null);
   const personalMaterialImageInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const speechBaseRef = useRef('');
+  const speechFinalRef = useRef('');
+  const formDataRef = useRef(formData);
   const [personalMaterialForm, setPersonalMaterialForm] = useState({
     name: '',
     category: 'Maçonnerie',
@@ -184,6 +231,235 @@ export default function ArtisanProjects() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const SERVER_URL = import.meta.env.VITE_SERVER_URL || API_URL.replace(/\/api\/?$/, '') || 'http://localhost:5000';
+
+  const normalizeTextForCompare = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const monthMap: Record<string, number> = {
+    january: 1,
+    february: 2,
+    march: 3,
+    april: 4,
+    may: 5,
+    june: 6,
+    july: 7,
+    august: 8,
+    september: 9,
+    october: 10,
+    november: 11,
+    december: 12,
+    janvier: 1,
+    fevrier: 2,
+    mars: 3,
+    avril: 4,
+    mai: 5,
+    juin: 6,
+    juillet: 7,
+    aout: 8,
+    septembre: 9,
+    octobre: 10,
+    novembre: 11,
+    decembre: 12,
+  };
+
+  const toIsoDate = (day: number, month: number, year: number) => {
+    const yyyy = year < 100 ? 2000 + year : year;
+    if (yyyy < 1900 || yyyy > 2100) return null;
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+
+    const date = new Date(Date.UTC(yyyy, month - 1, day));
+    const isValid = date.getUTCFullYear() === yyyy && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    if (!isValid) return null;
+
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const parseSpokenDateToIso = (raw: string) => {
+    const normalized = normalizeTextForCompare(raw)
+      .replace(/\b(du|de|le)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!normalized) return null;
+
+    const ymdMatch = normalized.match(/\b(\d{4})[\/\-. ](\d{1,2})[\/\-. ](\d{1,2})\b/);
+    if (ymdMatch) {
+      const iso = toIsoDate(Number(ymdMatch[3]), Number(ymdMatch[2]), Number(ymdMatch[1]));
+      if (iso) return iso;
+    }
+
+    const dmyMatch = normalized.match(/\b(\d{1,2})[\/\-. ](\d{1,2})[\/\-. ](\d{2,4})\b/);
+    if (dmyMatch) {
+      const iso = toIsoDate(Number(dmyMatch[1]), Number(dmyMatch[2]), Number(dmyMatch[3]));
+      if (iso) return iso;
+    }
+
+    const parts = normalized.split(' ');
+    if (parts.length >= 3) {
+      const day = Number(parts[0]);
+      const month = monthMap[parts[1]];
+      const year = Number(parts[2]);
+      if (Number.isFinite(day) && Number.isFinite(year) && month) {
+        const iso = toIsoDate(day, month, year);
+        if (iso) return iso;
+      }
+    }
+
+    return null;
+  };
+
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  const updateFieldValue = (field: SpeechField, value: string) => {
+    if (field === 'location') {
+      setFormData((prev) => ({ ...prev, location: value }));
+      const allowedLocations = getProfileLocations();
+      const normalizedValue = normalizeTextForCompare(value);
+      const isAllowed = allowedLocations.some((state) => normalizedValue.includes(normalizeTextForCompare(state)));
+      setLocationSelected(isAllowed);
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
+
+    if (touched[field]) {
+      setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
+    }
+  };
+
+  const getSpeechLanguage = () => {
+    if (language === 'fr') return 'fr-FR';
+    if (language === 'ar') return 'ar-TN';
+    return 'en-US';
+  };
+
+  const stopSpeechToText = () => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsListening(false);
+    setActiveSpeechField(null);
+  };
+
+  const startSpeechToText = (field: SpeechField) => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionClass) {
+      toast.error(tr('Speech-to-text is not supported on this browser.', 'La dictee vocale nest pas supportee sur ce navigateur.', 'Speech-to-text is not supported on this browser.'));
+      return;
+    }
+
+    if (activeSpeechField === field) {
+      stopSpeechToText();
+      return;
+    }
+
+    recognitionRef.current?.stop();
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = getSpeechLanguage();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    const isDateField = field === 'startDate' || field === 'endDate';
+    speechBaseRef.current = isDateField ? '' : String(formDataRef.current[field] || '').trim();
+    speechFinalRef.current = '';
+
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      let interim = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (event.results[i].isFinal) {
+          speechFinalRef.current = `${speechFinalRef.current} ${transcript}`.trim();
+        } else {
+          interim = `${interim} ${transcript}`.trim();
+        }
+      }
+
+      const combined = [speechBaseRef.current, speechFinalRef.current, interim].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
+      if (isDateField) {
+        const parsedDate = parseSpokenDateToIso(combined);
+        if (parsedDate) {
+          updateFieldValue(field, parsedDate);
+        }
+      } else {
+        updateFieldValue(field, combined);
+      }
+    };
+
+    recognition.onerror = (event: BrowserSpeechRecognitionErrorEvent) => {
+      if (event.error !== 'aborted') {
+        toast.error(tr('Voice capture failed. Please retry.', 'La capture vocale a echoue. Veuillez reessayer.', 'Voice capture failed. Please retry.'));
+      }
+      setIsListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      if (isDateField) {
+        const latestValue = String(formDataRef.current[field] || '').trim();
+        if (!latestValue) {
+          toast.info(tr('Date not recognized. Try format 12/04/2026 or 12 avril 2026.', 'Date non reconnue. Essayez le format 12/04/2026 ou 12 avril 2026.', 'Date not recognized. Try format 12/04/2026 or April 12 2026.'));
+        }
+      }
+      setIsListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setActiveSpeechField(field);
+    setIsListening(false);
+    recognition.start();
+  };
+
+  const renderSpeechButton = (field: SpeechField) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => startSpeechToText(field)}
+      disabled={!isSpeechSupported}
+      aria-pressed={activeSpeechField === field}
+      aria-label={
+        activeSpeechField === field
+          ? tr('Stop voice input', 'Arreter la dictee vocale', 'Stop voice input')
+          : tr('Start voice input', 'Demarrer la dictee vocale', 'Start voice input')
+      }
+      className={`h-9 rounded-lg border ${activeSpeechField === field ? 'border-red-500 text-red-600' : 'border-border text-muted-foreground'}`}
+    >
+      {activeSpeechField === field ? <MicOff size={16} className="mr-2" /> : <Mic size={16} className="mr-2" />}
+      {activeSpeechField === field && isListening
+        ? tr('Listening...', 'Ecoute...', 'Listening...')
+        : activeSpeechField === field
+          ? tr('Stop', 'Arreter', 'Stop')
+          : tr('Dictee', 'Dictee', 'Dictee')}
+      {activeSpeechField === field && isListening && <span className="ml-2 h-2 w-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />}
+    </Button>
+  );
 
   const toPublicAssetUrl = (rawPath: string) => {
     const trimmed = String(rawPath || '').trim();
@@ -785,15 +1061,17 @@ export default function ArtisanProjects() {
           <form className="space-y-6" onSubmit={handleCreateProject}>
             {/* Titre */}
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-base font-semibold">
-                Titre du projet <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="title" className="text-base font-semibold">
+                  Titre du projet <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('title')}
+              </div>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => {
-                  setFormData({ ...formData, title: e.target.value });
-                  if (touched.title) setErrors((prev) => ({ ...prev, title: validateField('title', e.target.value) }));
+                  updateFieldValue('title', e.target.value);
                 }}
                 onBlur={() => handleBlur('title')}
                 placeholder="Entrez le titre du projet"
@@ -804,30 +1082,41 @@ export default function ArtisanProjects() {
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-base font-semibold">
-                Description <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="description" className="text-base font-semibold">
+                  Description <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('description')}
+              </div>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => {
-                  setFormData({ ...formData, description: e.target.value });
-                  if (touched.description) setErrors((prev) => ({ ...prev, description: validateField('description', e.target.value) }));
+                  updateFieldValue('description', e.target.value);
                 }}
                 onBlur={() => handleBlur('description')}
                 placeholder="Décrivez votre projet (minimum 10 caractères)"
                 rows={4}
                 className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
               />
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {activeSpeechField === 'description'
+                  ? tr('Voice input active for description.', 'Dictee vocale active pour la description.', 'Voice input active for description.')
+                  : tr('You can type or use voice input.', 'Vous pouvez taper ou utiliser la dictee vocale.', 'You can type or use voice input.')}
+              </p>
               {touched.description && errors.description && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>}
             </div>
 
             {/* Localisation */}
             <div className="space-y-2">
-              <Label htmlFor="location" className="text-base font-semibold">
-                Localisation <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="location-create" className="text-base font-semibold">
+                  Localisation <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('location')}
+              </div>
               <LocationInput
+                inputId="location-create"
                 value={formData.location}
                 onChange={(value) => {
                   setFormData({ ...formData, location: value });
@@ -846,6 +1135,11 @@ export default function ArtisanProjects() {
               <p className="text-xs text-muted-foreground">
                 Saisissez une ville; seules les villes dans vos gouvernorats de profil sont acceptees.
               </p>
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {activeSpeechField === 'location'
+                  ? tr('Voice input active for location.', 'Dictee vocale active pour la localisation.', 'Voice input active for location.')
+                  : tr('You can type or use voice input for location.', 'Vous pouvez taper ou utiliser la dictee vocale pour la localisation.', 'You can type or use voice input for location.')}
+              </p>
               {touched.location && errors.location && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.location}</p>}
             </div>
 
@@ -853,9 +1147,12 @@ export default function ArtisanProjects() {
             <div className="grid md:grid-cols-2 gap-6">
               {/* Date de début */}
               <div className="space-y-2">
-                <Label htmlFor="startDate" className="text-base font-semibold">
-                  Date de début <span style={{ color: 'red' }}>*</span>
-                </Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="startDate" className="text-base font-semibold">
+                    Date de début <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('startDate')}
+                </div>
                 <Input
                   id="startDate"
                   type="date"
@@ -872,14 +1169,22 @@ export default function ArtisanProjects() {
                   onBlur={() => handleBlur('startDate')}
                   className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
                 />
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                  {activeSpeechField === 'startDate'
+                    ? tr('Say a date like 12/04/2026.', 'Dites une date comme 12/04/2026.', 'Say a date like 12/04/2026.')
+                    : tr('Voice input supported for this date.', 'La dictee vocale est supportee pour cette date.', 'Voice input supported for this date.')}
+                </p>
                 {touched.startDate && errors.startDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.startDate}</p>}
               </div>
 
               {/* Date de fin */}
               <div className="space-y-2">
-                <Label htmlFor="endDate" className="text-base font-semibold">
-                  Date de fin <span style={{ color: 'red' }}>*</span>
-                </Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="endDate" className="text-base font-semibold">
+                    Date de fin <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('endDate')}
+                </div>
                 <Input
                   id="endDate"
                   type="date"
@@ -891,6 +1196,11 @@ export default function ArtisanProjects() {
                   onBlur={() => handleBlur('endDate')}
                   className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
                 />
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                  {activeSpeechField === 'endDate'
+                    ? tr('Say a date like 30/04/2026.', 'Dites une date comme 30/04/2026.', 'Say a date like 30/04/2026.')
+                    : tr('Voice input supported for this date.', 'La dictee vocale est supportee pour cette date.', 'Voice input supported for this date.')}
+                </p>
                 {touched.endDate && errors.endDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.endDate}</p>}
               </div>
             </div>
@@ -927,15 +1237,17 @@ export default function ArtisanProjects() {
           <form className="space-y-6" onSubmit={handleUpdateProject}>
             {/* Titre */}
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-base font-semibold">
-                Titre du projet <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="title" className="text-base font-semibold">
+                  Titre du projet <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('title')}
+              </div>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => {
-                  setFormData({ ...formData, title: e.target.value });
-                  if (touched.title) setErrors((prev) => ({ ...prev, title: validateField('title', e.target.value) }));
+                  updateFieldValue('title', e.target.value);
                 }}
                 onBlur={() => handleBlur('title')}
                 placeholder="Entrez le titre du projet"
@@ -946,30 +1258,41 @@ export default function ArtisanProjects() {
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-base font-semibold">
-                Description <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="description" className="text-base font-semibold">
+                  Description <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('description')}
+              </div>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => {
-                  setFormData({ ...formData, description: e.target.value });
-                  if (touched.description) setErrors((prev) => ({ ...prev, description: validateField('description', e.target.value) }));
+                  updateFieldValue('description', e.target.value);
                 }}
                 onBlur={() => handleBlur('description')}
                 placeholder="Décrivez votre projet (minimum 10 caractères)"
                 rows={4}
                 className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
               />
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {activeSpeechField === 'description'
+                  ? tr('Voice input active for description.', 'Dictee vocale active pour la description.', 'Voice input active for description.')
+                  : tr('You can type or use voice input.', 'Vous pouvez taper ou utiliser la dictee vocale.', 'You can type or use voice input.')}
+              </p>
               {touched.description && errors.description && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>}
             </div>
 
             {/* Localisation */}
             <div className="space-y-2">
-              <Label htmlFor="location" className="text-base font-semibold">
-                Localisation <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="location-edit" className="text-base font-semibold">
+                  Localisation <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('location')}
+              </div>
               <LocationInput
+                inputId="location-edit"
                 value={formData.location}
                 onChange={(value) => {
                   setFormData({ ...formData, location: value });
@@ -988,6 +1311,11 @@ export default function ArtisanProjects() {
               <p className="text-xs text-muted-foreground">
                 Saisissez une ville; seules les villes dans vos gouvernorats de profil sont acceptees.
               </p>
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {activeSpeechField === 'location'
+                  ? tr('Voice input active for location.', 'Dictee vocale active pour la localisation.', 'Voice input active for location.')
+                  : tr('You can type or use voice input for location.', 'Vous pouvez taper ou utiliser la dictee vocale pour la localisation.', 'You can type or use voice input for location.')}
+              </p>
               {touched.location && errors.location && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.location}</p>}
             </div>
 
@@ -995,9 +1323,12 @@ export default function ArtisanProjects() {
             <div className="grid md:grid-cols-2 gap-6">
               {/* Date de début */}
               <div className="space-y-2">
-                <Label htmlFor="startDate" className="text-base font-semibold">
-                  Date de début <span style={{ color: 'red' }}>*</span>
-                </Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="startDate" className="text-base font-semibold">
+                    Date de début <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('startDate')}
+                </div>
                 <Input
                   id="startDate"
                   type="date"
@@ -1013,14 +1344,22 @@ export default function ArtisanProjects() {
                   onBlur={() => handleBlur('startDate')}
                   className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
                 />
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                  {activeSpeechField === 'startDate'
+                    ? tr('Say a date like 12/04/2026.', 'Dites une date comme 12/04/2026.', 'Say a date like 12/04/2026.')
+                    : tr('Voice input supported for this date.', 'La dictee vocale est supportee pour cette date.', 'Voice input supported for this date.')}
+                </p>
                 {touched.startDate && errors.startDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.startDate}</p>}
               </div>
 
               {/* Date de fin */}
               <div className="space-y-2">
-                <Label htmlFor="endDate" className="text-base font-semibold">
-                  Date de fin <span style={{ color: 'red' }}>*</span>
-                </Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="endDate" className="text-base font-semibold">
+                    Date de fin <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('endDate')}
+                </div>
                 <Input
                   id="endDate"
                   type="date"
@@ -1032,6 +1371,11 @@ export default function ArtisanProjects() {
                   onBlur={() => handleBlur('endDate')}
                   className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
                 />
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                  {activeSpeechField === 'endDate'
+                    ? tr('Say a date like 30/04/2026.', 'Dites une date comme 30/04/2026.', 'Say a date like 30/04/2026.')
+                    : tr('Voice input supported for this date.', 'La dictee vocale est supportee pour cette date.', 'Voice input supported for this date.')}
+                </p>
                 {touched.endDate && errors.endDate && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.endDate}</p>}
               </div>
             </div>
@@ -1689,6 +2033,18 @@ export default function ArtisanProjects() {
     );
   }
 
+  if (showRecommendation && materialProjectContext) {
+    return (
+      <MaterialRecommendation
+        project={materialProjectContext}
+        onBack={() => {
+          setShowRecommendation(false);
+        }}
+        onAddToProject={handleRecommendationAddToProject}
+      />
+    );
+  }
+
   // =========================================================================
   // VUE 4 : LISTE PRINCIPALE (Par défaut)
   // =========================================================================
@@ -1988,18 +2344,6 @@ export default function ArtisanProjects() {
           </Card>
         </div>
       )}
-      {showRecommendation && materialProjectContext && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-background">
-          <MaterialRecommendation
-            project={materialProjectContext}
-            onBack={() => {
-              setShowRecommendation(false);
-            }}
-            onAddToProject={handleRecommendationAddToProject}
-          />
-        </div>
-      )}
-
       {PopupElement}
     </div>
   );
