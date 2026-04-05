@@ -4,10 +4,48 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, CheckCircle, HardHat, FileText, FileDown, Tag, Layers, ExternalLink, BarChart2, Hash, Info, SlidersHorizontal, X } from 'lucide-react';
+import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, CheckCircle, HardHat, FileText, FileDown, Tag, Layers, ExternalLink, BarChart2, Hash, Info, SlidersHorizontal, X, Mic, MicOff } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { useLanguage } from '../../context/LanguageContext';
+
+type MaterialSpeechField = 'name' | 'price' | 'stock' | 'description';
+
+type BrowserSpeechRecognitionEvent = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = Event & {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
 
 export default function ManufacturerProducts() {
   const { language } = useLanguage();
@@ -34,6 +72,12 @@ export default function ManufacturerProducts() {
     stock: '',
     description: ''
   });
+  const [activeSpeechField, setActiveSpeechField] = useState<MaterialSpeechField | null>(null);
+  const [isSpeechListening, setIsSpeechListening] = useState(false);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const speechBaseRef = useRef('');
+  const speechFinalRef = useRef('');
+  const isSpeechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const SERVER_URL = 'http://localhost:5000'; 
@@ -44,6 +88,130 @@ export default function ManufacturerProducts() {
     if (!token && userStorage) token = JSON.parse(userStorage).token;
     return token;
   };
+
+  const getSpeechLanguage = () => {
+    if (language === 'fr') return 'fr-FR';
+    if (language === 'ar') return 'ar-TN';
+    return 'en-US';
+  };
+
+  const stopSpeechToText = () => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsSpeechListening(false);
+    setActiveSpeechField(null);
+  };
+
+  const parseSpokenNumber = (raw: string) => {
+    const normalized = raw.toLowerCase().replace(',', '.');
+    const match = normalized.match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const value = Number(match[0]);
+    return Number.isFinite(value) ? String(value) : null;
+  };
+
+  const updateSpeechFieldValue = (field: MaterialSpeechField, value: string) => {
+    if (field === 'name' || field === 'price' || field === 'stock' || field === 'description') {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
+  };
+
+  const startSpeechToText = (field: MaterialSpeechField) => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      return;
+    }
+
+    if (activeSpeechField === field) {
+      stopSpeechToText();
+      return;
+    }
+
+    recognitionRef.current?.stop();
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = getSpeechLanguage();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    const isNumericField = field === 'price' || field === 'stock';
+    speechBaseRef.current = isNumericField ? '' : String(formData[field] || '').trim();
+    speechFinalRef.current = '';
+
+    recognition.onstart = () => {
+      setIsSpeechListening(true);
+    };
+
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (event.results[i].isFinal) {
+          speechFinalRef.current = `${speechFinalRef.current} ${transcript}`.trim();
+        } else {
+          interim = `${interim} ${transcript}`.trim();
+        }
+      }
+
+      const combined = [speechBaseRef.current, speechFinalRef.current, interim]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (isNumericField) {
+        const parsed = parseSpokenNumber(combined);
+        if (parsed !== null) {
+          updateSpeechFieldValue(field, parsed);
+        }
+        return;
+      }
+
+      updateSpeechFieldValue(field, combined);
+    };
+
+    recognition.onerror = () => {
+      setIsSpeechListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      setIsSpeechListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setActiveSpeechField(field);
+    setIsSpeechListening(false);
+    recognition.start();
+  };
+
+  const renderSpeechButton = (field: MaterialSpeechField) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => startSpeechToText(field)}
+      disabled={!isSpeechSupported}
+      aria-pressed={activeSpeechField === field}
+      aria-label={
+        activeSpeechField === field
+          ? tr('Stop voice input', 'Arreter la dictee vocale', 'Stop voice input')
+          : tr('Start voice input', 'Demarrer la dictee vocale', 'Start voice input')
+      }
+      className={`h-9 rounded-lg border ${activeSpeechField === field ? 'border-red-500 text-red-600' : 'border-border text-muted-foreground'}`}
+    >
+      {activeSpeechField === field ? <MicOff size={16} className="mr-2" /> : <Mic size={16} className="mr-2" />}
+      {activeSpeechField === field && isSpeechListening
+        ? tr('Listening...', 'Ecoute...', 'Listening...')
+        : activeSpeechField === field
+          ? tr('Stop', 'Arreter', 'Stop')
+          : tr('Dictee', 'Dictee', 'Dictee')}
+    </Button>
+  );
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any>(null);
@@ -73,6 +241,18 @@ export default function ManufacturerProducts() {
   useEffect(() => {
     if (view === 'list') fetchProducts();
   }, [view]);
+
+  useEffect(() => {
+    if (view !== 'add' && view !== 'edit') {
+      stopSpeechToText();
+    }
+  }, [view]);
+
+  useEffect(() => {
+    return () => {
+      stopSpeechToText();
+    };
+  }, []);
 
   const confirmDelete = (product: any) => {
     setProductToDelete(product);
@@ -199,7 +379,10 @@ export default function ManufacturerProducts() {
           <h2 className="text-3xl font-bold mb-8 text-foreground">{view === 'add' ? t('manufacturer.products.addNewMaterial') : t('manufacturer.products.editMaterial')}</h2>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label className="font-semibold text-foreground">{t('manufacturer.products.productName')}</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label className="font-semibold text-foreground">{t('manufacturer.products.productName')}</Label>
+                {renderSpeechButton('name')}
+              </div>
               <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder={t('manufacturer.products.productNamePlaceholder')} />
             </div>
             
@@ -228,13 +411,19 @@ export default function ManufacturerProducts() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label className="font-semibold text-foreground">{t('common.price')} (TND)</Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="font-semibold text-foreground">{t('common.price')} (TND)</Label>
+                  {renderSpeechButton('price')}
+                </div>
                 <Input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="0.000"/>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="font-semibold text-foreground">{t('manufacturer.products.stock')} (Units)</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label className="font-semibold text-foreground">{t('manufacturer.products.stock')} (Units)</Label>
+                {renderSpeechButton('stock')}
+              </div>
               <Input type="number" value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} required className={`h-12 rounded-xl border-2 ${inputBorderClass}`} placeholder="e.g. 500"/>
             </div>
 
@@ -257,7 +446,10 @@ export default function ManufacturerProducts() {
             </div>
 
             <div className="space-y-2">
-              <Label className="font-semibold text-foreground">{t('common.description')} / Technical Details</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label className="font-semibold text-foreground">{t('common.description')} / Technical Details</Label>
+                {renderSpeechButton('description')}
+              </div>
               <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={4} className={`rounded-xl border-2 ${inputBorderClass}`} placeholder="Enter product specifications, dimensions, usage instructions..."/>
             </div>
 

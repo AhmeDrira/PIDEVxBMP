@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -16,6 +16,8 @@ import {
   FileText,
   Hammer,
   Loader2,
+  Mic,
+  MicOff,
   User,
   XCircle,
 } from 'lucide-react';
@@ -56,6 +58,44 @@ interface ReportItem {
     companyName?: string;
     role?: string;
   } | null;
+}
+
+type ReportSpeechField = 'customReason' | 'summary';
+
+type BrowserSpeechRecognitionEvent = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = Event & {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
 }
 
 const getStatusLabel = (t: (key: string) => string): Record<ReportStatus, string> => ({
@@ -141,6 +181,125 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
     customReason: '',
     summary: '',
   });
+  const [activeSpeechField, setActiveSpeechField] = useState<ReportSpeechField | null>(null);
+  const [isSpeechListening, setIsSpeechListening] = useState(false);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const speechBaseRef = useRef('');
+  const speechFinalRef = useRef('');
+  const isSpeechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const getSpeechLanguage = () => {
+    if (language === 'fr') return 'fr-FR';
+    if (language === 'ar') return 'ar-TN';
+    return 'en-US';
+  };
+
+  const stopDictation = useCallback(() => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsSpeechListening(false);
+    setActiveSpeechField(null);
+  }, []);
+
+  const updateSpeechFieldValue = (field: ReportSpeechField, value: string) => {
+    if (field === 'customReason') {
+      setForm((prev) => ({ ...prev, customReason: value }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, summary: value }));
+  };
+
+  const startDictation = useCallback((field: ReportSpeechField) => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      toast.error(tr('Speech-to-text is not supported on this browser.', 'La dictee vocale n est pas supportee sur ce navigateur.', 'Speech-to-text is not supported on this browser.'));
+      return;
+    }
+
+    if (activeSpeechField === field) {
+      stopDictation();
+      return;
+    }
+
+    recognitionRef.current?.stop();
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = getSpeechLanguage();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    speechBaseRef.current = (field === 'customReason' ? form.customReason : form.summary).trim();
+    speechFinalRef.current = '';
+
+    recognition.onstart = () => {
+      setIsSpeechListening(true);
+    };
+
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (event.results[i].isFinal) {
+          speechFinalRef.current = `${speechFinalRef.current} ${transcript}`.trim();
+        } else {
+          interim = `${interim} ${transcript}`.trim();
+        }
+      }
+
+      const combined = [speechBaseRef.current, speechFinalRef.current, interim]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      updateSpeechFieldValue(field, combined);
+    };
+
+    recognition.onerror = (event: BrowserSpeechRecognitionErrorEvent) => {
+      if (event.error !== 'aborted') {
+        toast.error(tr('Voice capture failed. Please retry.', 'La capture vocale a echoue. Veuillez reessayer.', 'Voice capture failed. Please retry.'));
+      }
+      setIsSpeechListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      setIsSpeechListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setActiveSpeechField(field);
+    setIsSpeechListening(false);
+    recognition.start();
+  }, [activeSpeechField, form.customReason, form.summary, getSpeechLanguage, stopDictation, tr]);
+
+  const renderSpeechButton = (field: ReportSpeechField) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => startDictation(field)}
+      disabled={!isSpeechSupported}
+      aria-pressed={activeSpeechField === field}
+      aria-label={
+        activeSpeechField === field
+          ? tr('Stop voice input', 'Arreter la dictee vocale', 'Stop voice input')
+          : tr('Start voice input', 'Demarrer la dictee vocale', 'Start voice input')
+      }
+      className={`h-9 rounded-lg border ${activeSpeechField === field ? 'border-red-500 text-red-600' : 'border-border text-muted-foreground'}`}
+    >
+      {activeSpeechField === field ? <MicOff size={16} className="mr-2" /> : <Mic size={16} className="mr-2" />}
+      {activeSpeechField === field && isSpeechListening
+        ? tr('Listening...', 'Ecoute...', 'Listening...')
+        : activeSpeechField === field
+          ? tr('Stop', 'Arreter', 'Stop')
+          : tr('Dictee', 'Dictee', 'Dictee')}
+    </Button>
+  );
 
   const fetchReports = async () => {
     const token = getAuthToken();
@@ -168,6 +327,24 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
   useEffect(() => {
     fetchReports();
   }, []);
+
+  useEffect(() => {
+    if (!isAdding) {
+      stopDictation();
+    }
+  }, [isAdding, stopDictation]);
+
+  useEffect(() => {
+    if (form.reason !== 'Other' && activeSpeechField === 'customReason') {
+      stopDictation();
+    }
+  }, [form.reason, activeSpeechField, stopDictation]);
+
+  useEffect(() => {
+    return () => {
+      stopDictation();
+    };
+  }, [stopDictation]);
 
   const totals = useMemo(() => {
     const submitted = reports.filter((report) => report.status === 'submitted').length;
@@ -579,7 +756,10 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
 
             {form.reason === 'Other' && (
               <div className="space-y-2">
-                <label className="text-base font-medium text-foreground" htmlFor="report-custom-reason">{tr("Custom reason", "Raison Personnalisée", "سبب مخصص")}</label>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-base font-medium text-foreground" htmlFor="report-custom-reason">{tr("Custom reason", "Raison Personnalisée", "سبب مخصص")}</label>
+                  {renderSpeechButton('customReason')}
+                </div>
                 <Input
                   id="report-custom-reason"
                   value={form.customReason}
@@ -590,7 +770,10 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
             )}
 
             <div className="space-y-2">
-              <label className="text-base font-medium text-foreground" htmlFor="report-summary">{tr("Report details (optional)", "Détails du Rapport (Facultatif)", "تفاصيل البلاغ (اختياري)")}</label>
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-base font-medium text-foreground" htmlFor="report-summary">{tr("Report details (optional)", "Détails du Rapport (Facultatif)", "تفاصيل البلاغ (اختياري)")}</label>
+                {renderSpeechButton('summary')}
+              </div>
               <Textarea
                 id="report-summary"
                 value={form.summary}

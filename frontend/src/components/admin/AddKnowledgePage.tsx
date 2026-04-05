@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { ArrowRight, Upload, FileText, X } from 'lucide-react';
+import { ArrowRight, Upload, FileText, X, Mic, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -33,6 +33,44 @@ interface AddKnowledgePageProps {
   initialData?: Partial<Pick<KnowledgeArticle, 'title' | 'category' | 'summary' | 'content' | 'authorName' | 'tags'>> & {
     attachments?: KnowledgeAttachment[];
   };
+}
+
+type KnowledgeSpeechField = 'title' | 'summary' | 'tagInput' | 'content';
+
+type BrowserSpeechRecognitionEvent = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = Event & {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
 }
 
 function formValuesFromArticle(
@@ -66,6 +104,12 @@ export default function AddKnowledgePage({
   );
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [activeSpeechField, setActiveSpeechField] = useState<KnowledgeSpeechField | null>(null);
+  const [isSpeechListening, setIsSpeechListening] = useState(false);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const speechBaseRef = useRef('');
+  const speechFinalRef = useRef('');
+  const isSpeechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   const [existingAttachments, setExistingAttachments] = useState<KnowledgeAttachment[]>([]);
   const [removedAttachmentUrls, setRemovedAttachmentUrls] = useState<string[]>([]);
@@ -74,6 +118,140 @@ export default function AddKnowledgePage({
   const totalNewFilesSize = useMemo(() => {
     return newFiles.reduce((sum, f) => sum + (f.size || 0), 0);
   }, [newFiles]);
+
+  const getSpeechLanguage = () => {
+    if (language === 'fr') return 'fr-FR';
+    if (language === 'ar') return 'ar-TN';
+    return 'en-US';
+  };
+
+  const stopSpeechToText = useCallback(() => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsSpeechListening(false);
+    setActiveSpeechField(null);
+  }, []);
+
+  const getFieldValue = (field: KnowledgeSpeechField) => {
+    if (field === 'tagInput') return tagInput;
+    if (field === 'content') {
+      return String(formData.content || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    return String(formData[field] || '');
+  };
+
+  const setFieldValue = (field: KnowledgeSpeechField, value: string) => {
+    if (field === 'tagInput') {
+      setTagInput(value);
+      return;
+    }
+    if (field === 'content') {
+      const escaped = value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      setFormData((prev) => ({ ...prev, content: escaped ? `<p>${escaped}</p>` : '' }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const startSpeechToText = useCallback((field: KnowledgeSpeechField) => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      toast.error(tr('Speech-to-text is not supported on this browser.', 'La dictee vocale n est pas supportee sur ce navigateur.', 'Speech-to-text is not supported on this browser.'));
+      return;
+    }
+
+    if (activeSpeechField === field) {
+      stopSpeechToText();
+      return;
+    }
+
+    recognitionRef.current?.stop();
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = getSpeechLanguage();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    speechBaseRef.current = getFieldValue(field).trim();
+    speechFinalRef.current = '';
+
+    recognition.onstart = () => {
+      setIsSpeechListening(true);
+    };
+
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (event.results[i].isFinal) {
+          speechFinalRef.current = `${speechFinalRef.current} ${transcript}`.trim();
+        } else {
+          interim = `${interim} ${transcript}`.trim();
+        }
+      }
+
+      const combined = [speechBaseRef.current, speechFinalRef.current, interim]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      setFieldValue(field, combined);
+    };
+
+    recognition.onerror = (event: BrowserSpeechRecognitionErrorEvent) => {
+      if (event.error !== 'aborted') {
+        toast.error(tr('Voice capture failed. Please retry.', 'La capture vocale a echoue. Veuillez reessayer.', 'Voice capture failed. Please retry.'));
+      }
+      setIsSpeechListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      setIsSpeechListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setActiveSpeechField(field);
+    setIsSpeechListening(false);
+    recognition.start();
+  }, [activeSpeechField, formData, getSpeechLanguage, stopSpeechToText, tagInput, tr]);
+
+  const renderSpeechButton = (field: KnowledgeSpeechField) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => startSpeechToText(field)}
+      disabled={!isSpeechSupported}
+      aria-pressed={activeSpeechField === field}
+      aria-label={
+        activeSpeechField === field
+          ? tr('Stop voice input', 'Arreter la dictee vocale', 'Stop voice input')
+          : tr('Start voice input', 'Demarrer la dictee vocale', 'Start voice input')
+      }
+      className={`h-9 rounded-lg border ${activeSpeechField === field ? 'border-red-500 text-red-600' : 'border-border text-muted-foreground'}`}
+    >
+      {activeSpeechField === field ? <MicOff size={16} className="mr-2" /> : <Mic size={16} className="mr-2" />}
+      {activeSpeechField === field && isSpeechListening
+        ? tr('Listening...', 'Ecoute...', 'Listening...')
+        : activeSpeechField === field
+          ? tr('Stop', 'Arreter', 'Stop')
+          : tr('Dictee', 'Dictee', 'Dictee')}
+    </Button>
+  );
 
   const quillModules = useMemo(
     () => ({
@@ -176,6 +354,12 @@ export default function AddKnowledgePage({
     }
   }, [isEditing, articleToEdit?._id]);
 
+  useEffect(() => {
+    return () => {
+      stopSpeechToText();
+    };
+  }, [stopSpeechToText]);
+
   const categories = [
     'Structural Engineering',
     'Materials Science',
@@ -255,9 +439,12 @@ export default function AddKnowledgePage({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-base font-semibold text-foreground">
-              Title *
-            </Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="title" className="text-base font-semibold text-foreground">
+                Title *
+              </Label>
+              {renderSpeechButton('title')}
+            </div>
             <Input
               id="title"
               type="text"
@@ -306,9 +493,12 @@ export default function AddKnowledgePage({
 
           {/* Summary */}
           <div className="space-y-2">
-            <Label htmlFor="summary" className="text-base font-semibold text-foreground">
-              Summary *
-            </Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="summary" className="text-base font-semibold text-foreground">
+                Summary *
+              </Label>
+              {renderSpeechButton('summary')}
+            </div>
             <Textarea
               id="summary"
               placeholder="Short overview that appears in the list..."
@@ -322,7 +512,10 @@ export default function AddKnowledgePage({
 
           {/* Tags */}
           <div className="space-y-2">
-            <Label className="text-base font-semibold text-foreground">Tags</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-base font-semibold text-foreground">Tags</Label>
+              {renderSpeechButton('tagInput')}
+            </div>
             <div className="flex gap-3">
               <Input
                 value={tagInput}
@@ -364,9 +557,12 @@ export default function AddKnowledgePage({
 
           {/* Full content */}
           <div className="space-y-2">
-            <Label htmlFor="content" className="text-base font-semibold text-foreground">
-              Full Content *
-            </Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="content" className="text-base font-semibold text-foreground">
+                Full Content *
+              </Label>
+              {renderSpeechButton('content')}
+            </div>
             <div className="rounded-xl border-2 border-border overflow-hidden bg-card">
               <ReactQuill
                 key={articleToEdit?._id ?? 'new-quill'}

@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, FileText, Download, Eye, Clock, CheckCircle, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter } from 'lucide-react';
+import { Plus, FileText, Download, Eye, Clock, CheckCircle, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
@@ -13,9 +13,48 @@ import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
 import { useLanguage } from '../../context/LanguageContext';
 
+type SpeechField = 'clientName' | 'laborHand' | 'description' | 'validUntil' | 'upfrontValue' | 'invoiceDueDate';
+
+type BrowserSpeechRecognitionEvent = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = Event & {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
+
 export default function ArtisanQuotes() {
   const { language } = useLanguage();
   const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
+  const isSpeechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   const { guard, PopupElement } = useSubscriptionGuard();
   const [view, setView] = useState<'list' | 'create' | 'details'>('list');
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
@@ -61,9 +100,438 @@ export default function ArtisanQuotes() {
   // États pour la validation
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [activeSpeechField, setActiveSpeechField] = useState<SpeechField | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isDueDateListening, setIsDueDateListening] = useState(false);
   const invoiceSectionRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const dueDateRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const speechBaseRef = useRef('');
+  const speechFinalRef = useRef('');
+  const formDataRef = useRef(formData);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const normalizeSpeechText = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\u0600-\u06ff\s.,/%-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const monthMap: Record<string, number> = {
+    january: 1,
+    february: 2,
+    march: 3,
+    april: 4,
+    may: 5,
+    june: 6,
+    july: 7,
+    august: 8,
+    september: 9,
+    october: 10,
+    november: 11,
+    december: 12,
+    janvier: 1,
+    fevrier: 2,
+    mars: 3,
+    avril: 4,
+    mai: 5,
+    juin: 6,
+    juillet: 7,
+    aout: 8,
+    septembre: 9,
+    octobre: 10,
+    novembre: 11,
+    decembre: 12,
+  };
+
+  const toIsoDate = (day: number, month: number, year: number) => {
+    const yyyy = year < 100 ? 2000 + year : year;
+    if (yyyy < 1900 || yyyy > 2100) return null;
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+
+    const date = new Date(Date.UTC(yyyy, month - 1, day));
+    const isValid = date.getUTCFullYear() === yyyy && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    if (!isValid) return null;
+
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const parseSpokenDateToIso = (raw: string) => {
+    const normalized = normalizeSpeechText(raw)
+      .replace(/\b(du|de|le)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!normalized) return null;
+
+    const ymdMatch = normalized.match(/\b(\d{4})[\/\-. ](\d{1,2})[\/\-. ](\d{1,2})\b/);
+    if (ymdMatch) {
+      const iso = toIsoDate(Number(ymdMatch[3]), Number(ymdMatch[2]), Number(ymdMatch[1]));
+      if (iso) return iso;
+    }
+
+    const dmyMatch = normalized.match(/\b(\d{1,2})[\/\-. ](\d{1,2})[\/\-. ](\d{2,4})\b/);
+    if (dmyMatch) {
+      const iso = toIsoDate(Number(dmyMatch[1]), Number(dmyMatch[2]), Number(dmyMatch[3]));
+      if (iso) return iso;
+    }
+
+    const parts = normalized.split(' ');
+    if (parts.length >= 3) {
+      const day = Number(parts[0]);
+      const month = monthMap[parts[1]];
+      const year = Number(parts[2]);
+      if (Number.isFinite(day) && Number.isFinite(year) && month) {
+        const iso = toIsoDate(day, month, year);
+        if (iso) return iso;
+      }
+    }
+
+    return null;
+  };
+
+  const parseSpokenNumber = (raw: string) => {
+    const normalized = normalizeSpeechText(raw).replace(',', '.');
+    const match = normalized.match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const value = Number(match[0]);
+    return Number.isFinite(value) ? String(value) : null;
+  };
+
+  const parsePaymentTypeFromSpeech = (raw: string): 'percentage' | 'fixed' | null => {
+    const normalized = normalizeSpeechText(raw);
+    if (!normalized) return null;
+
+    const compact = normalized.replace(/\s+/g, '');
+
+    const percentageKeywords = [
+      'percent',
+      'percentage',
+      'pourcent',
+      'pourcentage',
+      'pourcenta',
+      'pourcentag',
+      'pour cent',
+      '%',
+      'نسبة',
+      'مئوية',
+      'بالمئة',
+      'بالمائة',
+    ];
+
+    const fixedKeywords = [
+      'fixed',
+      'fixe',
+      'fix',
+      'montant fixe',
+      'fixed amount',
+      'amount',
+      'montant',
+      'ثابت',
+      'مبلغ',
+      'قيمة ثابتة',
+    ];
+
+    const hasKeyword = (keywords: string[]) =>
+      keywords.some((kw) => normalized.includes(kw) || compact.includes(kw.replace(/\s+/g, '')));
+
+    if (hasKeyword(percentageKeywords)) return 'percentage';
+    if (hasKeyword(fixedKeywords)) return 'fixed';
+
+    // Last-resort fuzzy stems for imperfect transcripts.
+    if (/(percen|pourc|pourcen|percenta)/.test(compact)) return 'percentage';
+    if (/(fix|montan|amoun)/.test(compact)) return 'fixed';
+
+    return null;
+  };
+
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+      dueDateRecognitionRef.current?.stop();
+    };
+  }, []);
+
+  const getSpeechLanguage = () => {
+    if (language === 'fr') return 'fr-FR';
+    if (language === 'ar') return 'ar-TN';
+    return 'en-US';
+  };
+
+  const applyFieldValue = (field: SpeechField, value: string | 'percentage' | 'fixed') => {
+    if (field === 'invoiceDueDate') {
+      const typedValue = String(value);
+      setInvoiceDueDate(typedValue);
+      return;
+    }
+
+    if (field === 'upfrontValue') {
+      const typedValue = String(value);
+      setFormData((prev) => ({ ...prev, upfrontValue: typedValue }));
+      if (touched.upfrontValue) {
+        setErrors((prev) => ({ ...prev, upfrontValue: validateField('upfrontValue', typedValue) }));
+      }
+      return;
+    }
+
+    const typedValue = String(value);
+    setFormData((prev) => ({ ...prev, [field]: typedValue }));
+    if (touched[field]) {
+      setErrors((prev) => ({ ...prev, [field]: validateField(field, typedValue) }));
+    }
+  };
+
+  const stopSpeechToText = () => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsListening(false);
+    setActiveSpeechField(null);
+  };
+
+  const startSpeechToText = (field: SpeechField) => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      toast.error(tr('Speech-to-text is not supported on this browser.', 'La dictee vocale n est pas supportee sur ce navigateur.', 'Speech-to-text is not supported on this browser.'));
+      return;
+    }
+
+    if (activeSpeechField === field) {
+      stopSpeechToText();
+      return;
+    }
+
+    recognitionRef.current?.stop();
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = getSpeechLanguage();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    const isDateField = field === 'validUntil' || field === 'invoiceDueDate';
+    const isNumericField = field === 'laborHand';
+    const isPaymentTermsField = field === 'upfrontValue';
+    let recognizedAnyValue = false;
+
+    speechBaseRef.current = (isDateField || isNumericField || isPaymentTermsField)
+      ? ''
+      : String(formDataRef.current[field] || '').trim();
+    speechFinalRef.current = '';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (event.results[i].isFinal) {
+          speechFinalRef.current = `${speechFinalRef.current} ${transcript}`.trim();
+        } else {
+          interim = `${interim} ${transcript}`.trim();
+        }
+      }
+
+      const combined = [speechBaseRef.current, speechFinalRef.current, interim].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
+      if (isDateField) {
+        const parsedDate = parseSpokenDateToIso(combined);
+        if (parsedDate) {
+          recognizedAnyValue = true;
+          applyFieldValue('validUntil', parsedDate);
+        }
+        return;
+      }
+
+      if (isNumericField) {
+        const parsedNumber = parseSpokenNumber(combined);
+        if (parsedNumber !== null) {
+          recognizedAnyValue = true;
+          applyFieldValue('laborHand', parsedNumber);
+        }
+        return;
+      }
+
+      if (isPaymentTermsField) {
+        const parsedPaymentType = parsePaymentTypeFromSpeech(combined);
+        const parsedNumber = parseSpokenNumber(combined);
+
+        if (parsedPaymentType) {
+          recognizedAnyValue = true;
+          setFormData((prev) => ({ ...prev, paymentType: parsedPaymentType }));
+          if (touched.paymentType) {
+            setErrors((prev) => ({ ...prev, paymentType: validateField('paymentType', parsedPaymentType) }));
+          }
+        }
+
+        if (parsedNumber !== null) {
+          recognizedAnyValue = true;
+          applyFieldValue('upfrontValue', parsedNumber);
+        }
+
+        return;
+      }
+
+      recognizedAnyValue = true;
+      applyFieldValue(field, combined);
+    };
+
+    recognition.onerror = (event: BrowserSpeechRecognitionErrorEvent) => {
+      if (event.error !== 'aborted') {
+        toast.error(tr('Voice capture failed. Please retry.', 'La capture vocale a echoue. Veuillez reessayer.', 'Voice capture failed. Please retry.'));
+      }
+      setIsListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      if (field === 'validUntil' && !formDataRef.current.validUntil) {
+        toast.info(tr('Date not recognized. Try format 12/04/2026.', 'Date non reconnue. Essayez le format 12/04/2026.', 'Date not recognized. Try format 12/04/2026.'));
+      }
+      if (field === 'invoiceDueDate' && !invoiceDueDate) {
+        toast.info(tr('Due date not recognized. Try format 12/04/2026.', 'Date d echeance non reconnue. Essayez le format 12/04/2026.', 'Due date not recognized. Try format 12/04/2026.'));
+      }
+      if (isPaymentTermsField && !recognizedAnyValue) {
+        const latePaymentType = parsePaymentTypeFromSpeech(speechFinalRef.current);
+        const lateNumber = parseSpokenNumber(speechFinalRef.current);
+
+        if (latePaymentType) {
+          setFormData((prev) => ({ ...prev, paymentType: latePaymentType }));
+          if (touched.paymentType) {
+            setErrors((prev) => ({ ...prev, paymentType: validateField('paymentType', latePaymentType) }));
+          }
+          recognizedAnyValue = true;
+        }
+
+        if (lateNumber !== null) {
+          applyFieldValue('upfrontValue', lateNumber);
+          recognizedAnyValue = true;
+        }
+      }
+      if (isPaymentTermsField && !recognizedAnyValue) {
+        toast.info(
+          tr(
+            'Payment terms not recognized. Say: 30 percent or 500 fixed amount.',
+            'Conditions de paiement non reconnues. Dites: 30 pourcent ou 500 montant fixe.',
+            'Payment terms not recognized. Say: 30 percent or 500 fixed amount.'
+          )
+        );
+      }
+      setIsListening(false);
+      setActiveSpeechField(null);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setActiveSpeechField(field);
+    setIsListening(false);
+    recognition.start();
+  };
+
+  const renderSpeechButton = (field: SpeechField) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => startSpeechToText(field)}
+      disabled={!isSpeechSupported}
+      aria-pressed={activeSpeechField === field}
+      aria-label={
+        activeSpeechField === field
+          ? tr('Stop voice input', 'Arreter la dictee vocale', 'Stop voice input')
+          : tr('Start voice input', 'Demarrer la dictee vocale', 'Start voice input')
+      }
+      className={`h-9 rounded-lg border ${activeSpeechField === field ? 'border-red-500 text-red-600' : 'border-border text-muted-foreground'}`}
+    >
+      {activeSpeechField === field ? <MicOff size={16} className="mr-2" /> : <Mic size={16} className="mr-2" />}
+      {activeSpeechField === field && isListening
+        ? tr('Listening...', 'Ecoute...', 'Listening...')
+        : activeSpeechField === field
+          ? tr('Stop', 'Arreter', 'Stop')
+          : tr('Dictee', 'Dictee', 'Dictee')}
+      {activeSpeechField === field && isListening && <span className="ml-2 h-2 w-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />}
+    </Button>
+  );
+
+  const toggleInvoiceDueDateSpeech = () => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      toast.error(tr('Speech-to-text is not supported on this browser.', 'La dictee vocale n est pas supportee sur ce navigateur.', 'Speech-to-text is not supported on this browser.'));
+      return;
+    }
+
+    if (isDueDateListening) {
+      dueDateRecognitionRef.current?.stop();
+      dueDateRecognitionRef.current = null;
+      setIsDueDateListening(false);
+      return;
+    }
+
+    dueDateRecognitionRef.current?.stop();
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = getSpeechLanguage();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    let finalTranscript = '';
+    let recognized = false;
+
+    recognition.onstart = () => {
+      setIsDueDateListening(true);
+    };
+
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (event.results[i].isFinal) {
+          finalTranscript = `${finalTranscript} ${transcript}`.trim();
+        } else {
+          interimTranscript = `${interimTranscript} ${transcript}`.trim();
+        }
+      }
+
+      const combined = `${finalTranscript} ${interimTranscript}`.trim();
+      const parsedDate = parseSpokenDateToIso(combined);
+      if (parsedDate) {
+        recognized = true;
+        setInvoiceDueDate(parsedDate);
+      }
+    };
+
+    recognition.onerror = (event: BrowserSpeechRecognitionErrorEvent) => {
+      if (event.error !== 'aborted') {
+        toast.error(tr('Voice capture failed. Please retry.', 'La capture vocale a echoue. Veuillez reessayer.', 'Voice capture failed. Please retry.'));
+      }
+      setIsDueDateListening(false);
+      dueDateRecognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      if (!recognized) {
+        toast.info(tr('Due date not recognized. Try format 12/04/2026.', 'Date d echeance non reconnue. Essayez le format 12/04/2026.', 'Due date not recognized. Try format 12/04/2026.'));
+      }
+      setIsDueDateListening(false);
+      dueDateRecognitionRef.current = null;
+    };
+
+    dueDateRecognitionRef.current = recognition;
+    recognition.start();
+  };
 
   const isProjectEligibleForQuote = (project: any) => {
     const numericProgress = Number(project?.progress ?? 0);
@@ -503,7 +971,27 @@ export default function ArtisanQuotes() {
             </div>
 
             <div className="space-y-2 mb-6">
-              <Label htmlFor="dueDateOverlay" className="text-base">{tr('Due Date', 'Date d\'echeance')}</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="dueDateOverlay" className="text-base">{tr('Due Date', 'Date d\'echeance')}</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleInvoiceDueDateSpeech}
+                  disabled={!isSpeechSupported}
+                  aria-pressed={isDueDateListening}
+                  aria-label={
+                    isDueDateListening
+                      ? tr('Stop voice input', 'Arreter la dictee vocale', 'Stop voice input')
+                      : tr('Start voice input', 'Demarrer la dictee vocale', 'Start voice input')
+                  }
+                  className={`h-9 rounded-lg border ${isDueDateListening ? 'border-red-500 text-red-600' : 'border-border text-muted-foreground'}`}
+                >
+                  {isDueDateListening ? <MicOff size={16} className="mr-2" /> : <Mic size={16} className="mr-2" />}
+                  {isDueDateListening ? tr('Listening...', 'Ecoute...', 'Listening...') : tr('Dictee', 'Dictee', 'Dictee')}
+                  {isDueDateListening && <span className="ml-2 h-2 w-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />}
+                </Button>
+              </div>
               <Input
                 id="dueDateOverlay"
                 type="date"
@@ -706,15 +1194,17 @@ export default function ArtisanQuotes() {
 
             {/* Client */}
             <div className="space-y-2">
-              <Label htmlFor="clientName" className="text-base font-semibold">
-                Client Name <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="clientName" className="text-base font-semibold">
+                  Client Name <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('clientName')}
+              </div>
               <Input
                 id="clientName"
                 value={formData.clientName}
                 onChange={(e) => {
-                  setFormData({ ...formData, clientName: e.target.value });
-                  if (touched.clientName) setErrors(prev => ({ ...prev, clientName: validateField('clientName', e.target.value) }));
+                  applyFieldValue('clientName', e.target.value);
                 }}
                 onBlur={() => handleBlur('clientName')}
                 placeholder="Client full name"
@@ -730,17 +1220,19 @@ export default function ArtisanQuotes() {
             {/* Amount split */}
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="laborHand" className="text-base font-semibold">
-                  Labor hand (TND) <span style={{ color: 'red' }}>*</span>
-                </Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="laborHand" className="text-base font-semibold">
+                    Labor hand (TND) <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('laborHand')}
+                </div>
                 <Input
                   id="laborHand"
                   type="number"
                   min={0}
                   value={formData.laborHand}
                   onChange={(e) => {
-                    setFormData({ ...formData, laborHand: e.target.value });
-                    if (touched.laborHand) setErrors(prev => ({ ...prev, laborHand: validateField('laborHand', e.target.value) }));
+                    applyFieldValue('laborHand', e.target.value);
                   }}
                   onBlur={() => handleBlur('laborHand')}
                   placeholder="0.00"
@@ -845,15 +1337,17 @@ export default function ArtisanQuotes() {
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-base font-semibold">
-                Description <span style={{ color: 'red' }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="description" className="text-base font-semibold">
+                  Description <span style={{ color: 'red' }}>*</span>
+                </Label>
+                {renderSpeechButton('description')}
+              </div>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => {
-                  setFormData({ ...formData, description: e.target.value });
-                  if (touched.description) setErrors(prev => ({ ...prev, description: validateField('description', e.target.value) }));
+                  applyFieldValue('description', e.target.value);
                 }}
                 onBlur={() => handleBlur('description')}
                 placeholder="Describe the work, materials, and services included..."
@@ -871,16 +1365,18 @@ export default function ArtisanQuotes() {
             <div className="grid md:grid-cols-2 gap-6">
               {/* Valid Until */}
               <div className="space-y-2">
-                <Label htmlFor="validUntil" className="text-base font-semibold">
-                  Valid Until <span style={{ color: 'red' }}>*</span>
-                </Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="validUntil" className="text-base font-semibold">
+                    Valid Until <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('validUntil')}
+                </div>
                 <Input
                   id="validUntil"
                   type="date"
                   value={formData.validUntil}
                   onChange={(e) => {
-                    setFormData({ ...formData, validUntil: e.target.value });
-                    if (touched.validUntil) setErrors(prev => ({ ...prev, validUntil: validateField('validUntil', e.target.value) }));
+                    applyFieldValue('validUntil', e.target.value);
                   }}
                   onBlur={() => handleBlur('validUntil')}
                   className={`h-12 rounded-xl border-2 focus:border-primary ${
@@ -894,7 +1390,10 @@ export default function ArtisanQuotes() {
 
               {/* Payment Terms (calculated) */}
               <div className="space-y-3">
-                <Label className="text-base font-semibold">Payment Terms <span style={{ color: 'red' }}>*</span></Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-base font-semibold">Payment Terms <span style={{ color: 'red' }}>*</span></Label>
+                  {renderSpeechButton('upfrontValue')}
+                </div>
 
                 <div className="flex flex-wrap gap-3">
                   <label className={`flex items-center gap-2 px-3 h-10 rounded-lg border-2 cursor-pointer ${formData.paymentType === 'percentage' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>

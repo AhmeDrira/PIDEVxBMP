@@ -8,6 +8,8 @@ import {
   Search,
   Send,
   Paperclip,
+  Mic,
+  MicOff,
   Trash2,
   Download,
   FileText,
@@ -81,6 +83,44 @@ interface Message {
   };
 }
 
+type ReportSpeechField = 'customReason' | 'details';
+
+type BrowserSpeechRecognitionEvent = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = Event & {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const API_BASE_URL = API_URL.replace(/\/api\/?$/, '');
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
@@ -120,9 +160,16 @@ export default function Messages() {
   const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
   const [reportCustomReason, setReportCustomReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
+  const [activeReportSpeechField, setActiveReportSpeechField] = useState<ReportSpeechField | null>(null);
+  const [isReportListening, setIsReportListening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const conversationMenuRef = useRef<HTMLDivElement | null>(null);
+  const reportRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const reportSpeechBaseRef = useRef('');
+  const reportSpeechFinalRef = useRef('');
+
+  const isSpeechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   const { socket } = useSocket();
   const {
@@ -237,6 +284,115 @@ export default function Messages() {
     }
     return token;
   };
+
+  const getSpeechLanguage = () => {
+    if (language === 'fr') return 'fr-FR';
+    if (language === 'ar') return 'ar-TN';
+    return 'en-US';
+  };
+
+  const stopReportDictation = useCallback(() => {
+    reportRecognitionRef.current?.stop();
+    reportRecognitionRef.current = null;
+    setIsReportListening(false);
+    setActiveReportSpeechField(null);
+  }, []);
+
+  const startReportDictation = useCallback((field: ReportSpeechField) => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      toast.error(tr('Speech-to-text is not supported on this browser.', 'La dictee vocale n est pas supportee sur ce navigateur.', 'Speech-to-text is not supported on this browser.'));
+      return;
+    }
+
+    if (activeReportSpeechField === field) {
+      stopReportDictation();
+      return;
+    }
+
+    reportRecognitionRef.current?.stop();
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = getSpeechLanguage();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    reportSpeechBaseRef.current = field === 'customReason' ? reportCustomReason.trim() : reportDetails.trim();
+    reportSpeechFinalRef.current = '';
+
+    recognition.onstart = () => {
+      setIsReportListening(true);
+    };
+
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (event.results[i].isFinal) {
+          reportSpeechFinalRef.current = `${reportSpeechFinalRef.current} ${transcript}`.trim();
+        } else {
+          interim = `${interim} ${transcript}`.trim();
+        }
+      }
+
+      const combined = [reportSpeechBaseRef.current, reportSpeechFinalRef.current, interim]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (field === 'customReason') {
+        setReportCustomReason(combined);
+      } else {
+        setReportDetails(combined);
+      }
+    };
+
+    recognition.onerror = (event: BrowserSpeechRecognitionErrorEvent) => {
+      if (event.error !== 'aborted') {
+        toast.error(tr('Voice capture failed. Please retry.', 'La capture vocale a echoue. Veuillez reessayer.', 'Voice capture failed. Please retry.'));
+      }
+      setIsReportListening(false);
+      setActiveReportSpeechField(null);
+      reportRecognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      setIsReportListening(false);
+      setActiveReportSpeechField(null);
+      reportRecognitionRef.current = null;
+    };
+
+    reportRecognitionRef.current = recognition;
+    setActiveReportSpeechField(field);
+    setIsReportListening(false);
+    recognition.start();
+  }, [activeReportSpeechField, getSpeechLanguage, reportCustomReason, reportDetails, stopReportDictation, tr]);
+
+  const renderReportSpeechButton = (field: ReportSpeechField) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => startReportDictation(field)}
+      disabled={!isSpeechSupported}
+      aria-pressed={activeReportSpeechField === field}
+      aria-label={
+        activeReportSpeechField === field
+          ? tr('Stop voice input', 'Arreter la dictee vocale', 'Stop voice input')
+          : tr('Start voice input', 'Demarrer la dictee vocale', 'Start voice input')
+      }
+      className={`h-9 rounded-lg border ${activeReportSpeechField === field ? 'border-red-500 text-red-600' : 'border-border text-muted-foreground'}`}
+    >
+      {activeReportSpeechField === field ? <MicOff size={16} className="mr-2" /> : <Mic size={16} className="mr-2" />}
+      {activeReportSpeechField === field && isReportListening
+        ? tr('Listening...', 'Ecoute...', 'Listening...')
+        : activeReportSpeechField === field
+          ? tr('Stop', 'Arreter', 'Stop')
+          : tr('Dictee', 'Dictee', 'Dictee')}
+    </Button>
+  );
 
   // Récupération de l'utilisateur courant
   useEffect(() => {
@@ -578,6 +734,7 @@ export default function Messages() {
   };
 
   const closeReportModal = () => {
+    stopReportDictation();
     setReportModalOpen(false);
   };
 
@@ -730,6 +887,18 @@ export default function Messages() {
     setBlockedByMe(Boolean(selectedConv.blockedByCurrentUser));
     setBlockedByOther(Boolean(selectedConv.blockedByOtherUser));
   }, [selectedConv]);
+
+  useEffect(() => {
+    if (!reportModalOpen) {
+      stopReportDictation();
+    }
+  }, [reportModalOpen, stopReportDictation]);
+
+  useEffect(() => {
+    return () => {
+      stopReportDictation();
+    };
+  }, [stopReportDictation]);
 
 
   if (selectedProfileArtisanId) {
@@ -1321,9 +1490,12 @@ export default function Messages() {
 
             {reportReason === tr('Other', 'Autre', 'أخرى') && (
               <div style={{ marginBottom: 14 }}>
-                <label htmlFor="direct-report-custom" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
-                  {tr('Custom reason', 'Raison personnalisee', 'سبب مخصصة')}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+                  <label htmlFor="direct-report-custom" style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--foreground)' }}>
+                    {tr('Custom reason', 'Raison personnalisee', 'سبب مخصصة')}
+                  </label>
+                  {renderReportSpeechButton('customReason')}
+                </div>
                 <Input
                   id="direct-report-custom"
                   value={reportCustomReason}
@@ -1334,9 +1506,12 @@ export default function Messages() {
             )}
 
             <div style={{ marginBottom: 20 }}>
-              <label htmlFor="direct-report-details" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--foreground)' }}>
-                {tr('Details (optional)', 'Details (optionnel)', 'التفاصيل (اختياري)')}
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+                <label htmlFor="direct-report-details" style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--foreground)' }}>
+                  {tr('Details (optional)', 'Details (optionnel)', 'التفاصيل (اختياري)')}
+                </label>
+                {renderReportSpeechButton('details')}
+              </div>
               <Textarea
                 id="direct-report-details"
                 value={reportDetails}
