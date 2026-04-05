@@ -9,6 +9,19 @@ const MAX_EMBEDDING_CACHE_SIZE = 500;
 
 const clamp = (value, min, max) => Math.min(Math.max(Number(value) || 0, min), max);
 const safeNumber = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+const LABOR_MATERIALS_EXPONENT = 0.85;
+const LABOR_MATERIALS_SCALE = 2.5;
+
+const estimateLaborFromMaterials = (materialsAmount, laborRatio) => {
+  const safeMaterials = Math.max(0, Number(materialsAmount) || 0);
+  const safeLaborRatio = Math.max(0, Number(laborRatio) || 0);
+
+  if (safeMaterials <= 0 || safeLaborRatio <= 0) {
+    return 0;
+  }
+
+  return Math.pow(safeMaterials, LABOR_MATERIALS_EXPONENT) * safeLaborRatio * LABOR_MATERIALS_SCALE;
+};
 
 const normalizeText = (value) =>
   String(value || '')
@@ -290,7 +303,10 @@ const predictQuoteDraftFromHistory = async ({
   const laborRatio = weightedAverage(neighbors, ({ quote }) => {
     const labor = safeNumber(quote?.laborHand, 0);
     const materials = safeNumber(quote?.materialsAmount, 0);
-    if (materials > 0) return labor / materials;
+    if (materials > 0) {
+      const materialLaborBase = Math.pow(materials, LABOR_MATERIALS_EXPONENT) * LABOR_MATERIALS_SCALE;
+      if (materialLaborBase > 0) return labor / materialLaborBase;
+    }
     const amount = safeNumber(quote?.amount, 0);
     return amount > 0 ? labor / amount : null;
   });
@@ -299,7 +315,7 @@ const predictQuoteDraftFromHistory = async ({
 
   let laborHandPrediction = weightedLabor || 0;
   if (safeNumber(currentMaterialsAmount, 0) > 0 && Number.isFinite(laborRatio)) {
-    laborHandPrediction = safeNumber(currentMaterialsAmount, 0) * laborRatio;
+    laborHandPrediction = estimateLaborFromMaterials(safeNumber(currentMaterialsAmount, 0), laborRatio);
   }
 
   laborHandPrediction = Math.max(0, laborHandPrediction);
