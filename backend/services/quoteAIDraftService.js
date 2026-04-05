@@ -6,6 +6,9 @@ const roundCurrency = (value) => Number((Number(value) || 0).toFixed(2));
 
 const formatPercent = (value) => `${roundCurrency(value).toFixed(2)}%`;
 
+const LABOR_MATERIALS_EXPONENT = 0.85;
+const LABOR_MATERIALS_SCALE = 2.5;
+
 const daysBetween = (from, to) => {
   const fromDate = new Date(from);
   const toDate = new Date(to);
@@ -91,6 +94,32 @@ const computeUpfrontPercent = (overallRisk) => {
     return 30 + ((overallRisk - 40) / 30) * 10;
   }
   return 40 + ((overallRisk - 70) / 30) * 20;
+};
+
+const estimateLaborFromMaterials = (materialsAmount, laborRatio) => {
+  const safeMaterials = Math.max(0, Number(materialsAmount) || 0);
+  const safeLaborRatio = Math.max(0, Number(laborRatio) || 0);
+
+  if (safeMaterials <= 0 || safeLaborRatio <= 0) {
+    return 0;
+  }
+
+  return Math.pow(safeMaterials, LABOR_MATERIALS_EXPONENT) * safeLaborRatio * LABOR_MATERIALS_SCALE;
+};
+
+const finalizeUpfrontPercent = ({ calculatedUpfrontPercent, materialsAmount, estimatedTotal }) => {
+  const safeTotal = Math.max(0, Number(estimatedTotal) || 0);
+  const safeMaterials = Math.max(0, Number(materialsAmount) || 0);
+  const basePercent = clamp(Number(calculatedUpfrontPercent) || 0, 0, 100);
+
+  const minUpfrontPercent = safeTotal > 0
+    ? clamp((safeMaterials / safeTotal) * 100, 0, 100)
+    : 0;
+
+  const safeguardedPercent = Math.max(basePercent, minUpfrontPercent);
+  const humanRoundedPercent = Math.round(safeguardedPercent / 5) * 5;
+
+  return clamp(humanRoundedPercent, 0, 100);
 };
 
 const confidenceFromCompleteness = ({
@@ -266,7 +295,11 @@ const generateQuoteAIDraft = async ({ project, clientName, artisanId }) => {
     1.2
   );
 
-  let laborHand = materialsAmount > 0 ? materialsAmount * laborRatio : taskCount > 0 ? taskCount * 220 : 350;
+  let laborHand = materialsAmount > 0
+    ? estimateLaborFromMaterials(materialsAmount, laborRatio)
+    : taskCount > 0
+      ? taskCount * 220
+      : 350;
   if (priority === 'high') laborHand *= 1.08;
   if (daysToDeadline <= 14) laborHand *= 1.1;
   laborHand = roundCurrency(laborHand);
@@ -278,7 +311,13 @@ const generateQuoteAIDraft = async ({ project, clientName, artisanId }) => {
       ? 'percentage'
       : 'fixed';
 
-  const upfrontPercent = roundCurrency(clamp(computeUpfrontPercent(overallRisk), 0, 100));
+  const upfrontPercent = roundCurrency(
+    finalizeUpfrontPercent({
+      calculatedUpfrontPercent: computeUpfrontPercent(overallRisk),
+      materialsAmount,
+      estimatedTotal: totalEstimated,
+    })
+  );
   const upfrontFixedAmount = roundCurrency((totalEstimated * upfrontPercent) / 100);
 
   const validityDays = overallRisk >= 70 ? 10 : overallRisk >= 55 ? 14 : overallRisk >= 40 ? 21 : 30;
@@ -296,6 +335,7 @@ const generateQuoteAIDraft = async ({ project, clientName, artisanId }) => {
     'Final quote amount remains deterministic on save: amount = laborHand + materialsAmount.',
     'Labor estimate is derived from task load, timeline pressure, and material complexity.',
     'Upfront recommendation follows weighted risk model: client 35%, delay 25%, technical 20%, price 20%.',
+    'Upfront recommendation enforces materials coverage floor and rounds to the nearest 5%.',
   ];
 
   if (personalCount > 0) {
@@ -370,7 +410,7 @@ const generateQuoteAIDraft = async ({ project, clientName, artisanId }) => {
     if (mlResult.ok) {
       const mlLaborHand = roundCurrency(Math.max(0, Number(mlResult?.predictions?.laborHand) || finalLaborHand));
       const mlPaymentType = mlResult?.predictions?.paymentType === 'fixed' ? 'fixed' : 'percentage';
-      const mlUpfrontPercent = roundCurrency(clamp(Number(mlResult?.predictions?.upfrontPercent), 0, 100));
+      const mlUpfrontPercentRaw = Number(mlResult?.predictions?.upfrontPercent);
       const mlLaborRatio = Number(mlResult?.predictions?.laborRatio);
 
       finalLaborHand = mlLaborHand;
@@ -379,8 +419,14 @@ const generateQuoteAIDraft = async ({ project, clientName, artisanId }) => {
       }
 
       finalPaymentType = mlPaymentType;
-      finalUpfrontPercent = mlUpfrontPercent;
       finalTotalEstimated = roundCurrency(finalLaborHand + materialsAmount);
+      finalUpfrontPercent = roundCurrency(
+        finalizeUpfrontPercent({
+          calculatedUpfrontPercent: mlUpfrontPercentRaw,
+          materialsAmount,
+          estimatedTotal: finalTotalEstimated,
+        })
+      );
       finalUpfrontFixedAmount = roundCurrency((finalTotalEstimated * finalUpfrontPercent) / 100);
       finalUpfrontValue = finalPaymentType === 'percentage' ? finalUpfrontPercent : finalUpfrontFixedAmount;
 
@@ -431,6 +477,16 @@ const generateQuoteAIDraft = async ({ project, clientName, artisanId }) => {
     inference.fallbackReason = 'ML service is temporarily unavailable; heuristic fallback was used.';
     warnings.push('ML service is temporarily unavailable; heuristic fallback was used.');
   }
+
+  finalUpfrontPercent = roundCurrency(
+    finalizeUpfrontPercent({
+      calculatedUpfrontPercent: finalUpfrontPercent,
+      materialsAmount,
+      estimatedTotal: finalTotalEstimated,
+    })
+  );
+  finalUpfrontFixedAmount = roundCurrency((finalTotalEstimated * finalUpfrontPercent) / 100);
+  finalUpfrontValue = finalPaymentType === 'percentage' ? finalUpfrontPercent : finalUpfrontFixedAmount;
 
   const laborReasoning = inference.source === 'ml-rag'
     ? [
@@ -517,12 +573,12 @@ const generateQuoteAIDraft = async ({ project, clientName, artisanId }) => {
           ? [
               `ML weighted recommendation: ${formatPercent(finalUpfrontPercent)} (${finalUpfrontFixedAmount.toLocaleString()} TND), derived from nearest approved quotes.`,
               `Risk reference remains ${overallRisk}/100 (client 35%, delay 25%, technical 20%, price 20%).`,
-              'The recommendation is automatically clamped to safe business limits before submission.',
+              'The recommendation is clamped, forced to cover materials, then rounded to the nearest 5%.',
             ]
           : [
               `Weighted risk score: ${overallRisk}/100 (client 35%, delay 25%, technical 20%, price 20%).`,
               `Recommended upfront: ${formatPercent(finalUpfrontPercent)} (${finalUpfrontFixedAmount.toLocaleString()} TND).`,
-              'The recommendation is automatically clamped to safe business limits before submission.',
+              'The recommendation is clamped, forced to cover materials, then rounded to the nearest 5%.',
             ],
       },
       validUntil: {
