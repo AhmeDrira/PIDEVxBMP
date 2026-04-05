@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, FileText, Download, Eye, Clock, CheckCircle, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff } from 'lucide-react';
+import { Plus, FileText, Download, Eye, Clock, CheckCircle, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff, Sparkles, Gauge, AlertTriangle, Wand2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
@@ -14,6 +14,87 @@ import { useSubscriptionGuard } from './SubscriptionGuard';
 import { useLanguage } from '../../context/LanguageContext';
 
 type SpeechField = 'clientName' | 'laborHand' | 'description' | 'validUntil' | 'upfrontValue' | 'invoiceDueDate';
+
+type AiRiskLevel = 'low' | 'medium' | 'high';
+
+type AiQuoteDraft = {
+  generatedAt: string;
+  projectSnapshot: {
+    projectId: string;
+    title: string;
+    location: string;
+    priority: string;
+    durationDays: number;
+    daysToDeadline: number;
+    taskCount: number;
+    completionRatio: number;
+    materialsCount: number;
+    materialsAmount: number;
+    totalEstimated: number;
+  };
+  inference?: {
+    source: 'ml-rag' | 'heuristic-fallback';
+    model: string;
+    method: string;
+    confidence: number;
+    historyCount: number;
+    neighborsUsed: number;
+    averageSimilarity: number | null;
+    fallbackReason: string | null;
+    neighbors: Array<{
+      quoteId: string;
+      quoteNumber: string;
+      similarity: number;
+      laborHand: number;
+      amount: number;
+      upfrontPercent: number;
+      paymentMode: 'percentage' | 'fixed';
+      projectTitle: string;
+    }>;
+  };
+  recommendations: {
+    description: {
+      value: string;
+      confidence: number;
+      reasoning: string[];
+    };
+    laborHand: {
+      value: number;
+      ratioApplied: number;
+      confidence: number;
+      reasoning: string[];
+    };
+    paymentType: {
+      value: 'percentage' | 'fixed';
+      confidence: number;
+      reasoning: string[];
+    };
+    upfront: {
+      value: number;
+      mode: 'percentage' | 'fixed';
+      percent: number;
+      fixedAmount: number;
+      confidence: number;
+      reasoning: string[];
+      risk: {
+        overall: number;
+        level: AiRiskLevel;
+        client: number;
+        delay: number;
+        technical: number;
+        price: number;
+      };
+    };
+    validUntil: {
+      value: string;
+      validityDays: number;
+      confidence: number;
+      reasoning: string[];
+    };
+  };
+  warnings: string[];
+  assumptions: string[];
+};
 
 type BrowserSpeechRecognitionEvent = Event & {
   resultIndex: number;
@@ -78,6 +159,9 @@ export default function ArtisanQuotes() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'withInvoice' | 'withoutInvoice'>('all');
+  const [aiDraft, setAiDraft] = useState<AiQuoteDraft | null>(null);
+  const [isGeneratingAiDraft, setIsGeneratingAiDraft] = useState(false);
+  const [aiDraftError, setAiDraftError] = useState('');
 
   const todayLocalDate = (() => {
     const d = new Date();
@@ -254,6 +338,14 @@ export default function ArtisanQuotes() {
   useEffect(() => {
     formDataRef.current = formData;
   }, [formData]);
+
+  useEffect(() => {
+    if (!aiDraft) return;
+    if (aiDraft.projectSnapshot.projectId !== formData.project) {
+      setAiDraft(null);
+      setAiDraftError('');
+    }
+  }, [aiDraft, formData.project]);
 
   useEffect(() => {
     return () => {
@@ -594,6 +686,122 @@ export default function ArtisanQuotes() {
   const upfrontPercentage = totalAmount > 0 ? (safeUpfrontAmount / totalAmount) * 100 : 0;
   const uponCompletionPercentage = Math.max(100 - upfrontPercentage, 0);
 
+  const normalizeRisk = (value: number) => Math.min(Math.max(Number(value) || 0, 0), 100);
+  const feasibilityBadgeClass = (level: AiRiskLevel) => {
+    if (level === 'high') return 'border-red-200 bg-red-50 text-red-700';
+    if (level === 'medium') return 'border-amber-200 bg-amber-50 text-amber-700';
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  };
+  const feasibilityFillColor = (level: AiRiskLevel) => {
+    if (level === 'high') return '#ef4444';
+    if (level === 'medium') return '#f59e0b';
+    return '#10b981';
+  };
+  const feasibilityLabel = (level: AiRiskLevel) => {
+    if (level === 'high') return tr('High vigilance', 'Vigilance elevee', 'High vigilance');
+    if (level === 'medium') return tr('Moderate vigilance', 'Vigilance moderee', 'Moderate vigilance');
+    return tr('Comfortable', 'Confortable', 'Comfortable');
+  };
+
+  const applyAiDraftToForm = (draft: AiQuoteDraft, showSuccessToast = true) => {
+    const nextPaymentType = draft.recommendations.paymentType.value;
+    const nextUpfrontValue = nextPaymentType === 'percentage'
+      ? String(draft.recommendations.upfront.percent)
+      : String(draft.recommendations.upfront.fixedAmount);
+
+    setFormData((prev) => ({
+      ...prev,
+      laborHand: String(draft.recommendations.laborHand.value),
+      description: draft.recommendations.description.value,
+      validUntil: draft.recommendations.validUntil.value,
+      paymentType: nextPaymentType,
+      upfrontValue: nextUpfrontValue,
+    }));
+    setErrors({});
+    setTouched({});
+
+    if (showSuccessToast) {
+      toast.success(
+        tr(
+          'AI recommendations applied. Review and edit if needed.',
+          'Recommandations IA appliquees. Verifiez et ajustez si necessaire.',
+          'AI recommendations applied. Review and edit if needed.'
+        )
+      );
+    }
+  };
+
+  const handleGenerateAiDraft = async () => {
+    if (!formData.project) {
+      const projectError = validateField('project', '');
+      setTouched((prev) => ({ ...prev, project: true }));
+      setErrors((prev) => ({ ...prev, project: projectError }));
+      toast.warning(tr('Please select a project first.', 'Veuillez d abord selectionner un projet.', 'Please select a project first.'));
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      toast.error(tr('Authentication required.', 'Authentification requise.', 'Authentication required.'));
+      return;
+    }
+
+    if (!selectedProject) {
+      toast.warning(tr('Selected project was not found.', 'Le projet selectionne est introuvable.', 'Selected project was not found.'));
+      return;
+    }
+
+    const marketplaceCount = Array.isArray(selectedProject.materials) ? selectedProject.materials.length : 0;
+    const personalCount = Array.isArray(selectedProject.personalMaterials) ? selectedProject.personalMaterials.length : 0;
+    if (marketplaceCount + personalCount <= 0) {
+      toast.warning(
+        tr(
+          'Add at least one material before generating AI quote recommendations.',
+          'Ajoutez au moins un materiau avant de generer les recommandations IA.',
+          'Add at least one material before generating AI quote recommendations.'
+        )
+      );
+      return;
+    }
+
+    setIsGeneratingAiDraft(true);
+    setAiDraftError('');
+
+    try {
+      const response = await axios.post<AiQuoteDraft>(
+        `${API_URL}/quotes/ai-draft`,
+        {
+          projectId: formData.project,
+          clientName: formData.clientName,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setAiDraft(response.data);
+      applyAiDraftToForm(response.data, false);
+      toast.success(
+        tr(
+          'AI draft generated and prefilled. Review the explanations before submitting.',
+          'Brouillon IA genere et pre-rempli. Verifiez les explications avant validation.',
+          'AI draft generated and prefilled. Review the explanations before submitting.'
+        )
+      );
+    } catch (error: any) {
+      const backendMessage = error?.response?.data?.message;
+      const fallbackMessage = tr(
+        'Unable to generate AI draft right now.',
+        'Impossible de generer le brouillon IA pour le moment.',
+        'Unable to generate AI draft right now.'
+      );
+      setAiDraftError(backendMessage || fallbackMessage);
+      toast.error(backendMessage || fallbackMessage);
+    } finally {
+      setIsGeneratingAiDraft(false);
+    }
+  };
+
   const getToken = () => {
     let token = localStorage.getItem('token');
     const userStorage = localStorage.getItem('user');
@@ -766,6 +974,8 @@ export default function ArtisanQuotes() {
       });
       setErrors({});
       setTouched({});
+      setAiDraft(null);
+      setAiDraftError('');
       setView('list');
     } catch (error) {
       console.error("Error creating quote:", error);
@@ -1161,9 +1371,9 @@ export default function ArtisanQuotes() {
         </Button>
         <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
           <h2 className="text-3xl font-bold text-foreground mb-8">{tr('Generate New Quote', 'Generer un nouveau devis', 'إنشاء عرض أسعار جديد')}</h2>
-          <form className="space-y-6" onSubmit={handleCreateQuote}>
+          <form className="flex flex-col gap-6 lg:grid lg:grid-cols-[1.65fr_1fr] lg:gap-8" onSubmit={handleCreateQuote} noValidate>
             {/* Projet */}
-            <div className="space-y-2">
+            <div className="space-y-2 lg:col-start-1">
               <Label htmlFor="project" className="text-base font-semibold">
                 Select Project <span style={{ color: 'red' }}>*</span>
               </Label>
@@ -1193,7 +1403,7 @@ export default function ArtisanQuotes() {
             </div>
 
             {/* Client */}
-            <div className="space-y-2">
+            <div className="space-y-2 lg:col-start-1">
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="clientName" className="text-base font-semibold">
                   Client Name <span style={{ color: 'red' }}>*</span>
@@ -1217,8 +1427,143 @@ export default function ArtisanQuotes() {
               )}
             </div>
 
+            <Card className="order-first lg:order-none lg:col-start-2 lg:row-start-1 lg:row-span-8 lg:sticky lg:top-4 h-fit overflow-hidden rounded-2xl border border-indigo-200 bg-slate-50 shadow-lg">
+              <div className="relative">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-sky-400 to-violet-400" />
+                <div className="p-5 md:p-6 space-y-4">
+                  <div>
+                    <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                      <Sparkles size={14} />
+                      {tr('AI Copilot', 'Copilot IA', 'AI Copilot')}
+                    </p>
+                    <h3 className="mt-3 text-xl font-semibold text-slate-900">
+                      {tr('Quote assistant', 'Assistant de creation du devis', 'Quote assistant')}
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                      {tr(
+                        'Generate clear and editable suggestions for your quote.',
+                        'Generez des suggestions claires et modifiables pour votre devis.',
+                        'Generate clear and editable suggestions for your quote.'
+                      )}
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleGenerateAiDraft}
+                    disabled={isGeneratingAiDraft || isSubmitting}
+                    className="h-11 w-full rounded-xl border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                  >
+                    {isGeneratingAiDraft ? <Gauge size={16} className="mr-2 animate-pulse" /> : <Wand2 size={16} className="mr-2" />}
+                    {isGeneratingAiDraft
+                      ? tr('Analyzing project...', 'Analyse du projet...', 'Analyzing project...')
+                      : tr('Generate suggestions', 'Generer les suggestions', 'Generate suggestions')}
+                  </Button>
+
+                  {aiDraftError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <AlertTriangle size={16} />
+                        {tr('Unable to generate suggestions', 'Impossible de generer les suggestions', 'Unable to generate suggestions')}
+                      </div>
+                      <p className="mt-2">{aiDraftError}</p>
+                    </div>
+                  )}
+
+                  {aiDraft && (
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-slate-900">{tr('Feasibility analysis', 'Analyse de faisabilite', 'Feasibility analysis')}</p>
+                          <Badge className={`border ${feasibilityBadgeClass(aiDraft.recommendations.upfront.risk.level)}`}>
+                            {feasibilityLabel(aiDraft.recommendations.upfront.risk.level)}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-600">
+                          {tr('Evaluated from project complexity, delays, pricing, and client profile.', 'Evaluee selon la complexite, les delais, les prix et le profil client.', 'Evaluated from project complexity, delays, pricing, and client profile.')}
+                        </p>
+                        <div className="mt-3 h-2.5 rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${Math.max(4, 100 - normalizeRisk(aiDraft.recommendations.upfront.risk.overall))}%`,
+                              backgroundColor: feasibilityFillColor(aiDraft.recommendations.upfront.risk.level),
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 text-sm text-slate-700">
+                        <p>
+                          <strong className="text-slate-900">{tr('Estimated labor:', 'Estimation de la main-d oeuvre :', 'Estimated labor:')}</strong>{' '}
+                          {formatAmount(aiDraft.recommendations.laborHand.value)} ({tr('based on duration and difficulty', 'basee sur la duree et la difficulte', 'based on duration and difficulty')})
+                        </p>
+                        <p>
+                          <strong className="text-slate-900">{tr('Recommended upfront:', 'Acompte conseille :', 'Recommended upfront:')}</strong>{' '}
+                          {aiDraft.recommendations.upfront.percent.toFixed(2)}% ({tr('to secure cash flow', 'pour securiser la tresorerie', 'to secure cash flow')})
+                        </p>
+                        <p>
+                          <strong className="text-slate-900">{tr('Recommended payment mode:', 'Mode de paiement conseille :', 'Recommended payment mode:')}</strong>{' '}
+                          {aiDraft.recommendations.paymentType.value === 'percentage'
+                            ? tr('Percentage', 'Pourcentage', 'Percentage')
+                            : tr('Fixed amount', 'Montant fixe', 'Fixed amount')}
+                        </p>
+                        <p>
+                          <strong className="text-slate-900">{tr('Quote validity:', 'Validite proposee :', 'Quote validity:')}</strong>{' '}
+                          {formatDate(aiDraft.recommendations.validUntil.value)}
+                        </p>
+                        <p className="text-xs text-slate-500 pt-1">
+                          {aiDraft.inference?.neighborsUsed
+                            ? tr(
+                                `Based on your project context and ${aiDraft.inference.neighborsUsed} similar approved quote(s).`,
+                                `Base sur votre contexte projet et ${aiDraft.inference.neighborsUsed} devis approuve(s) similaires.`,
+                                `Based on your project context and ${aiDraft.inference.neighborsUsed} similar approved quote(s).`
+                              )
+                            : tr('Based on your project context.', 'Base sur votre contexte projet.', 'Based on your project context.')}
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={() => applyAiDraftToForm(aiDraft)}
+                        className="h-11 w-full rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-sky-600 text-white shadow-md hover:from-indigo-500 hover:via-violet-500 hover:to-sky-500"
+                      >
+                        ✨ Appliquer les suggestions de l'IA
+                      </Button>
+
+                      {(aiDraft.warnings.length > 0 || aiDraft.assumptions.length > 0) && (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                            <p className="text-sm font-semibold text-amber-800">{tr('Points to review', 'Points a verifier', 'Points to review')}</p>
+                            {aiDraft.warnings.length === 0 ? (
+                              <p className="mt-1 text-xs text-amber-700">{tr('No blocking alert.', 'Aucune alerte bloquante.', 'No blocking alert.')}</p>
+                            ) : (
+                              <ul className="mt-2 space-y-1 text-xs text-amber-800 list-disc pl-4">
+                                {aiDraft.warnings.slice(0, 3).map((warning, idx) => (
+                                  <li key={`warning-clean-${idx}`}>{warning}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                            <p className="text-sm font-semibold text-emerald-800">{tr('Assumptions used', 'Hypotheses utilisees', 'Assumptions used')}</p>
+                            <ul className="mt-2 space-y-1 text-xs text-emerald-800 list-disc pl-4">
+                              {aiDraft.assumptions.slice(0, 3).map((assumption, idx) => (
+                                <li key={`assumption-clean-${idx}`}>{assumption}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
             {/* Amount split */}
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6 lg:col-start-1">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <Label htmlFor="laborHand" className="text-base font-semibold">
@@ -1229,6 +1574,7 @@ export default function ArtisanQuotes() {
                 <Input
                   id="laborHand"
                   type="number"
+                  step="any"
                   min={0}
                   value={formData.laborHand}
                   onChange={(e) => {
@@ -1287,7 +1633,7 @@ export default function ArtisanQuotes() {
             </div>
 
             {selectedProject && materialsAmount <= 0 && (
-              <Card className="p-4 border-amber-200 bg-amber-50 rounded-xl">
+              <Card className="p-4 border-amber-200 bg-amber-50 rounded-xl lg:col-start-1">
                 <p className="text-sm text-amber-800 mb-3">
                   This project has no materials yet. Use the same project flow to add materials, then come back to generate the quote.
                 </p>
@@ -1317,7 +1663,7 @@ export default function ArtisanQuotes() {
               </Card>
             )}
 
-            <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
+            <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 lg:col-start-1">
               <p className="text-sm text-muted-foreground mb-2">Total amount preview</p>
               <div className="grid md:grid-cols-3 gap-3 text-sm">
                 <div className="rounded-lg bg-card p-3 border border-border">
@@ -1336,7 +1682,7 @@ export default function ArtisanQuotes() {
             </div>
 
             {/* Description */}
-            <div className="space-y-2">
+            <div className="space-y-2 lg:col-start-1">
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="description" className="text-base font-semibold">
                   Description <span style={{ color: 'red' }}>*</span>
@@ -1362,7 +1708,7 @@ export default function ArtisanQuotes() {
             </div>
 
             {/* Valid Until et Payment Terms */}
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6 lg:col-start-1">
               {/* Valid Until */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
@@ -1433,6 +1779,7 @@ export default function ArtisanQuotes() {
                   <Input
                     id="upfrontValue"
                     type="number"
+                    step="any"
                     min={0}
                     max={formData.paymentType === 'percentage' ? 100 : undefined}
                     value={formData.upfrontValue}
@@ -1469,7 +1816,7 @@ export default function ArtisanQuotes() {
             </div>
 
             {/* Boutons */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-4 pt-4 lg:col-start-1">
               <Button
                 type="submit"
                 disabled={isSubmitting || !validateForm()}

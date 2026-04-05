@@ -1,7 +1,9 @@
 const Quote = require('../models/Quote');
 const Invoice = require('../models/Invoice');
+const Project = require('../models/Project');
 const mongoose = require('mongoose');
 const { logAction } = require('../utils/actionLogger');
+const { generateQuoteAIDraft } = require('../services/quoteAIDraftService');
 const fs = require('fs');
 
 const resolveChromeExecutablePath = () => {
@@ -58,6 +60,47 @@ const extractProjectMaterialItems = (project) => {
     : [];
 
   return [...groupedMarketplace, ...personalItems];
+};
+
+// @desc    Generate AI quote draft suggestions
+// @route   POST /api/quotes/ai-draft
+const generateQuoteDraft = async (req, res) => {
+  try {
+    const projectId = String(req.body?.projectId || req.body?.project || '').trim();
+    const clientName = String(req.body?.clientName || '').trim();
+
+    if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ message: 'Valid projectId is required' });
+    }
+
+    const project = await Project.findOne({
+      _id: projectId,
+      artisan: req.user._id,
+    })
+      .populate('materials', 'name price category status stock')
+      .lean();
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found for this artisan' });
+    }
+
+    const numericProgress = Number(project?.progress ?? 0);
+    const isCompletedByStatus = String(project?.status || '').toLowerCase() === 'completed';
+    const isCompletedByProgress = Number.isFinite(numericProgress) && numericProgress >= 100;
+    if (isCompletedByStatus || isCompletedByProgress) {
+      return res.status(400).json({ message: 'Cannot generate quote draft for completed project' });
+    }
+
+    const draft = await generateQuoteAIDraft({
+      project,
+      clientName,
+      artisanId: req.user._id,
+    });
+    return res.status(200).json(draft);
+  } catch (error) {
+    console.error('generateQuoteDraft error:', error);
+    return res.status(500).json({ message: 'Server error while generating AI quote draft' });
+  }
 };
 
 // @desc    Create a new quote
@@ -415,4 +458,11 @@ const deleteQuote = async (req, res) => {
   }
 };
 
-module.exports = { createQuote, getQuotes, updateQuoteStatus, downloadQuotePdf, deleteQuote };
+module.exports = {
+  generateQuoteDraft,
+  createQuote,
+  getQuotes,
+  updateQuoteStatus,
+  downloadQuotePdf,
+  deleteQuote,
+};
