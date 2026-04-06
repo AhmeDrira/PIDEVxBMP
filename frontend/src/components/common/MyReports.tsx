@@ -699,6 +699,7 @@ export default function MyReports({ role, userId: _userId }: MyReportsProps) {
                     id="report-user-search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    data-artisan-search="true"
                     placeholder={tr("Search by user name", "Rechercher par nom d'utilisateur", "البحث باسم المستخدم")}
                   />
                 </div>

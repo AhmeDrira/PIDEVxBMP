@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, FileText, Download, Eye, Clock, CheckCircle, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff, Sparkles, Gauge, AlertTriangle, Wand2 } from 'lucide-react';
+import { Plus, FileText, Download, Eye, Clock, CheckCircle, X, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff, Sparkles, Gauge, AlertTriangle, Wand2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
@@ -162,6 +162,7 @@ export default function ArtisanQuotes() {
   const [aiDraft, setAiDraft] = useState<AiQuoteDraft | null>(null);
   const [isGeneratingAiDraft, setIsGeneratingAiDraft] = useState(false);
   const [aiDraftError, setAiDraftError] = useState('');
+  const [isAIOpen, setIsAIOpen] = useState(false);
 
   const todayLocalDate = (() => {
     const d = new Date();
@@ -1365,103 +1366,396 @@ export default function ArtisanQuotes() {
   // ==========================================
   if (view === 'create') {
     return (
-      <div className="max-w-4xl mx-auto">
-        <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
+      <div className="mx-auto w-full max-w-7xl px-4 lg:px-8">
+        <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-lg border border-gray-300 shadow-sm">
           <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Quotes', 'Retour aux devis', 'العودة إلى العروض')}
         </Button>
-        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
-          <h2 className="text-3xl font-bold text-foreground mb-8">{tr('Generate New Quote', 'Generer un nouveau devis', 'إنشاء عرض أسعار جديد')}</h2>
-          <form className="flex flex-col gap-6 lg:grid lg:grid-cols-[1.65fr_1fr] lg:gap-8" onSubmit={handleCreateQuote} noValidate>
-            {/* Projet */}
-            <div className="space-y-2 lg:col-start-1">
-              <Label htmlFor="project" className="text-base font-semibold">
-                Select Project <span style={{ color: 'red' }}>*</span>
-              </Label>
-              <select
-                id="project"
-                value={formData.project}
-                onChange={(e) => {
-                  setFormData({ ...formData, project: e.target.value });
-                  if (touched.project) setErrors(prev => ({ ...prev, project: validateField('project', e.target.value) }));
-                }}
-                onBlur={() => handleBlur('project')}
-                className={`w-full h-12 px-4 border-2 rounded-xl focus:border-primary focus:outline-none bg-card ${
-                  touched.project && errors.project ? 'border-red-500' : 'border-border'
-                }`}
-              >
-                <option value="">Choose a project...</option>
-                {availableProjects.map((proj) => (
-                  <option key={proj._id} value={proj._id}>{proj.title}</option>
-                ))}
-              </select>
-              {availableProjects.length === 0 && (
-                <p className="text-sm text-muted-foreground">No active projects available for quotes.</p>
-              )}
-              {touched.project && errors.project && (
-                <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.project}</p>
-              )}
-            </div>
+        <Card className="rounded-xl border border-border bg-card p-6 shadow-sm md:p-8">
+          <div className="mb-8 flex items-center justify-between gap-4">
+            <h2 className="text-3xl font-bold text-foreground">{tr('Generate New Quote', 'Generer un nouveau devis', 'إنشاء عرض أسعار جديد')}</h2>
+            <button
+              type="button"
+              onClick={() => setIsAIOpen((prev) => !prev)}
+              className="flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+              aria-expanded={isAIOpen}
+              aria-controls="ai-assistant-sidebar"
+            >
+              {isAIOpen ? <X size={16} /> : <Sparkles size={16} />}
+              <span>{isAIOpen ? tr('Close AI Assistant', 'Fermer l\'Assistant IA', 'Fermer l\'Assistant IA') : tr('AI Assistant', 'Assistant IA', 'Assistant IA')}</span>
+            </button>
+          </div>
 
-            {/* Client */}
-            <div className="space-y-2 lg:col-start-1">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="clientName" className="text-base font-semibold">
-                  Client Name <span style={{ color: 'red' }}>*</span>
+          <form
+            className="flex flex-col lg:flex-row gap-8 w-full max-w-7xl mx-auto items-start"
+            onSubmit={handleCreateQuote}
+            noValidate
+          >
+            <div className="flex-1 min-w-0 transition-all duration-300 space-y-6">
+              {/* Projet */}
+              <div className="space-y-2">
+                <Label htmlFor="project" className="text-base font-semibold">
+                  Select Project <span style={{ color: 'red' }}>*</span>
                 </Label>
-                {renderSpeechButton('clientName')}
+                <select
+                  id="project"
+                  value={formData.project}
+                  onChange={(e) => {
+                    setFormData({ ...formData, project: e.target.value });
+                    if (touched.project) setErrors(prev => ({ ...prev, project: validateField('project', e.target.value) }));
+                  }}
+                  onBlur={() => handleBlur('project')}
+                  className={`h-12 w-full rounded-lg border bg-card px-4 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    touched.project && errors.project ? 'border-red-500' : 'border-border'
+                  }`}
+                >
+                  <option value="">Choose a project...</option>
+                  {availableProjects.map((proj) => (
+                    <option key={proj._id} value={proj._id}>{proj.title}</option>
+                  ))}
+                </select>
+                {availableProjects.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No active projects available for quotes.</p>
+                )}
+                {touched.project && errors.project && (
+                  <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.project}</p>
+                )}
               </div>
-              <Input
-                id="clientName"
-                value={formData.clientName}
-                onChange={(e) => {
-                  applyFieldValue('clientName', e.target.value);
-                }}
-                onBlur={() => handleBlur('clientName')}
-                placeholder="Client full name"
-                className={`h-12 rounded-xl border-2 focus:border-primary ${
-                  touched.clientName && errors.clientName ? 'border-red-500' : 'border-border'
-                }`}
-              />
-              {touched.clientName && errors.clientName && (
-                <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.clientName}</p>
-              )}
+
+              {/* Client */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="clientName" className="text-base font-semibold">
+                    Client Name <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('clientName')}
+                </div>
+                <Input
+                  id="clientName"
+                  value={formData.clientName}
+                  onChange={(e) => {
+                    applyFieldValue('clientName', e.target.value);
+                  }}
+                  onBlur={() => handleBlur('clientName')}
+                  placeholder="Client full name"
+                  className={`h-12 w-full rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    touched.clientName && errors.clientName ? 'border-red-500' : 'border-border'
+                  }`}
+                />
+                {touched.clientName && errors.clientName && (
+                  <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.clientName}</p>
+                )}
+              </div>
+
+              {/* Finance */}
+              <section className="space-y-6 rounded-xl border border-gray-200 bg-gray-50 p-6">
+                <h3 className="text-lg font-semibold text-foreground">Finance Overview</h3>
+
+                <div className="grid grid-cols-1 gap-6 w-full md:grid-cols-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="laborHand" className="text-base font-semibold whitespace-nowrap">
+                        Labor hand (TND) <span style={{ color: 'red' }}>*</span>
+                      </Label>
+                      {renderSpeechButton('laborHand')}
+                    </div>
+                    <Input
+                      id="laborHand"
+                      type="number"
+                      step="any"
+                      min={0}
+                      value={formData.laborHand}
+                      onChange={(e) => {
+                        applyFieldValue('laborHand', e.target.value);
+                      }}
+                      onBlur={() => handleBlur('laborHand')}
+                      placeholder="0.00"
+                      className={`h-12 w-full rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        touched.laborHand && errors.laborHand ? 'border-red-500' : 'border-border'
+                      }`}
+                    />
+                    {touched.laborHand && errors.laborHand && (
+                      <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.laborHand}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold whitespace-nowrap">Materials from project (TND)</Label>
+                    <div className="flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 shadow-sm">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 rounded-lg border border-border"
+                        disabled={!selectedProject}
+                        onClick={() => setShowAllMaterials((prev) => !prev)}
+                      >
+                        <FolderKanban size={14} className="mr-2" />
+                        {showAllMaterials ? 'Hide materials' : 'View All materials'}
+                      </Button>
+                      <span className="text-lg font-bold text-primary">{formatAmount(materialsAmount)}</span>
+                    </div>
+                    {showAllMaterials && (
+                      <div className="max-h-48 overflow-auto rounded-lg border border-border bg-card p-3">
+                        {groupedMaterials.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No materials added to this project yet.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {groupedMaterials.map((entry: any, index: number) => (
+                              <div key={String(entry.key || entry.item?._id || index)} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2">
+                                <p className="truncate pr-2 text-sm font-medium text-foreground">
+                                  {entry.item?.name || 'Material'}
+                                  <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    {entry.source === 'personal' ? 'Personal' : 'Marketplace'}
+                                  </span>
+                                </p>
+                                <p className="whitespace-nowrap text-sm text-muted-foreground">
+                                  x{entry.quantity} • {formatAmount(Number(entry.item?.price || 0) * entry.quantity)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectedProject && materialsAmount <= 0 && (
+                  <Card className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                    <p className="mb-3 text-sm text-amber-800">
+                      This project has no materials yet. Use the same project flow to add materials, then come back to generate the quote.
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        className="rounded-lg bg-secondary text-white shadow-sm hover:bg-secondary/90"
+                        onClick={() => {
+                          if (!selectedProject?._id) return;
+                          window.location.href = '/?artisanView=marketplace&projectId=' + selectedProject._id;
+                        }}
+                      >
+                        <ShoppingCart size={16} className="mr-2" /> Add Material
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-lg border border-border shadow-sm"
+                        onClick={() => {
+                          if (!selectedProject?._id) return;
+                          window.location.href = '/?artisanView=projects';
+                        }}
+                      >
+                        <FolderKanban size={16} className="mr-2" /> View Materials
+                      </Button>
+                    </div>
+                  </Card>
+                )}
+
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                  <p className="mb-2 text-sm text-muted-foreground">Total amount preview</p>
+                  <div className="grid w-full gap-4 text-sm md:grid-cols-3">
+                    <div className="rounded-lg border border-border bg-card p-3">
+                      <p className="text-muted-foreground">Labor hand</p>
+                      <p className="font-semibold text-foreground">{formatAmount(Number.isFinite(laborHandAmount) ? laborHandAmount : 0)}</p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-card p-3">
+                      <p className="text-muted-foreground">Materials</p>
+                      <p className="font-semibold text-foreground">{formatAmount(materialsAmount)}</p>
+                    </div>
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-900">
+                      <p className="font-medium">Total</p>
+                      <p className="text-lg font-bold">{formatAmount(totalAmount)}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="description" className="text-base font-semibold">
+                    Description <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  {renderSpeechButton('description')}
+                </div>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => {
+                    applyFieldValue('description', e.target.value);
+                  }}
+                  onBlur={() => handleBlur('description')}
+                  placeholder="Describe the work, materials, and services included..."
+                  rows={6}
+                  className={`w-full rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    touched.description && errors.description ? 'border-red-500' : 'border-border'
+                  }`}
+                />
+                {touched.description && errors.description && (
+                  <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>
+                )}
+              </div>
+
+              {/* Valid Until et Payment Terms */}
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Valid Until */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="validUntil" className="text-base font-semibold">
+                      Valid Until <span style={{ color: 'red' }}>*</span>
+                    </Label>
+                    {renderSpeechButton('validUntil')}
+                  </div>
+                  <Input
+                    id="validUntil"
+                    type="date"
+                    value={formData.validUntil}
+                    onChange={(e) => {
+                      applyFieldValue('validUntil', e.target.value);
+                    }}
+                    onBlur={() => handleBlur('validUntil')}
+                    className={`h-12 w-full rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      touched.validUntil && errors.validUntil ? 'border-red-500' : 'border-border'
+                    }`}
+                  />
+                  {touched.validUntil && errors.validUntil && (
+                    <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.validUntil}</p>
+                  )}
+                </div>
+
+                {/* Payment Terms (calculated) */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-base font-semibold">Payment Terms <span style={{ color: 'red' }}>*</span></Label>
+                    {renderSpeechButton('upfrontValue')}
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <label className={`flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm shadow-sm ${formData.paymentType === 'percentage' ? 'border-blue-500 bg-blue-50/60' : 'border-border bg-card'}`}>
+                      <input
+                        type="radio"
+                        name="paymentType"
+                        checked={formData.paymentType === 'percentage'}
+                        onChange={() => {
+                          setFormData({ ...formData, paymentType: 'percentage' });
+                          if (touched.paymentType) setErrors(prev => ({ ...prev, paymentType: validateField('paymentType', 'percentage') }));
+                          if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', formData.upfrontValue) }));
+                        }}
+                        onBlur={() => handleBlur('paymentType')}
+                      />
+                      Percentage (%)
+                    </label>
+                    <label className={`flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm shadow-sm ${formData.paymentType === 'fixed' ? 'border-blue-500 bg-blue-50/60' : 'border-border bg-card'}`}>
+                      <input
+                        type="radio"
+                        name="paymentType"
+                        checked={formData.paymentType === 'fixed'}
+                        onChange={() => {
+                          setFormData({ ...formData, paymentType: 'fixed' });
+                          if (touched.paymentType) setErrors(prev => ({ ...prev, paymentType: validateField('paymentType', 'fixed') }));
+                          if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', formData.upfrontValue) }));
+                        }}
+                        onBlur={() => handleBlur('paymentType')}
+                      />
+                      Fixed Amount
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="upfrontValue" className="text-sm font-medium text-muted-foreground">
+                      Upfront ({formData.paymentType === 'percentage' ? '%' : 'TND'})
+                    </Label>
+                    <Input
+                      id="upfrontValue"
+                      type="number"
+                      step="any"
+                      min={0}
+                      max={formData.paymentType === 'percentage' ? 100 : undefined}
+                      value={formData.upfrontValue}
+                      onChange={(e) => {
+                        setFormData({ ...formData, upfrontValue: e.target.value });
+                        if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', e.target.value) }));
+                      }}
+                      onBlur={() => handleBlur('upfrontValue')}
+                      placeholder={formData.paymentType === 'percentage' ? 'e.g. 30' : 'e.g. 500'}
+                      className={`h-10 w-full rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        touched.upfrontValue && errors.upfrontValue ? 'border-red-500' : 'border-border'
+                      }`}
+                    />
+                    {touched.upfrontValue && errors.upfrontValue && (
+                      <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.upfrontValue}</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-muted/50 p-3 text-sm space-y-2">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Upfront</span>
+                      <span className="font-semibold text-foreground">
+                        {upfrontPercentage.toFixed(2)}% ({safeUpfrontAmount.toFixed(2)} TND)
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Upon Completion</span>
+                      <span className="font-semibold text-foreground">
+                        {uponCompletionPercentage.toFixed(2)}% ({uponCompletionAmount.toFixed(2)} TND)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Boutons */}
+              <div className="mt-8 flex flex-wrap justify-start gap-4">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !validateForm()}
+                  className="rounded-lg !border-[#1E40AF] !bg-[#1E40AF] px-6 py-2.5 font-medium !text-white shadow-sm transition-colors hover:!bg-[#1B3A99] disabled:cursor-not-allowed disabled:!border-[#1E40AF] disabled:!bg-[#1E40AF] disabled:!text-white disabled:!opacity-100"
+                >
+                  {isSubmitting ? 'Generating...' : 'Generate Quote'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setView('list')}
+                  className="rounded-lg border border-gray-300 bg-white px-6 py-2.5 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
 
-            <Card className="order-first lg:order-none lg:col-start-2 lg:row-start-1 lg:row-span-8 lg:sticky lg:top-4 h-fit overflow-hidden rounded-2xl border border-indigo-200 bg-slate-50 shadow-lg">
-              <div className="relative">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-sky-400 to-violet-400" />
-                <div className="p-5 md:p-6 space-y-4">
-                  <div>
-                    <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                      <Sparkles size={14} />
-                      {tr('AI Copilot', 'Copilot IA', 'AI Copilot')}
-                    </p>
-                    <h3 className="mt-3 text-xl font-semibold text-slate-900">
-                      {tr('Quote assistant', 'Assistant de creation du devis', 'Quote assistant')}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                      {tr(
-                        'Generate clear and editable suggestions for your quote.',
-                        'Generez des suggestions claires et modifiables pour votre devis.',
-                        'Generate clear and editable suggestions for your quote.'
-                      )}
-                    </p>
+            {isAIOpen && (
+              <aside
+                id="ai-assistant-sidebar"
+                className="w-full lg:w-96 shrink-0 sticky top-6 transition-all duration-300"
+              >
+              <Card className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 shadow-sm">
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-1 text-sm font-semibold text-indigo-800">
+                    <Sparkles size={14} />
+                    AI Assistant
                   </div>
+
+                  <p className="text-sm leading-relaxed text-slate-600">
+                    {tr(
+                      'Generate clear and editable suggestions for your quote.',
+                      'Generez des suggestions claires et modifiables pour votre devis.',
+                      'Generate clear and editable suggestions for your quote.'
+                    )}
+                  </p>
 
                   <Button
                     type="button"
                     onClick={handleGenerateAiDraft}
                     disabled={isGeneratingAiDraft || isSubmitting}
-                    className="h-11 w-full rounded-xl border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-white text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isGeneratingAiDraft ? <Gauge size={16} className="mr-2 animate-pulse" /> : <Wand2 size={16} className="mr-2" />}
+                    {isGeneratingAiDraft ? <Gauge size={16} className="animate-pulse" /> : <Wand2 size={16} />}
                     {isGeneratingAiDraft
                       ? tr('Analyzing project...', 'Analyse du projet...', 'Analyzing project...')
                       : tr('Generate suggestions', 'Generer les suggestions', 'Generate suggestions')}
                   </Button>
 
                   {aiDraftError && (
-                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       <div className="flex items-center gap-2 font-semibold">
                         <AlertTriangle size={16} />
                         {tr('Unable to generate suggestions', 'Impossible de generer les suggestions', 'Unable to generate suggestions')}
@@ -1471,18 +1765,20 @@ export default function ArtisanQuotes() {
                   )}
 
                   {aiDraft && (
-                    <div className="space-y-4">
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-slate-900">{tr('Feasibility analysis', 'Analyse de faisabilite', 'Feasibility analysis')}</p>
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {tr('Risk score', 'Score de risque', 'Risk score')}
+                          </p>
                           <Badge className={`border ${feasibilityBadgeClass(aiDraft.recommendations.upfront.risk.level)}`}>
                             {feasibilityLabel(aiDraft.recommendations.upfront.risk.level)}
                           </Badge>
                         </div>
-                        <p className="mt-2 text-xs text-slate-600">
-                          {tr('Evaluated from project complexity, delays, pricing, and client profile.', 'Evaluee selon la complexite, les delais, les prix et le profil client.', 'Evaluated from project complexity, delays, pricing, and client profile.')}
+                        <p className="mt-2 text-2xl font-light tracking-tight text-slate-900">
+                          {normalizeRisk(aiDraft.recommendations.upfront.risk.overall).toFixed(0)} / 100
                         </p>
-                        <div className="mt-3 h-2.5 rounded-full bg-slate-200 overflow-hidden">
+                        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
                           <div
                             className="h-full rounded-full"
                             style={{
@@ -1493,52 +1789,69 @@ export default function ArtisanQuotes() {
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 text-sm text-slate-700">
-                        <p>
-                          <strong className="text-slate-900">{tr('Estimated labor:', 'Estimation de la main-d oeuvre :', 'Estimated labor:')}</strong>{' '}
-                          {formatAmount(aiDraft.recommendations.laborHand.value)} ({tr('based on duration and difficulty', 'basee sur la duree et la difficulte', 'based on duration and difficulty')})
+                      <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {tr('Estimated labor', 'Main-d oeuvre estimee', 'Estimated labor')}
                         </p>
-                        <p>
-                          <strong className="text-slate-900">{tr('Recommended upfront:', 'Acompte conseille :', 'Recommended upfront:')}</strong>{' '}
-                          {aiDraft.recommendations.upfront.percent.toFixed(2)}% ({tr('to secure cash flow', 'pour securiser la tresorerie', 'to secure cash flow')})
+                        <p className="mt-2 text-2xl font-light tracking-tight text-slate-900">
+                          {formatAmount(aiDraft.recommendations.laborHand.value)}
                         </p>
-                        <p>
-                          <strong className="text-slate-900">{tr('Recommended payment mode:', 'Mode de paiement conseille :', 'Recommended payment mode:')}</strong>{' '}
-                          {aiDraft.recommendations.paymentType.value === 'percentage'
-                            ? tr('Percentage', 'Pourcentage', 'Percentage')
-                            : tr('Fixed amount', 'Montant fixe', 'Fixed amount')}
+                        <p className="mt-1 text-xs text-slate-500">
+                          {tr(
+                            'Based on duration and difficulty.',
+                            'Basee sur la duree et la difficulte.',
+                            'Based on duration and difficulty.'
+                          )}
                         </p>
-                        <p>
-                          <strong className="text-slate-900">{tr('Quote validity:', 'Validite proposee :', 'Quote validity:')}</strong>{' '}
-                          {formatDate(aiDraft.recommendations.validUntil.value)}
+                      </div>
+
+                      <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {tr('Recommended terms', 'Conditions recommandees', 'Recommended terms')}
                         </p>
-                        <p className="text-xs text-slate-500 pt-1">
-                          {aiDraft.inference?.neighborsUsed
-                            ? tr(
-                                `Based on your project context and ${aiDraft.inference.neighborsUsed} similar approved quote(s).`,
-                                `Base sur votre contexte projet et ${aiDraft.inference.neighborsUsed} devis approuve(s) similaires.`,
-                                `Based on your project context and ${aiDraft.inference.neighborsUsed} similar approved quote(s).`
-                              )
-                            : tr('Based on your project context.', 'Base sur votre contexte projet.', 'Based on your project context.')}
-                        </p>
+                        <div className="mt-2 space-y-2 text-sm text-slate-700">
+                          <p>
+                            <strong className="text-slate-900">{tr('Recommended upfront:', 'Acompte conseille :', 'Recommended upfront:')}</strong>{' '}
+                            {aiDraft.recommendations.upfront.percent.toFixed(2)}% ({tr('to secure cash flow', 'pour securiser la tresorerie', 'to secure cash flow')})
+                          </p>
+                          <p>
+                            <strong className="text-slate-900">{tr('Recommended payment mode:', 'Mode de paiement conseille :', 'Recommended payment mode:')}</strong>{' '}
+                            {aiDraft.recommendations.paymentType.value === 'percentage'
+                              ? tr('Percentage', 'Pourcentage', 'Percentage')
+                              : tr('Fixed amount', 'Montant fixe', 'Fixed amount')}
+                          </p>
+                          <p>
+                            <strong className="text-slate-900">{tr('Quote validity:', 'Validite proposee :', 'Quote validity:')}</strong>{' '}
+                            {formatDate(aiDraft.recommendations.validUntil.value)}
+                          </p>
+                          <p className="pt-1 text-xs text-slate-500">
+                            {aiDraft.inference?.neighborsUsed
+                              ? tr(
+                                  `Based on your project context and ${aiDraft.inference.neighborsUsed} similar approved quote(s).`,
+                                  `Base sur votre contexte projet et ${aiDraft.inference.neighborsUsed} devis approuve(s) similaires.`,
+                                  `Based on your project context and ${aiDraft.inference.neighborsUsed} similar approved quote(s).`
+                                )
+                              : tr('Based on your project context.', 'Base sur votre contexte projet.', 'Based on your project context.')}
+                          </p>
+                        </div>
                       </div>
 
                       <Button
                         type="button"
                         onClick={() => applyAiDraftToForm(aiDraft)}
-                        className="h-11 w-full rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-sky-600 text-white shadow-md hover:from-indigo-500 hover:via-violet-500 hover:to-sky-500"
+                        className="mt-4 w-full rounded-lg bg-indigo-600 py-2 text-white transition-colors hover:bg-indigo-700"
                       >
                         ✨ Appliquer les suggestions de l'IA
                       </Button>
 
                       {(aiDraft.warnings.length > 0 || aiDraft.assumptions.length > 0) && (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                            <p className="text-sm font-semibold text-amber-800">{tr('Points to review', 'Points a verifier', 'Points to review')}</p>
+                        <div className="grid gap-3 sm:grid-cols-1">
+                          <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                            <p className="text-sm font-semibold text-slate-900">{tr('Points to review', 'Points a verifier', 'Points to review')}</p>
                             {aiDraft.warnings.length === 0 ? (
-                              <p className="mt-1 text-xs text-amber-700">{tr('No blocking alert.', 'Aucune alerte bloquante.', 'No blocking alert.')}</p>
+                              <p className="mt-1 text-xs text-slate-500">{tr('No blocking alert.', 'Aucune alerte bloquante.', 'No blocking alert.')}</p>
                             ) : (
-                              <ul className="mt-2 space-y-1 text-xs text-amber-800 list-disc pl-4">
+                              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-700">
                                 {aiDraft.warnings.slice(0, 3).map((warning, idx) => (
                                   <li key={`warning-clean-${idx}`}>{warning}</li>
                                 ))}
@@ -1546,9 +1859,9 @@ export default function ArtisanQuotes() {
                             )}
                           </div>
 
-                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                            <p className="text-sm font-semibold text-emerald-800">{tr('Assumptions used', 'Hypotheses utilisees', 'Assumptions used')}</p>
-                            <ul className="mt-2 space-y-1 text-xs text-emerald-800 list-disc pl-4">
+                          <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                            <p className="text-sm font-semibold text-slate-900">{tr('Assumptions used', 'Hypotheses utilisees', 'Assumptions used')}</p>
+                            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-700">
                               {aiDraft.assumptions.slice(0, 3).map((assumption, idx) => (
                                 <li key={`assumption-clean-${idx}`}>{assumption}</li>
                               ))}
@@ -1559,275 +1872,9 @@ export default function ArtisanQuotes() {
                     </div>
                   )}
                 </div>
-              </div>
-            </Card>
-
-            {/* Amount split */}
-            <div className="grid md:grid-cols-2 gap-6 lg:col-start-1">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="laborHand" className="text-base font-semibold">
-                    Labor hand (TND) <span style={{ color: 'red' }}>*</span>
-                  </Label>
-                  {renderSpeechButton('laborHand')}
-                </div>
-                <Input
-                  id="laborHand"
-                  type="number"
-                  step="any"
-                  min={0}
-                  value={formData.laborHand}
-                  onChange={(e) => {
-                    applyFieldValue('laborHand', e.target.value);
-                  }}
-                  onBlur={() => handleBlur('laborHand')}
-                  placeholder="0.00"
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${
-                    touched.laborHand && errors.laborHand ? 'border-red-500' : 'border-border'
-                  }`}
-                />
-                {touched.laborHand && errors.laborHand && (
-                  <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.laborHand}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">Materials from project (TND)</Label>
-                <div className="h-12 rounded-xl border-2 border-border bg-muted/50 px-3 flex items-center justify-between gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-9 rounded-lg border-2"
-                    disabled={!selectedProject}
-                    onClick={() => setShowAllMaterials((prev) => !prev)}
-                  >
-                    <FolderKanban size={14} className="mr-2" />
-                    {showAllMaterials ? 'Hide materials' : 'View All materials'}
-                  </Button>
-                  <span className="text-lg font-bold text-primary">{formatAmount(materialsAmount)}</span>
-                </div>
-                {showAllMaterials && (
-                  <div className="rounded-xl border border-border bg-card p-3 max-h-48 overflow-auto">
-                    {groupedMaterials.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No materials added to this project yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {groupedMaterials.map((entry: any, index: number) => (
-                          <div key={String(entry.key || entry.item?._id || index)} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2">
-                            <p className="text-sm font-medium text-foreground truncate pr-2">
-                              {entry.item?.name || 'Material'}
-                              <span className="ml-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                {entry.source === 'personal' ? 'Personal' : 'Marketplace'}
-                              </span>
-                            </p>
-                            <p className="text-sm text-muted-foreground whitespace-nowrap">
-                              x{entry.quantity} • {formatAmount(Number(entry.item?.price || 0) * entry.quantity)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {selectedProject && materialsAmount <= 0 && (
-              <Card className="p-4 border-amber-200 bg-amber-50 rounded-xl lg:col-start-1">
-                <p className="text-sm text-amber-800 mb-3">
-                  This project has no materials yet. Use the same project flow to add materials, then come back to generate the quote.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    className="bg-secondary hover:bg-secondary/90 text-white rounded-xl"
-                    onClick={() => {
-                      if (!selectedProject?._id) return;
-                      window.location.href = '/?artisanView=marketplace&projectId=' + selectedProject._id;
-                    }}
-                  >
-                    <ShoppingCart size={16} className="mr-2" /> Add Material
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-xl border-2"
-                    onClick={() => {
-                      if (!selectedProject?._id) return;
-                      window.location.href = '/?artisanView=projects';
-                    }}
-                  >
-                    <FolderKanban size={16} className="mr-2" /> View Materials
-                  </Button>
-                </div>
               </Card>
+              </aside>
             )}
-
-            <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 lg:col-start-1">
-              <p className="text-sm text-muted-foreground mb-2">Total amount preview</p>
-              <div className="grid md:grid-cols-3 gap-3 text-sm">
-                <div className="rounded-lg bg-card p-3 border border-border">
-                  <p className="text-muted-foreground">Labor hand</p>
-                  <p className="font-semibold text-foreground">{formatAmount(Number.isFinite(laborHandAmount) ? laborHandAmount : 0)}</p>
-                </div>
-                <div className="rounded-lg bg-card p-3 border border-border">
-                  <p className="text-muted-foreground">Materials</p>
-                  <p className="font-semibold text-foreground">{formatAmount(materialsAmount)}</p>
-                </div>
-                <div className="rounded-lg bg-primary dark:bg-blue-600 text-white p-3 border border-primary/30">
-                  <p>Total</p>
-                  <p className="font-bold text-lg">{formatAmount(totalAmount)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2 lg:col-start-1">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="description" className="text-base font-semibold">
-                  Description <span style={{ color: 'red' }}>*</span>
-                </Label>
-                {renderSpeechButton('description')}
-              </div>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => {
-                  applyFieldValue('description', e.target.value);
-                }}
-                onBlur={() => handleBlur('description')}
-                placeholder="Describe the work, materials, and services included..."
-                rows={6}
-                className={`rounded-xl border-2 focus:border-primary ${
-                  touched.description && errors.description ? 'border-red-500' : 'border-border'
-                }`}
-              />
-              {touched.description && errors.description && (
-                <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.description}</p>
-              )}
-            </div>
-
-            {/* Valid Until et Payment Terms */}
-            <div className="grid md:grid-cols-2 gap-6 lg:col-start-1">
-              {/* Valid Until */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="validUntil" className="text-base font-semibold">
-                    Valid Until <span style={{ color: 'red' }}>*</span>
-                  </Label>
-                  {renderSpeechButton('validUntil')}
-                </div>
-                <Input
-                  id="validUntil"
-                  type="date"
-                  value={formData.validUntil}
-                  onChange={(e) => {
-                    applyFieldValue('validUntil', e.target.value);
-                  }}
-                  onBlur={() => handleBlur('validUntil')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${
-                    touched.validUntil && errors.validUntil ? 'border-red-500' : 'border-border'
-                  }`}
-                />
-                {touched.validUntil && errors.validUntil && (
-                  <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.validUntil}</p>
-                )}
-              </div>
-
-              {/* Payment Terms (calculated) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Label className="text-base font-semibold">Payment Terms <span style={{ color: 'red' }}>*</span></Label>
-                  {renderSpeechButton('upfrontValue')}
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <label className={`flex items-center gap-2 px-3 h-10 rounded-lg border-2 cursor-pointer ${formData.paymentType === 'percentage' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      checked={formData.paymentType === 'percentage'}
-                      onChange={() => {
-                        setFormData({ ...formData, paymentType: 'percentage' });
-                        if (touched.paymentType) setErrors(prev => ({ ...prev, paymentType: validateField('paymentType', 'percentage') }));
-                        if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', formData.upfrontValue) }));
-                      }}
-                      onBlur={() => handleBlur('paymentType')}
-                    />
-                    Percentage (%)
-                  </label>
-                  <label className={`flex items-center gap-2 px-3 h-10 rounded-lg border-2 cursor-pointer ${formData.paymentType === 'fixed' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      checked={formData.paymentType === 'fixed'}
-                      onChange={() => {
-                        setFormData({ ...formData, paymentType: 'fixed' });
-                        if (touched.paymentType) setErrors(prev => ({ ...prev, paymentType: validateField('paymentType', 'fixed') }));
-                        if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', formData.upfrontValue) }));
-                      }}
-                      onBlur={() => handleBlur('paymentType')}
-                    />
-                    Fixed Amount
-                  </label>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="upfrontValue" className="text-sm font-medium text-muted-foreground">
-                    Upfront ({formData.paymentType === 'percentage' ? '%' : 'TND'})
-                  </Label>
-                  <Input
-                    id="upfrontValue"
-                    type="number"
-                    step="any"
-                    min={0}
-                    max={formData.paymentType === 'percentage' ? 100 : undefined}
-                    value={formData.upfrontValue}
-                    onChange={(e) => {
-                      setFormData({ ...formData, upfrontValue: e.target.value });
-                      if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', e.target.value) }));
-                    }}
-                    onBlur={() => handleBlur('upfrontValue')}
-                    placeholder={formData.paymentType === 'percentage' ? 'e.g. 30' : 'e.g. 500'}
-                    className={`h-10 rounded-xl border-2 focus:border-primary ${
-                      touched.upfrontValue && errors.upfrontValue ? 'border-red-500' : 'border-border'
-                    }`}
-                  />
-                  {touched.upfrontValue && errors.upfrontValue && (
-                    <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.upfrontValue}</p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-border bg-muted/50 p-3 text-sm space-y-2">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Upfront</span>
-                    <span className="font-semibold text-foreground">
-                      {upfrontPercentage.toFixed(2)}% ({safeUpfrontAmount.toFixed(2)} TND)
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Upon Completion</span>
-                    <span className="font-semibold text-foreground">
-                      {uponCompletionPercentage.toFixed(2)}% ({uponCompletionAmount.toFixed(2)} TND)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Boutons */}
-            <div className="flex gap-4 pt-4 lg:col-start-1">
-              <Button
-                type="submit"
-                disabled={isSubmitting || !validateForm()}
-                className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Generating...' : 'Generate Quote'}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setView('list')} className="h-12 px-8 rounded-xl border-2">
-                Cancel
-              </Button>
-            </div>
           </form>
         </Card>
       </div>
@@ -1976,6 +2023,7 @@ export default function ArtisanQuotes() {
               placeholder={tr('Search quotes...', 'Rechercher des devis...', 'Search quotes...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              data-artisan-search="true"
               className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-full px-0"
             />
           </div>

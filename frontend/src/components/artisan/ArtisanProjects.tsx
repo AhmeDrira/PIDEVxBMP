@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -133,7 +133,7 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
           setTimeout(() => setShowSuggestions(false), 200);
         }}
         placeholder="Entrez une ville ou un lieu en Tunisie"
-        className={`h-12 rounded-xl border-2 focus:border-primary ${error ? 'border-red-500' : 'border-border'}`}
+        className={`h-12 rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${error ? 'border-red-500' : 'border-border'}`}
       />
       {showSuggestions && suggestions.length > 0 && (
         <ul className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
@@ -616,7 +616,7 @@ export default function ArtisanProjects() {
   }, [view, selectedProject]);
 
   // --- Réinitialisation du formulaire quand on passe en création ---
-  const handleCreateView = () => {
+  const handleCreateView = useCallback(() => {
     setFormData({
       title: '',
       description: '',
@@ -630,7 +630,16 @@ export default function ArtisanProjects() {
     setErrors({});
     setTouched({});
     setView('create');
-  };
+  }, []);
+
+  useEffect(() => {
+    const onNewProjectShortcut = () => {
+      guard(() => handleCreateView());
+    };
+
+    window.addEventListener('artisan-shortcut:new-project', onNewProjectShortcut);
+    return () => window.removeEventListener('artisan-shortcut:new-project', onNewProjectShortcut);
+  }, [guard, handleCreateView]);
 
   const getProfileLocations = () =>
     artisanProfileLocation
@@ -902,13 +911,16 @@ export default function ArtisanProjects() {
     setShowRecommendation(true);
   };
 
-  const handleRecommendationAddToProject = async (productId: string) => {
+  const handleRecommendationAddToProject = async (productId: string, quantity = 1) => {
     if (!materialProjectContext?._id) return;
     const token = getToken();
     const currentMaterials = (materialProjectContext.materials || []).map((m: any) => m._id || m);
+    const safeQuantity = Number.isFinite(quantity) ? Math.max(1, Math.round(quantity)) : 1;
+    const additions = Array.from({ length: safeQuantity }, () => productId);
+
     await axios.put(
       `${API_URL}/projects/${materialProjectContext._id}`,
-      { materials: [...currentMaterials, productId] },
+      { materials: [...currentMaterials, ...additions] },
       { headers: { Authorization: `Bearer ${token}` } }
     );
     // Refresh project list and update context reference
@@ -1083,17 +1095,17 @@ export default function ArtisanProjects() {
   // --- Vue Création ---
   if (view === 'create') {
     return (
-      <div className="max-w-4xl mx-auto">
-        <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-xl border-2">
+      <div className="max-w-4xl mx-auto" data-artisan-project-create-view="true">
+        <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-lg border border-gray-300 shadow-sm">
           <ArrowRight size={20} className="mr-2 rotate-180" />
           Retour aux projets
         </Button>
-        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
+        <Card className="rounded-xl border border-border bg-card p-8 shadow-sm md:p-10">
           <h2 className="text-3xl font-bold text-foreground mb-8">Créer un nouveau projet</h2>
 
           {/* ── Auto-remplissage IA ───────────────────────────────────────── */}
           <div
-            className="mb-8 p-5 rounded-2xl border border-dashed"
+            className="mb-8 rounded-lg border border-dashed p-5"
             style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }}
           >
             <SmartAIInput onDataExtracted={handleAIDataExtracted} />
@@ -1125,7 +1137,7 @@ export default function ArtisanProjects() {
                 }}
                 onBlur={() => handleBlur('title')}
                 placeholder="Entrez le titre du projet"
-                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.title && errors.title ? 'border-red-500' : 'border-border'}`}
+                className={`h-12 rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.title && errors.title ? 'border-red-500' : 'border-border'}`}
               />
               {touched.title && errors.title && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.title}</p>}
             </div>
@@ -1147,7 +1159,7 @@ export default function ArtisanProjects() {
                 onBlur={() => handleBlur('description')}
                 placeholder="Décrivez votre projet (minimum 10 caractères)"
                 rows={4}
-                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
+                className={`rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
               />
               <p className="text-xs text-muted-foreground" aria-live="polite">
                 {activeSpeechField === 'description'
@@ -1217,7 +1229,7 @@ export default function ArtisanProjects() {
                     }
                   }}
                   onBlur={() => handleBlur('startDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
+                  className={`h-12 rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
                 />
                 <p className="text-xs text-muted-foreground" aria-live="polite">
                   {activeSpeechField === 'startDate'
@@ -1244,7 +1256,7 @@ export default function ArtisanProjects() {
                     if (touched.endDate) setErrors((prev) => ({ ...prev, endDate: validateField('endDate', e.target.value) }));
                   }}
                   onBlur={() => handleBlur('endDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
+                  className={`h-12 rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
                 />
                 <p className="text-xs text-muted-foreground" aria-live="polite">
                   {activeSpeechField === 'endDate'
@@ -1260,11 +1272,11 @@ export default function ArtisanProjects() {
               <Button
                 type="submit"
                 disabled={isSubmitting || !validateForm()}
-                className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 rounded-lg bg-primary px-6 text-white shadow-sm hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSubmitting ? 'Création...' : 'Créer le projet'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setView('list')} className="h-12 px-8 rounded-xl border-2">
+              <Button type="button" variant="outline" onClick={() => setView('list')} className="h-11 rounded-lg border border-gray-300 px-6 shadow-sm">
                 Annuler
               </Button>
             </div>
@@ -1278,11 +1290,11 @@ export default function ArtisanProjects() {
   if (view === 'edit' && selectedProject) {
     return (
       <div className="max-w-4xl mx-auto">
-        <Button variant="outline" onClick={() => setView('details')} className="mb-6 rounded-xl border-2">
+        <Button variant="outline" onClick={() => setView('details')} className="mb-6 rounded-lg border border-gray-300 shadow-sm">
           <ArrowRight size={20} className="mr-2 rotate-180" />
           Retour au projet
         </Button>
-        <Card className="p-10 bg-card rounded-2xl border border-border shadow-lg">
+        <Card className="rounded-xl border border-border bg-card p-8 shadow-sm md:p-10">
           <h2 className="text-3xl font-bold text-foreground mb-8">Modifier le projet</h2>
           <form className="space-y-6" onSubmit={handleUpdateProject}>
             {/* Titre */}
@@ -1301,7 +1313,7 @@ export default function ArtisanProjects() {
                 }}
                 onBlur={() => handleBlur('title')}
                 placeholder="Entrez le titre du projet"
-                className={`h-12 rounded-xl border-2 focus:border-primary ${touched.title && errors.title ? 'border-red-500' : 'border-border'}`}
+                className={`h-12 rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.title && errors.title ? 'border-red-500' : 'border-border'}`}
               />
               {touched.title && errors.title && <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.title}</p>}
             </div>
@@ -1323,7 +1335,7 @@ export default function ArtisanProjects() {
                 onBlur={() => handleBlur('description')}
                 placeholder="Décrivez votre projet (minimum 10 caractères)"
                 rows={4}
-                className={`rounded-xl border-2 focus:border-primary ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
+                className={`rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.description && errors.description ? 'border-red-500' : 'border-border'}`}
               />
               <p className="text-xs text-muted-foreground" aria-live="polite">
                 {activeSpeechField === 'description'
@@ -1392,7 +1404,7 @@ export default function ArtisanProjects() {
                     }
                   }}
                   onBlur={() => handleBlur('startDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
+                  className={`h-12 rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.startDate && errors.startDate ? 'border-red-500' : 'border-border'}`}
                 />
                 <p className="text-xs text-muted-foreground" aria-live="polite">
                   {activeSpeechField === 'startDate'
@@ -1419,7 +1431,7 @@ export default function ArtisanProjects() {
                     if (touched.endDate) setErrors((prev) => ({ ...prev, endDate: validateField('endDate', e.target.value) }));
                   }}
                   onBlur={() => handleBlur('endDate')}
-                  className={`h-12 rounded-xl border-2 focus:border-primary ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
+                  className={`h-12 rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${touched.endDate && errors.endDate ? 'border-red-500' : 'border-border'}`}
                 />
                 <p className="text-xs text-muted-foreground" aria-live="polite">
                   {activeSpeechField === 'endDate'
@@ -1435,11 +1447,11 @@ export default function ArtisanProjects() {
               <Button
                 type="submit"
                 disabled={isSubmitting || !validateForm()}
-                className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 rounded-lg bg-primary px-6 text-white shadow-sm hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Enregistrer les modifications
               </Button>
-              <Button type="button" variant="outline" onClick={() => setView('list')} className="h-12 px-8 rounded-xl border-2">
+              <Button type="button" variant="outline" onClick={() => setView('list')} className="h-11 rounded-lg border border-gray-300 px-6 shadow-sm">
                 Annuler
               </Button>
             </div>
@@ -2104,7 +2116,7 @@ export default function ArtisanProjects() {
         <div>
           <p className="text-lg text-muted-foreground">{tr('Manage and track all your construction projects', 'Gerez et suivez tous vos projets de construction', 'Manage and track all your construction projects')}</p>
         </div>
-        <Button onClick={() => guard(handleCreateView)} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
+        <Button onClick={() => guard(handleCreateView)} data-artisan-new-project="true" className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
           <Plus size={20} className="mr-2" /> {tr('Create Project', 'Creer un projet', 'Create Project')}
         </Button>
       </div>
@@ -2117,6 +2129,7 @@ export default function ArtisanProjects() {
               placeholder={tr('Search projects...', 'Rechercher des projets...', 'Search projects...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              data-artisan-search="true"
               className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-full px-0"
             />
           </div>
@@ -2364,7 +2377,7 @@ export default function ArtisanProjects() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-foreground">Smart Recommendation</p>
+                        <p className="font-semibold text-foreground">🪄 Demander a l'IA de lister les materiaux</p>
                         <span
                           className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
                           style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}
@@ -2372,7 +2385,7 @@ export default function ArtisanProjects() {
                           AI
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Get scored recommendations based on your need, budget, stock, and tech sheets.</p>
+                      <p className="text-xs text-muted-foreground mt-1">L'IA prepare une liste chantier: produits disponibles sur BMP.tn et achats externes manquants.</p>
                     </div>
                   </div>
                 </button>
