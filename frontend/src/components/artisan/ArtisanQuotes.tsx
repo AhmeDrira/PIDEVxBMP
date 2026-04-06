@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, FileText, Download, Eye, Clock, CheckCircle, X, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff, Sparkles, Gauge, AlertTriangle, Wand2 } from 'lucide-react';
+import { Plus, FileText, Download, Eye, Clock, CheckCircle, X, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff, Sparkles, Gauge, AlertTriangle, Wand2, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
@@ -96,6 +96,29 @@ type AiQuoteDraft = {
   assumptions: string[];
 };
 
+type QuoteFormData = {
+  project: string;
+  clientName: string;
+  laborHand: string;
+  description: string;
+  validUntil: string;
+  paymentType: 'percentage' | 'fixed';
+  upfrontValue: string;
+};
+
+const DRAFT_QUOTE_STORAGE_KEY = 'draft_quote_data';
+const AUTO_SAVE_DELAY_MS = 2500;
+
+const initialFormData: QuoteFormData = {
+  project: '',
+  clientName: '',
+  laborHand: '',
+  description: '',
+  validUntil: '',
+  paymentType: 'percentage',
+  upfrontValue: ''
+};
+
 type BrowserSpeechRecognitionEvent = Event & {
   resultIndex: number;
   results: {
@@ -163,6 +186,9 @@ export default function ArtisanQuotes() {
   const [isGeneratingAiDraft, setIsGeneratingAiDraft] = useState(false);
   const [aiDraftError, setAiDraftError] = useState('');
   const [isAIOpen, setIsAIOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [hasDraftAvailable, setHasDraftAvailable] = useState(false);
 
   const todayLocalDate = (() => {
     const d = new Date();
@@ -172,15 +198,7 @@ export default function ArtisanQuotes() {
     return `${yyyy}-${mm}-${dd}`;
   })();
 
-  const [formData, setFormData] = useState({
-    project: '',
-    clientName: '',
-    laborHand: '',
-    description: '',
-    validUntil: '',
-    paymentType: 'percentage' as 'percentage' | 'fixed',
-    upfrontValue: ''
-  });
+  const [formData, setFormData] = useState<QuoteFormData>({ ...initialFormData });
 
   // États pour la validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -336,9 +354,161 @@ export default function ArtisanQuotes() {
     return null;
   };
 
+  const hasDraftContent = (data: QuoteFormData) => Boolean(
+    data.project
+    || data.clientName.trim()
+    || data.laborHand.trim()
+    || data.description.trim()
+    || data.validUntil
+    || data.upfrontValue.trim()
+  );
+
+  const sanitizeDraftFormData = (draftData: Partial<QuoteFormData>, fallback: QuoteFormData): QuoteFormData => ({
+    ...fallback,
+    project: typeof draftData.project === 'string' ? draftData.project : fallback.project,
+    clientName: typeof draftData.clientName === 'string' ? draftData.clientName : fallback.clientName,
+    laborHand: typeof draftData.laborHand === 'string' ? draftData.laborHand : fallback.laborHand,
+    description: typeof draftData.description === 'string' ? draftData.description : fallback.description,
+    validUntil: typeof draftData.validUntil === 'string' ? draftData.validUntil : fallback.validUntil,
+    paymentType:
+      draftData.paymentType === 'fixed' || draftData.paymentType === 'percentage'
+        ? draftData.paymentType
+        : fallback.paymentType,
+    upfrontValue: typeof draftData.upfrontValue === 'string' ? draftData.upfrontValue : fallback.upfrontValue,
+  });
+
+  const clearQuoteDraft = () => {
+    localStorage.removeItem(DRAFT_QUOTE_STORAGE_KEY);
+    setLastSavedAt(null);
+    setHasDraftAvailable(false);
+    setIsSaving(false);
+  };
+
+  const persistQuoteDraft = (draftData: QuoteFormData) => {
+    try {
+      const savedAt = new Date().toISOString();
+      localStorage.setItem(
+        DRAFT_QUOTE_STORAGE_KEY,
+        JSON.stringify({
+          formData: draftData,
+          lastSavedAt: savedAt,
+        })
+      );
+      setLastSavedAt(savedAt);
+      setHasDraftAvailable(true);
+      return true;
+    } catch (error) {
+      console.error('Failed to save quote draft:', error);
+      return false;
+    }
+  };
+
+  const handleOpenDraftQuote = () => {
+    try {
+      const rawDraft = localStorage.getItem(DRAFT_QUOTE_STORAGE_KEY);
+      if (!rawDraft) {
+        setHasDraftAvailable(false);
+        toast.error(tr('No draft quote found.', 'Aucun brouillon de devis trouve.', 'No draft quote found.'));
+        return;
+      }
+
+      const parsedDraft = JSON.parse(rawDraft);
+      const restoredFormData = parsedDraft?.formData as Partial<QuoteFormData> | undefined;
+      if (!restoredFormData || typeof restoredFormData !== 'object') {
+        clearQuoteDraft();
+        toast.error(tr('Draft is invalid or empty.', 'Le brouillon est invalide ou vide.', 'Draft is invalid or empty.'));
+        return;
+      }
+
+      const nextDraftData = sanitizeDraftFormData(restoredFormData, initialFormData);
+      if (!hasDraftContent(nextDraftData)) {
+        clearQuoteDraft();
+        toast.error(tr('Draft is invalid or empty.', 'Le brouillon est invalide ou vide.', 'Draft is invalid or empty.'));
+        return;
+      }
+
+      guard(() => {
+        setFormData(nextDraftData);
+        if (typeof parsedDraft.lastSavedAt === 'string') {
+          setLastSavedAt(parsedDraft.lastSavedAt);
+        }
+        setHasDraftAvailable(true);
+        setView('create');
+      });
+    } catch (error) {
+      console.error('Failed to open quote draft:', error);
+      clearQuoteDraft();
+      toast.error(tr('Unable to open draft right now.', 'Impossible d ouvrir le brouillon pour le moment.', 'Unable to open draft right now.'));
+    }
+  };
+
+  const handleExitCreateQuote = () => {
+    if (hasDraftContent(formData)) {
+      persistQuoteDraft(formData);
+    } else {
+      clearQuoteDraft();
+    }
+    setView('list');
+  };
+
   useEffect(() => {
     formDataRef.current = formData;
   }, [formData]);
+
+  useEffect(() => {
+    try {
+      const rawDraft = localStorage.getItem(DRAFT_QUOTE_STORAGE_KEY);
+      if (!rawDraft) {
+        setHasDraftAvailable(false);
+        return;
+      }
+
+      const parsedDraft = JSON.parse(rawDraft);
+      const restoredFormData = parsedDraft?.formData as Partial<QuoteFormData> | undefined;
+      if (!restoredFormData || typeof restoredFormData !== 'object') {
+        clearQuoteDraft();
+        return;
+      }
+
+      const nextDraftData = sanitizeDraftFormData(restoredFormData, initialFormData);
+      if (!hasDraftContent(nextDraftData)) {
+        clearQuoteDraft();
+        return;
+      }
+
+      setFormData(nextDraftData);
+      setHasDraftAvailable(true);
+
+      if (typeof parsedDraft.lastSavedAt === 'string') {
+        setLastSavedAt(parsedDraft.lastSavedAt);
+      }
+    } catch (error) {
+      console.error('Failed to restore quote draft:', error);
+      clearQuoteDraft();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view !== 'create' || isSubmitting) {
+      setIsSaving(false);
+      return;
+    }
+
+    if (!hasDraftContent(formData)) {
+      clearQuoteDraft();
+      return;
+    }
+
+    setIsSaving(true);
+    const timeoutId = window.setTimeout(() => {
+      persistQuoteDraft(formData);
+      setIsSaving(false);
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [formData, view, isSubmitting]);
 
   useEffect(() => {
     if (!aiDraft) return;
@@ -964,15 +1134,8 @@ export default function ArtisanQuotes() {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Quote generated successfully!');
-      setFormData({
-        project: '',
-        clientName: '',
-        laborHand: '',
-        description: '',
-        validUntil: '',
-        paymentType: 'percentage',
-        upfrontValue: ''
-      });
+      clearQuoteDraft();
+      setFormData({ ...initialFormData });
       setErrors({});
       setTouched({});
       setAiDraft(null);
@@ -1338,6 +1501,12 @@ export default function ArtisanQuotes() {
 
   const formatAmount = (value: number) => `${value.toLocaleString()} TND`;
 
+  const formatSavedTime = (isoDate: string) => {
+    const parsedDate = new Date(isoDate);
+    if (Number.isNaN(parsedDate.getTime())) return '--:--';
+    return parsedDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
+
   const filteredQuotes = quotes.filter((quote) => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const quoteNumber = String(quote?.quoteNumber || '').toLowerCase();
@@ -1367,7 +1536,7 @@ export default function ArtisanQuotes() {
   if (view === 'create') {
     return (
       <div className="mx-auto w-full max-w-7xl px-4 lg:px-8">
-        <Button variant="outline" onClick={() => setView('list')} className="mb-6 rounded-lg border border-gray-300 shadow-sm">
+        <Button variant="outline" onClick={handleExitCreateQuote} className="mb-6 rounded-lg border border-gray-300 shadow-sm">
           <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Quotes', 'Retour aux devis', 'العودة إلى العروض')}
         </Button>
         <Card className="rounded-xl border border-border bg-card p-6 shadow-sm md:p-8">
@@ -1384,6 +1553,22 @@ export default function ArtisanQuotes() {
               <span>{isAIOpen ? tr('Close AI Assistant', 'Fermer l\'Assistant IA', 'Fermer l\'Assistant IA') : tr('AI Assistant', 'Assistant IA', 'Assistant IA')}</span>
             </button>
           </div>
+
+          {(isSaving || lastSavedAt) && (
+            <div className="mb-4 flex items-center gap-2 text-xs font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full w-fit">
+              {isSaving ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Sauvegarde en cours...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={14} className="text-emerald-600" />
+                  <span>Brouillon sauvegardé à {formatSavedTime(lastSavedAt || '')}</span>
+                </>
+              )}
+            </div>
+          )}
 
           <form
             className="flex flex-col lg:flex-row gap-8 w-full max-w-7xl mx-auto items-start"
@@ -1714,7 +1899,7 @@ export default function ArtisanQuotes() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => setView('list')}
+                  onClick={handleExitCreateQuote}
                   className="rounded-lg border border-gray-300 bg-white px-6 py-2.5 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
                 >
                   Cancel
@@ -2004,9 +2189,20 @@ export default function ArtisanQuotes() {
         <div>
           <p className="text-lg text-muted-foreground">{tr('Manage project quotes and estimates', 'Gerez les devis et estimations des projets', 'Manage project quotes and estimates')}</p>
         </div>
-        <Button onClick={() => guard(() => setView('create'))} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
-          <Plus size={20} className="mr-2" /> {tr('Generate Quote', 'Generer un devis', 'إنشاء عرض أسعار')}
-        </Button>
+        <div className="flex items-center gap-3">
+          {hasDraftAvailable && (
+            <Button
+              variant="outline"
+              onClick={handleOpenDraftQuote}
+              className="h-12 px-4 rounded-xl border-2 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+            >
+              <FileText size={18} className="mr-2" /> {tr('Draft', 'Brouillon', 'مسودة')}
+            </Button>
+          )}
+          <Button onClick={() => guard(() => setView('create'))} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
+            <Plus size={20} className="mr-2" /> {tr('Generate Quote', 'Generer un devis', 'إنشاء عرض أسعار')}
+          </Button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
