@@ -106,7 +106,15 @@ type QuoteFormData = {
   upfrontValue: string;
 };
 
-const DRAFT_QUOTE_STORAGE_KEY = 'draft_quote_data';
+type QuoteDraftItem = {
+  id: string;
+  timestamp: number;
+  title: string;
+  formData: QuoteFormData;
+};
+
+const DRAFT_QUOTES_STORAGE_KEY = 'all_draft_quotes';
+const LEGACY_DRAFT_QUOTE_STORAGE_KEY = 'draft_quote_data';
 const AUTO_SAVE_DELAY_MS = 2500;
 
 const initialFormData: QuoteFormData = {
@@ -188,7 +196,10 @@ export default function ArtisanQuotes() {
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [hasDraftAvailable, setHasDraftAvailable] = useState(false);
+  const [drafts, setDrafts] = useState<QuoteDraftItem[]>([]);
+  const [isDraftMenuOpen, setIsDraftMenuOpen] = useState(false);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [isDraftsLoaded, setIsDraftsLoaded] = useState(false);
 
   const todayLocalDate = (() => {
     const d = new Date();
@@ -212,6 +223,7 @@ export default function ArtisanQuotes() {
   const speechBaseRef = useRef('');
   const speechFinalRef = useRef('');
   const formDataRef = useRef(formData);
+  const draftMenuRef = useRef<HTMLDivElement | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -377,77 +389,91 @@ export default function ArtisanQuotes() {
     upfrontValue: typeof draftData.upfrontValue === 'string' ? draftData.upfrontValue : fallback.upfrontValue,
   });
 
-  const clearQuoteDraft = () => {
-    localStorage.removeItem(DRAFT_QUOTE_STORAGE_KEY);
+  const createDraftId = () => `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+  const buildDraftTitle = (draftData: QuoteFormData) => {
+    const clientName = draftData.clientName.trim();
+    return clientName || 'Brouillon sans nom';
+  };
+
+  const upsertDraft = (draftData: QuoteFormData, preferredDraftId?: string) => {
+    const draftId = preferredDraftId || activeDraftId || createDraftId();
+    const timestamp = Date.now();
+
+    const nextDraft: QuoteDraftItem = {
+      id: draftId,
+      timestamp,
+      title: buildDraftTitle(draftData),
+      formData: { ...draftData },
+    };
+
+    setDrafts((prev) => {
+      const withoutCurrent = prev.filter((draft) => draft.id !== draftId);
+      return [nextDraft, ...withoutCurrent].sort((a, b) => b.timestamp - a.timestamp);
+    });
+
+    setActiveDraftId(draftId);
+    setLastSavedAt(new Date(timestamp).toISOString());
+    return draftId;
+  };
+
+  const removeDraftById = (draftId: string) => {
+    setDrafts((prev) => prev.filter((draft) => draft.id !== draftId));
+    if (activeDraftId === draftId) {
+      setActiveDraftId(null);
+      setLastSavedAt(null);
+    }
+  };
+
+  const clearCurrentDraft = () => {
+    if (activeDraftId) {
+      setDrafts((prev) => prev.filter((draft) => draft.id !== activeDraftId));
+    }
+    setActiveDraftId(null);
     setLastSavedAt(null);
-    setHasDraftAvailable(false);
     setIsSaving(false);
   };
 
-  const persistQuoteDraft = (draftData: QuoteFormData) => {
-    try {
-      const savedAt = new Date().toISOString();
-      localStorage.setItem(
-        DRAFT_QUOTE_STORAGE_KEY,
-        JSON.stringify({
-          formData: draftData,
-          lastSavedAt: savedAt,
-        })
-      );
-      setLastSavedAt(savedAt);
-      setHasDraftAvailable(true);
-      return true;
-    } catch (error) {
-      console.error('Failed to save quote draft:', error);
-      return false;
-    }
+  const handleResumeDraft = (draft: QuoteDraftItem) => {
+    guard(() => {
+      setFormData({ ...draft.formData });
+      setActiveDraftId(draft.id);
+      setLastSavedAt(new Date(draft.timestamp).toISOString());
+      setErrors({});
+      setTouched({});
+      setAiDraft(null);
+      setAiDraftError('');
+      setIsDraftMenuOpen(false);
+      setView('create');
+    });
   };
 
-  const handleOpenDraftQuote = () => {
-    try {
-      const rawDraft = localStorage.getItem(DRAFT_QUOTE_STORAGE_KEY);
-      if (!rawDraft) {
-        setHasDraftAvailable(false);
-        toast.error(tr('No draft quote found.', 'Aucun brouillon de devis trouve.', 'No draft quote found.'));
-        return;
-      }
+  const handleDeleteDraft = (event: React.MouseEvent, draftId: string) => {
+    event.stopPropagation();
+    removeDraftById(draftId);
+  };
 
-      const parsedDraft = JSON.parse(rawDraft);
-      const restoredFormData = parsedDraft?.formData as Partial<QuoteFormData> | undefined;
-      if (!restoredFormData || typeof restoredFormData !== 'object') {
-        clearQuoteDraft();
-        toast.error(tr('Draft is invalid or empty.', 'Le brouillon est invalide ou vide.', 'Draft is invalid or empty.'));
-        return;
-      }
-
-      const nextDraftData = sanitizeDraftFormData(restoredFormData, initialFormData);
-      if (!hasDraftContent(nextDraftData)) {
-        clearQuoteDraft();
-        toast.error(tr('Draft is invalid or empty.', 'Le brouillon est invalide ou vide.', 'Draft is invalid or empty.'));
-        return;
-      }
-
-      guard(() => {
-        setFormData(nextDraftData);
-        if (typeof parsedDraft.lastSavedAt === 'string') {
-          setLastSavedAt(parsedDraft.lastSavedAt);
-        }
-        setHasDraftAvailable(true);
-        setView('create');
-      });
-    } catch (error) {
-      console.error('Failed to open quote draft:', error);
-      clearQuoteDraft();
-      toast.error(tr('Unable to open draft right now.', 'Impossible d ouvrir le brouillon pour le moment.', 'Unable to open draft right now.'));
-    }
+  const handleStartNewQuote = () => {
+    guard(() => {
+      setFormData({ ...initialFormData });
+      setActiveDraftId(null);
+      setLastSavedAt(null);
+      setErrors({});
+      setTouched({});
+      setAiDraft(null);
+      setAiDraftError('');
+      setIsDraftMenuOpen(false);
+      setView('create');
+    });
   };
 
   const handleExitCreateQuote = () => {
     if (hasDraftContent(formData)) {
-      persistQuoteDraft(formData);
-    } else {
-      clearQuoteDraft();
+      upsertDraft(formData, activeDraftId || undefined);
+    } else if (activeDraftId) {
+      removeDraftById(activeDraftId);
     }
+    setIsDraftMenuOpen(false);
     setView('list');
   };
 
@@ -457,58 +483,129 @@ export default function ArtisanQuotes() {
 
   useEffect(() => {
     try {
-      const rawDraft = localStorage.getItem(DRAFT_QUOTE_STORAGE_KEY);
-      if (!rawDraft) {
-        setHasDraftAvailable(false);
-        return;
+      const hydratedDrafts: QuoteDraftItem[] = [];
+      const rawDrafts = localStorage.getItem(DRAFT_QUOTES_STORAGE_KEY);
+
+      if (rawDrafts) {
+        const parsedDrafts = JSON.parse(rawDrafts);
+        if (Array.isArray(parsedDrafts)) {
+          parsedDrafts.forEach((draft) => {
+            const candidate = draft as Partial<QuoteDraftItem> & { lastSavedAt?: string };
+            const nextFormData = sanitizeDraftFormData(candidate.formData || {}, initialFormData);
+            if (!hasDraftContent(nextFormData)) return;
+
+            const parsedTimestamp =
+              typeof candidate.timestamp === 'number'
+                ? candidate.timestamp
+                : typeof candidate.lastSavedAt === 'string'
+                  ? new Date(candidate.lastSavedAt).getTime()
+                  : Date.now();
+
+            hydratedDrafts.push({
+              id: typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id : createDraftId(),
+              timestamp: Number.isFinite(parsedTimestamp) ? parsedTimestamp : Date.now(),
+              title:
+                typeof candidate.title === 'string' && candidate.title.trim()
+                  ? candidate.title.trim()
+                  : buildDraftTitle(nextFormData),
+              formData: nextFormData,
+            });
+          });
+        }
       }
 
-      const parsedDraft = JSON.parse(rawDraft);
-      const restoredFormData = parsedDraft?.formData as Partial<QuoteFormData> | undefined;
-      if (!restoredFormData || typeof restoredFormData !== 'object') {
-        clearQuoteDraft();
-        return;
+      if (hydratedDrafts.length === 0) {
+        const legacyRawDraft = localStorage.getItem(LEGACY_DRAFT_QUOTE_STORAGE_KEY);
+        if (legacyRawDraft) {
+          const legacyDraft = JSON.parse(legacyRawDraft) as {
+            formData?: Partial<QuoteFormData>;
+            lastSavedAt?: string;
+          };
+
+          const legacyFormData = sanitizeDraftFormData(legacyDraft.formData || {}, initialFormData);
+          if (hasDraftContent(legacyFormData)) {
+            const legacyTimestamp =
+              typeof legacyDraft.lastSavedAt === 'string'
+                ? new Date(legacyDraft.lastSavedAt).getTime()
+                : Date.now();
+
+            hydratedDrafts.push({
+              id: createDraftId(),
+              timestamp: Number.isFinite(legacyTimestamp) ? legacyTimestamp : Date.now(),
+              title: buildDraftTitle(legacyFormData),
+              formData: legacyFormData,
+            });
+          }
+          localStorage.removeItem(LEGACY_DRAFT_QUOTE_STORAGE_KEY);
+        }
       }
 
-      const nextDraftData = sanitizeDraftFormData(restoredFormData, initialFormData);
-      if (!hasDraftContent(nextDraftData)) {
-        clearQuoteDraft();
-        return;
-      }
+      const uniqueDrafts = Array.from(
+        new Map(hydratedDrafts.map((draft) => [draft.id, draft])).values()
+      ).sort((a, b) => b.timestamp - a.timestamp);
 
-      setFormData(nextDraftData);
-      setHasDraftAvailable(true);
-
-      if (typeof parsedDraft.lastSavedAt === 'string') {
-        setLastSavedAt(parsedDraft.lastSavedAt);
-      }
+      setDrafts(uniqueDrafts);
     } catch (error) {
-      console.error('Failed to restore quote draft:', error);
-      clearQuoteDraft();
+      console.error('Failed to hydrate quote drafts:', error);
+      localStorage.removeItem(DRAFT_QUOTES_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_DRAFT_QUOTE_STORAGE_KEY);
+      setDrafts([]);
+    } finally {
+      setIsDraftsLoaded(true);
     }
   }, []);
 
   useEffect(() => {
+    if (!isDraftsLoaded) return;
+    try {
+      localStorage.setItem(DRAFT_QUOTES_STORAGE_KEY, JSON.stringify(drafts));
+    } catch (error) {
+      console.error('Failed to persist quote drafts:', error);
+    }
+  }, [drafts, isDraftsLoaded]);
+
+  useEffect(() => {
+    if (!isDraftMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (draftMenuRef.current && !draftMenuRef.current.contains(event.target as Node)) {
+        setIsDraftMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDraftMenuOpen]);
+
+  useEffect(() => {
+    if (!isDraftsLoaded) return;
     if (view !== 'create' || isSubmitting) {
       setIsSaving(false);
       return;
     }
 
     if (!hasDraftContent(formData)) {
-      clearQuoteDraft();
+      setIsSaving(false);
+      if (activeDraftId) {
+        setDrafts((prev) => prev.filter((draft) => draft.id !== activeDraftId));
+        setActiveDraftId(null);
+      }
+      setLastSavedAt(null);
       return;
     }
 
     setIsSaving(true);
     const timeoutId = window.setTimeout(() => {
-      persistQuoteDraft(formData);
+      upsertDraft(formData, activeDraftId || undefined);
       setIsSaving(false);
     }, AUTO_SAVE_DELAY_MS);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [formData, view, isSubmitting]);
+  }, [formData, view, isSubmitting, activeDraftId, isDraftsLoaded]);
 
   useEffect(() => {
     if (!aiDraft) return;
@@ -998,6 +1095,7 @@ export default function ArtisanQuotes() {
     const incomingProjectId = params.get('projectId');
     if (incomingProjectId) {
       setProjectFromQuery(incomingProjectId);
+      setActiveDraftId(null);
       setView('create');
     }
   }, []);
@@ -1134,7 +1232,7 @@ export default function ArtisanQuotes() {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Quote generated successfully!');
-      clearQuoteDraft();
+      clearCurrentDraft();
       setFormData({ ...initialFormData });
       setErrors({});
       setTouched({});
@@ -1506,6 +1604,71 @@ export default function ArtisanQuotes() {
     if (Number.isNaN(parsedDate.getTime())) return '--:--';
     return parsedDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
+
+  const formatDraftTimestamp = (timestamp: number) => {
+    const parsedDate = new Date(timestamp);
+    if (Number.isNaN(parsedDate.getTime())) return '--';
+    return parsedDate.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const renderDraftMenuButton = (buttonClassName: string) => (
+    <div ref={draftMenuRef} className="relative">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setIsDraftMenuOpen((prev) => !prev)}
+        className={`relative ${buttonClassName}`}
+      >
+        <FileText size={18} className="mr-2" />
+        {tr('Drafts', 'Brouillons', 'مسودات')}
+        {drafts.length > 0 && (
+          <span
+            className="absolute -top-2 -right-2 z-20 flex items-center justify-center w-6 h-6 !bg-red-600 !text-white text-sm font-bold rounded-full border-2 border-white shadow-sm ring-1 ring-white"
+            style={{ backgroundColor: '#dc2626', color: '#ffffff', opacity: 1 }}
+          >
+            {drafts.length}
+          </span>
+        )}
+      </Button>
+
+      {isDraftMenuOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden">
+          {drafts.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center p-4">Aucun brouillon sauvegardé</p>
+          ) : (
+            <div className="max-h-80 overflow-y-auto">
+              {drafts.map((draft) => (
+                <div
+                  key={draft.id}
+                  className="flex justify-between items-center p-3 hover:bg-gray-50 border-b border-gray-50 cursor-pointer"
+                  onClick={() => handleResumeDraft(draft)}
+                >
+                  <div className="min-w-0 pr-3">
+                    <p className="text-sm font-medium text-gray-900 truncate">{draft.title === 'Brouillon sans nom' ? 'Devis sans nom' : draft.title || 'Devis sans nom'}</p>
+                    <p className="text-xs text-gray-400">{formatDraftTimestamp(draft.timestamp)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(event) => handleDeleteDraft(event, draft.id)}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    aria-label={tr('Delete draft', 'Supprimer le brouillon', 'Delete draft')}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   const filteredQuotes = quotes.filter((quote) => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -2190,16 +2353,8 @@ export default function ArtisanQuotes() {
           <p className="text-lg text-muted-foreground">{tr('Manage project quotes and estimates', 'Gerez les devis et estimations des projets', 'Manage project quotes and estimates')}</p>
         </div>
         <div className="flex items-center gap-3">
-          {hasDraftAvailable && (
-            <Button
-              variant="outline"
-              onClick={handleOpenDraftQuote}
-              className="h-12 px-4 rounded-xl border-2 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
-            >
-              <FileText size={18} className="mr-2" /> {tr('Draft', 'Brouillon', 'مسودة')}
-            </Button>
-          )}
-          <Button onClick={() => guard(() => setView('create'))} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
+          {renderDraftMenuButton('h-12 px-4 rounded-xl border-2 !border-black !bg-black !text-white hover:!bg-neutral-900 shadow-md')}
+          <Button onClick={handleStartNewQuote} className="h-12 px-6 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
             <Plus size={20} className="mr-2" /> {tr('Generate Quote', 'Generer un devis', 'إنشاء عرض أسعار')}
           </Button>
         </div>
