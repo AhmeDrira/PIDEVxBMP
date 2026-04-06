@@ -8,6 +8,7 @@ import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, CheckCircle, H
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { useLanguage } from '../../context/LanguageContext';
+import { ImageMagnifier } from '../common/ImageMagnifier';
 
 type MaterialSpeechField = 'name' | 'price' | 'stock' | 'description';
 
@@ -486,10 +487,19 @@ export default function ManufacturerProducts() {
         <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-xl">
           <div className="flex flex-col md:flex-row">
             {/* Image */}
-            <div className="w-full md:w-56 bg-black/20 relative overflow-hidden flex-shrink-0" style={{ minHeight: 200, maxHeight: 220 }}>
+            <div className="w-full md:w-[320px] bg-black/20 relative overflow-hidden flex-shrink-0">
               {imgUrl
-                ? <img src={imgUrl} className="w-full h-full object-cover opacity-90" alt={product.name} style={{ minHeight: 200, maxHeight: 220 }} />
-                : <div className="w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}><Package size={56} className="text-muted-foreground" /></div>
+                ? (
+                  <ImageMagnifier
+                    src={imgUrl}
+                    alt={product.name}
+                    zoomLevel={2.35}
+                    className="h-full"
+                    viewerClassName="h-full min-h-[240px] rounded-none bg-slate-200 md:min-h-[320px]"
+                    hint={tr('Hover to inspect the surface', 'Survolez pour inspecter la surface', 'Hover to inspect the surface')}
+                  />
+                )
+                : <div className="w-full h-full flex items-center justify-center" style={{ minHeight: 240 }}><Package size={56} className="text-muted-foreground" /></div>
               }
               {/* Status overlay */}
               <div className="absolute top-4 left-4">
@@ -720,9 +730,16 @@ export default function ManufacturerProducts() {
               
               {/* HEADER : Image + Badge Statut */}
               <div className="flex justify-between items-start mb-4">
-                <div className="w-16 h-16 rounded-xl bg-muted/50 overflow-hidden flex items-center justify-center border border-border shadow-inner flex-shrink-0">
+                <div className="w-20 h-20 rounded-2xl bg-muted/50 overflow-hidden flex items-center justify-center border border-border shadow-inner flex-shrink-0">
                   {product.documentUrl ? (
-                    <img src={getImageUrl(product.documentUrl)!} className="w-full h-full object-cover" alt={product.name} />
+                    <ImageMagnifier
+                      src={getImageUrl(product.documentUrl)!}
+                      alt={product.name}
+                      zoomLevel={2.1}
+                      className="h-full w-full"
+                      viewerClassName="h-full w-full rounded-[15px]"
+                      showHint={false}
+                    />
                   ) : (
                     <Package size={28} className="text-muted-foreground" />
                   )}

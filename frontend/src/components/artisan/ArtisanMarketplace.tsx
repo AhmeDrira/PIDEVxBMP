@@ -7,6 +7,7 @@ import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Search, ShoppingCart, Package, Check, ArrowRight, X, SlidersHorizontal, Eye, Star, ChevronLeft, ChevronRight, FileText, ExternalLink } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { ImageMagnifier } from '../common/ImageMagnifier';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
@@ -734,8 +735,20 @@ export default function ArtisanMarketplace() {
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="space-y-4">
             <Card className="p-0 bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
-              <div className="aspect-video bg-muted">
-                <ImageWithFallback src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+              <div className="bg-gradient-to-br from-slate-50 to-white p-4 md:p-5">
+                <ImageMagnifier
+                  src={selectedProduct.image}
+                  alt={selectedProduct.name}
+                  zoomLevel={2.45}
+                  className="items-stretch"
+                  viewerClassName="min-h-[320px] rounded-[22px] border border-border/70 bg-muted md:min-h-[420px]"
+                  hint={tr('Hover to inspect material details', 'Survolez pour inspecter les details du materiau', 'مرر لفحص تفاصيل المادة')}
+                  showPreviewPane
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                <span>{tr('Interactive zoom for textures and finishing details.', 'Zoom interactif pour voir textures et finitions.', 'تكبير تفاعلي لرؤية القوام والتشطيبات.')}</span>
+                <span>{tr('Best on desktop hover.', 'Ideal au survol sur desktop.', 'مثالي عند المرور بالفأرة على سطح المكتب.')}</span>
               </div>
             </Card>
 
@@ -1151,7 +1164,16 @@ export default function ArtisanMarketplace() {
               {paginatedProducts.map((product) => (
                 <Card key={product._id} className="group bg-card rounded-2xl border border-border shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
                   <div className="aspect-video relative overflow-hidden bg-muted">
-                    <ImageWithFallback src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <ImageMagnifier
+                      src={product.image}
+                      alt={product.name}
+                      zoomLevel={2.25}
+                      className="h-full"
+                      viewerClassName="h-full rounded-none"
+                      showHint
+                      hint={tr('Hover to zoom', 'Survolez pour zoomer', 'مرر للتكبير')}
+                    />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/30 to-transparent" />
                     <Badge className="absolute top-3 right-3 bg-card/90 text-primary border-0 px-3 py-1 backdrop-blur-sm font-bold shadow-sm">
                       {product.category}
                     </Badge>
