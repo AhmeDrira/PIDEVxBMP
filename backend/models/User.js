@@ -91,6 +91,10 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  lastLoginAt: {
+    type: Date,
+    default: null,
+  },
   resetPasswordToken: {
     type: String,
     select: false,
@@ -124,6 +128,36 @@ const userSchema = new mongoose.Schema({
     select: false,
   },
 }, { discriminatorKey: 'role' });
+
+userSchema.index({ role: 1, status: 1 });
+userSchema.index(
+  { role: 1, domain: 1, location: 1, yearsExperience: 1 },
+  { partialFilterExpression: { role: 'artisan' } }
+);
+userSchema.index(
+  {
+    firstName: 'text',
+    lastName: 'text',
+    domain: 'text',
+    bio: 'text',
+    skills: 'text',
+    certifications: 'text',
+    location: 'text',
+  },
+  {
+    name: 'artisan_profile_text_idx',
+    weights: {
+      domain: 8,
+      skills: 7,
+      certifications: 5,
+      bio: 4,
+      location: 3,
+      firstName: 2,
+      lastName: 2,
+    },
+    partialFilterExpression: { role: 'artisan' },
+  }
+);
 
 // Encrypt password using bcrypt
 userSchema.pre('save', async function () {

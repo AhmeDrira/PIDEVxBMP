@@ -103,4 +103,6 @@ const projectSchema = new mongoose.Schema({
   timestamps: true // Ajoute automatiquement createdAt et updatedAt
 });
 
+projectSchema.index({ artisan: 1, status: 1 });
+
 module.exports = mongoose.model('Project', projectSchema);
