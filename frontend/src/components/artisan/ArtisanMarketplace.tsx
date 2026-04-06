@@ -1077,7 +1077,7 @@ export default function ArtisanMarketplace() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <Input placeholder={tr('Search materials or tools...', 'Rechercher des materiaux ou outils...', 'ابحث عن مواد أو أدوات...')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary bg-muted/50" />
+            <Input placeholder={tr('Search materials or tools...', 'Rechercher des materiaux ou outils...', 'ابحث عن مواد أو أدوات...')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-artisan-search="true" className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary bg-muted/50" />
           </div>
           <Button variant={showFilters ? "default" : "outline"} className={`h-12 px-6 rounded-xl border-2 transition-all ${showFilters ? 'bg-primary dark:bg-blue-600 text-white shadow-md' : 'hover:bg-muted/50'}`} onClick={() => setShowFilters(!showFilters)}>
             <SlidersHorizontal size={20} className="mr-2" /> {tr('Filters', 'Filtres', 'المرشحات')}

@@ -923,6 +923,7 @@ export default function Messages() {
                 placeholder={tr('Search conversations...', 'Rechercher des conversations...', 'ابحث عن المحادثات...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                data-artisan-search="true"
                 className="pl-12 h-12 rounded-xl border-2 border-border focus:border-primary"
               />
             </div>

@@ -1236,6 +1236,7 @@ export default function ArtisanInvoices() {
               placeholder={tr('Search invoices...', 'Rechercher des factures...', 'Search invoices...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              data-artisan-search="true"
               className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-full px-0"
             />
           </div>

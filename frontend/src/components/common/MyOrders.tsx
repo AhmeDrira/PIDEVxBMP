@@ -357,6 +357,7 @@ export default function MyOrders() {
               placeholder={tr("Search by order number or product...", "Rechercher par numéro de commande ou produit...", "البحث حسب رقم الطلب أو المنتج...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              data-artisan-search="true"
               className="pl-10 h-11 rounded-xl border-2 border-border focus:border-primary"
             />
           </div>
