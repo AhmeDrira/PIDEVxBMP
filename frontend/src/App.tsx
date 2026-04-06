@@ -17,6 +17,7 @@ import authService from './services/authService';
 import { Toaster, toast } from 'sonner';
 import RoleGuard from './components/common/RoleGuard';
 import PortfolioGalleryPage from './components/artisan/PortfolioGalleryPage';
+import KeyboardShortcutsHelp from './components/common/KeyboardShortcutsHelp';
 import axios from 'axios';
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin' | null;
@@ -258,6 +259,8 @@ export default function App() {
           </RoleGuard>
         </>
       )}
+
+      <KeyboardShortcutsHelp />
     </>
   );
 }
