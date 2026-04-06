@@ -17,6 +17,7 @@ const {
   getArtisanReviews,
   addArtisanReview,
   getPublicPortfolioItem,
+  aiSearchArtisans,
 } = require('../controllers/artisanController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -48,6 +49,7 @@ router.delete('/me/portfolio/:itemId', protect, deletePortfolioItem);
 router.get('/me/portfolio/:itemId', protect, getPortfolioItemById);
 
 router.get('/', getAllArtisans);
+router.post('/ai-search', aiSearchArtisans);
 router.get('/search', searchArtisans); // MUST be before /:id
 router.get('/:id', getArtisanById);
 router.get('/:id/portfolio', getArtisanPortfolio);

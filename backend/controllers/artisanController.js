@@ -2,8 +2,12 @@ const { Artisan } = require('../models/User');
 const Project = require('../models/Project');
 const Review = require('../models/Review');
 const Notification = require('../models/Notification');
+const ActionLog = require('../models/ActionLog');
+const { analyzeIntent, buildMongoFilter, searchArtisansWithAI } = require('../services/artisanAiSearchService');
 const fs = require('fs');
 const path = require('path');
+
+const COMPLETED_PROJECT_STATUSES = ['completed', 'done'];
 
 const parseMediaPayload = (media) => {
   if (!media) return [];
@@ -44,51 +48,123 @@ const removePortfolioMediaFiles = (media = []) => {
   }
 };
 
-exports.getAllArtisans = async (req, res) => {
-  try {
-    const artisans = await Artisan.find({ status: 'active' }).select('-password');
+const enrichArtisansWithStats = async (artisans, options = {}) => {
+  const {
+    includeSemanticProjects = false,
+    includeActivitySignals = false,
+  } = options;
 
-    // Fetch review stats and completed project counts for all artisans at once
-    const artisanIds = artisans.map(a => a._id);
+  if (!Array.isArray(artisans) || artisans.length === 0) {
+    return [];
+  }
 
-    const [reviewStats, projectStats] = await Promise.all([
-      Review.aggregate([
-        { $match: { artisan: { $in: artisanIds } } },
+  const artisanIds = artisans.map((artisan) => artisan._id);
+
+  const projectAggregation = includeSemanticProjects
+    ? [
+        {
+          $match: {
+            artisan: { $in: artisanIds },
+            status: { $in: COMPLETED_PROJECT_STATUSES },
+          },
+        },
+        { $sort: { updatedAt: -1 } },
         {
           $group: {
             _id: '$artisan',
-            reviewCount: { $sum: 1 },
-            avgRating: { $avg: '$rating' },
+            count: { $sum: 1 },
+            recentProjectAt: { $max: '$updatedAt' },
+            projects: {
+              $push: {
+                title: '$title',
+                description: '$description',
+                location: '$location',
+                updatedAt: '$updatedAt',
+                endDate: '$endDate',
+              },
+            },
           },
         },
-      ]),
-      Project.aggregate([
-        { $match: { artisan: { $in: artisanIds }, status: 'completed' } },
-        { $group: { _id: '$artisan', count: { $sum: 1 } } },
-      ]),
-    ]);
+      ]
+    : [
+        {
+          $match: {
+            artisan: { $in: artisanIds },
+            status: { $in: COMPLETED_PROJECT_STATUSES },
+          },
+        },
+        { $group: { _id: '$artisan', count: { $sum: 1 }, recentProjectAt: { $max: '$updatedAt' } } },
+      ];
 
-    // Build lookup maps
-    const reviewMap = {};
-    reviewStats.forEach(r => {
-      reviewMap[String(r._id)] = {
-        reviewCount: r.reviewCount,
-        rating: Math.round(r.avgRating * 10) / 10,
-      };
-    });
+  const [reviewStats, projectStats, actionStats] = await Promise.all([
+    Review.aggregate([
+      { $match: { artisan: { $in: artisanIds } } },
+      {
+        $group: {
+          _id: '$artisan',
+          reviewCount: { $sum: 1 },
+          avgRating: { $avg: '$rating' },
+          recentReviewAt: { $max: '$createdAt' },
+        },
+      },
+    ]),
+    Project.aggregate(projectAggregation),
+    includeActivitySignals
+      ? ActionLog.aggregate([
+          { $match: { actorId: { $in: artisanIds } } },
+          {
+            $group: {
+              _id: '$actorId',
+              lastActionAt: { $max: '$createdAt' },
+            },
+          },
+        ])
+      : Promise.resolve([]),
+  ]);
 
-    const projectMap = {};
-    projectStats.forEach(p => {
-      projectMap[String(p._id)] = p.count;
-    });
+  const reviewMap = {};
+  reviewStats.forEach((review) => {
+    reviewMap[String(review._id)] = {
+      reviewCount: review.reviewCount,
+      rating: Math.round(review.avgRating * 10) / 10,
+      recentReviewAt: review.recentReviewAt || null,
+    };
+  });
 
-    const enriched = artisans.map(a => ({
-      ...a.toObject(),
-      rating: reviewMap[String(a._id)]?.rating ?? 0,
-      reviewCount: reviewMap[String(a._id)]?.reviewCount ?? 0,
-      completedProjects: projectMap[String(a._id)] ?? 0,
-      portfolioCount: (a.portfolio || []).length,
-    }));
+  const projectMap = {};
+  projectStats.forEach((project) => {
+    projectMap[String(project._id)] = {
+      count: project.count,
+      recentProjectAt: project.recentProjectAt || null,
+      projects: project.projects || [],
+    };
+  });
+
+  const actionMap = {};
+  actionStats.forEach((entry) => {
+    actionMap[String(entry._id)] = entry.lastActionAt || null;
+  });
+
+  return artisans.map((artisan) => ({
+    ...artisan.toObject(),
+    rating: reviewMap[String(artisan._id)]?.rating ?? 0,
+    reviewCount: reviewMap[String(artisan._id)]?.reviewCount ?? 0,
+    completedProjects: projectMap[String(artisan._id)]?.count ?? 0,
+    portfolioCount: (artisan.portfolio || []).length,
+    ...(includeSemanticProjects ? { completedProjectDetails: projectMap[String(artisan._id)]?.projects ?? [] } : {}),
+    ...(includeActivitySignals ? {
+      lastReviewAt: reviewMap[String(artisan._id)]?.recentReviewAt ?? null,
+      lastProjectActivityAt: projectMap[String(artisan._id)]?.recentProjectAt ?? null,
+      lastActionAt: actionMap[String(artisan._id)] ?? null,
+      lastLoginAt: artisan.lastLoginAt ?? null,
+    } : {}),
+  }));
+};
+
+exports.getAllArtisans = async (req, res) => {
+  try {
+    const artisans = await Artisan.find({ status: 'active' }).select('-password');
+    const enriched = await enrichArtisansWithStats(artisans);
 
     return res.status(200).json(enriched);
   } catch (error) {
@@ -105,7 +181,7 @@ exports.getArtisanById = async (req, res) => {
     }
 
     const [completedProjects, reviews] = await Promise.all([
-      Project.countDocuments({ artisan: artisan._id, status: 'completed' }),
+      Project.countDocuments({ artisan: artisan._id, status: { $in: COMPLETED_PROJECT_STATUSES } }),
       Review.find({ artisan: artisan._id }),
     ]);
 
@@ -215,12 +291,46 @@ exports.searchArtisans = async (req, res) => {
         { lastName: regex },
         { domain: regex },
         { location: regex },
+        { bio: regex },
+        { skills: regex },
+        { certifications: regex },
       ],
     }).select('-password');
 
-    return res.status(200).json(artisans);
+    const enriched = await enrichArtisansWithStats(artisans);
+
+    return res.status(200).json(enriched);
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.aiSearchArtisans = async (req, res) => {
+  try {
+    const query = (req.body?.query || req.body?.text || '').toString().trim();
+
+    if (!query) {
+      return res.status(400).json({ message: 'Please provide a natural-language search query.' });
+    }
+
+    const analysis = analyzeIntent(query);
+    const mongoFilter = buildMongoFilter(analysis);
+
+    const candidateArtisans = await Artisan.find(mongoFilter).select('-password');
+    const enrichedArtisans = await enrichArtisansWithStats(candidateArtisans, {
+      includeSemanticProjects: true,
+      includeActivitySignals: true,
+    });
+    const result = await searchArtisansWithAI(enrichedArtisans, query, { limit: 24 });
+
+    return res.status(200).json({
+      query,
+      analysis: result.analysis,
+      total: result.artisans.length,
+      artisans: result.artisans,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'AI artisan search failed', error: error.message });
   }
 };
 

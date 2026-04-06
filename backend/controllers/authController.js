@@ -271,6 +271,9 @@ const loginUser = async (req, res) => {
         await user.save();
       }
 
+      user.lastLoginAt = new Date();
+      await user.save({ validateBeforeSave: false });
+
       res.json({
         _id: user.id,
         firstName: user.firstName,
@@ -386,6 +389,9 @@ async function googleLogin(req, res) {
         message: 'Your account has been suspended. Please contact support.',
       });
     }
+
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
 
     return res.json({
       _id: user.id,
@@ -873,6 +879,10 @@ async function faceLogin(req, res) {
     }
 
     const token = generateToken({ id: bestMatch._id, role: bestMatch.role });
+
+    bestMatch.lastLoginAt = new Date();
+    await bestMatch.save({ validateBeforeSave: false });
+
     return res.json({
       _id: bestMatch._id,
       firstName: bestMatch.firstName,
