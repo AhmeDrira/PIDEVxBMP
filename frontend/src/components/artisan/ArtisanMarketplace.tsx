@@ -92,7 +92,7 @@ export default function ArtisanMarketplace() {
   const [selectedManufacturer, setSelectedManufacturer] = useState('all');
   const [availableOnly, setAvailableOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = 6;
 
   // States pour les Notifications & Avis
   const [ratingHover, setRatingHover] = useState(0);
@@ -1160,7 +1160,7 @@ export default function ArtisanMarketplace() {
               <p className="text-muted-foreground">{tr('Try adjusting your filters to find what you need.', 'Essayez d\'ajuster vos filtres pour trouver ce dont vous avez besoin.', 'حاول ضبط مرشحاتك بالبحث عما تبحث عنه.')}</p>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginatedProducts.map((product) => (
                 <Card key={product._id} className="group bg-card rounded-2xl border border-border shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
                   <div className="aspect-video relative overflow-hidden bg-muted">

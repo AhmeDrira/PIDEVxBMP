@@ -16,7 +16,6 @@ import MyOrders from '../common/MyOrders';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
 import ArtisanProfileReviews from '../artisan/ArtisanProfileReviews';
 import MyReports from '../common/MyReports';
-import CopilotChatWidget from '../common/CopilotChatWidget';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
@@ -676,13 +675,6 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
           </div>
         </DialogContent>
       </Dialog>
-
-      <CopilotChatWidget
-        role="artisan"
-        activeView={activeView}
-        isVisible={activeView === 'home'}
-        onNavigate={setActiveView}
-      />
     </>
   );
 }

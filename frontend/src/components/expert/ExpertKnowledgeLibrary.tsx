@@ -191,9 +191,9 @@ export default function ExpertKnowledgeLibrary() {
                 </Button>
               )}
             </div>
-            <div className="space-y-3">
-              <div className="relative">
-                <Wand2 className="absolute left-4 top-4 text-primary" size={18} />
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="relative flex-1 min-w-0 overflow-hidden rounded-xl">
+                <Wand2 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={18} />
                 <Textarea
                   rows={3}
                   placeholder={tr(
@@ -206,13 +206,15 @@ export default function ExpertKnowledgeLibrary() {
                   className="min-h-[96px] rounded-xl border-2 border-primary/30 bg-card pl-12 focus:border-primary"
                 />
               </div>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={aiLoading} className="h-11 rounded-xl bg-primary px-6 text-white hover:bg-primary/90">
-                  {aiLoading
-                    ? <><LoaderCircle size={18} className="mr-2 animate-spin" />{tr('Analyzing...', 'Analyse...', 'جارٍ التحليل...')}</>
-                    : <><Sparkles size={18} className="mr-2" />{tr('Run AI article search', 'Lancer la recherche IA', 'تشغيل البحث الذكي في المقالات')}</>}
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                disabled={aiLoading}
+                className="h-11 rounded-xl bg-primary px-6 text-white hover:bg-primary/90 md:whitespace-nowrap"
+              >
+                {aiLoading
+                  ? <><LoaderCircle size={18} className="mr-2 animate-spin" />{tr('Analyzing...', 'Analyse...', 'جارٍ التحليل...')}</>
+                  : <><Sparkles size={18} className="mr-2" />{tr('Run AI article search', 'Lancer la recherche IA', 'تشغيل البحث الذكي في المقالات')}</>}
+              </Button>
             </div>
             {aiWarning && <p className="text-sm text-amber-600">{aiWarning}</p>}
             {aiError && <p className="text-sm text-red-500">{aiError}</p>}
