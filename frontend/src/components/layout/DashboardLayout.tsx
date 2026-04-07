@@ -106,7 +106,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       {/* Desktop Sidebar */}
       <aside className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col bg-card border-border shadow-sm ${isRTL ? 'lg:right-0 border-l' : 'lg:left-0 border-r'}`}>
         <div className="flex flex-col flex-1 min-h-0">
@@ -232,7 +232,7 @@ export default function DashboardLayout({
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className={`absolute top-16 bottom-0 w-80 bg-card shadow-2xl overflow-y-auto ${isRTL ? 'right-0' : 'left-0'}`}
+            className={`absolute top-16 bottom-0 w-[min(20rem,calc(100vw-1rem))] bg-card shadow-2xl overflow-y-auto ${isRTL ? 'right-0' : 'left-0'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4">
@@ -290,14 +290,7 @@ export default function DashboardLayout({
       )}
 
       {/* Main Content */}
-      <div 
-        className="lg:block w-full"
-        style={
-          isRTL 
-            ? { paddingRight: '18rem' }  // 18rem = w-72 sidebar width
-            : { paddingLeft: '18rem' }
-        }
-      >
+      <div className={`w-full min-w-0 ${isRTL ? 'lg:pr-72' : 'lg:pl-72'}`}>
         {/* Header */}
         <header className="hidden lg:flex items-center justify-between h-20 px-8 bg-card border-b border-border shadow-sm">
           <div>
@@ -342,7 +335,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-6 lg:p-8 mt-16 lg:mt-0">
+        <main className="mt-16 min-w-0 p-4 sm:p-6 lg:mt-0 lg:p-8">
           {children}
         </main>
 
