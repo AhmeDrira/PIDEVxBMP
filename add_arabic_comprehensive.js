@@ -110,7 +110,6 @@ const arabicTranslations = {
 
 function updateTrCalls(content) {
   let updated = content;
-  
   // Pattern to find tr() calls with 2 parameters (without Arabic)
   const pattern = /tr\('([^']*)',\s*'([^']*)'\)(?!\s*,\s*')/g;
   
