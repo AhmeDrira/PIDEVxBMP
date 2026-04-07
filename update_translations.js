@@ -6,7 +6,6 @@ const filePath = path.join(__dirname, 'frontend', 'src', 'components', 'artisan'
 
 // Read the file
 let content = fs.readFileSync(filePath, 'utf-8');
-
 // List of translations to add (from 2 params to 3 params with ar)
 const replacements = [
     // 1. Activity Timeline

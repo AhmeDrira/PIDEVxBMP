@@ -8,7 +8,6 @@ file_path = r"frontend\src\components\artisan\ArtisanHome.tsx"
 # Read the file
 with open(file_path, 'r', encoding='utf-8') as f:
     content = f.read()
-
 # List of translations to add (from 2 params to 3 params with ar)
 replacements = [
     # 1. Activity Timeline
