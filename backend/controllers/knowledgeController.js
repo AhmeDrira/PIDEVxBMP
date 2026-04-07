@@ -1,4 +1,5 @@
 const KnowledgeArticle = require('../models/KnowledgeArticle');
+const axios = require('axios');
 
 const hasKnowledgePermission = (user) => {
   if (!user) return false;
@@ -28,6 +29,223 @@ const parseJsonArray = (value) => {
     }
   }
   return [];
+};
+
+const safeStr = (value, fallback = '') => {
+  if (value === undefined || value === null) return fallback;
+  const str = String(value).trim();
+  return str || fallback;
+};
+
+const normalizeText = (value = '') =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'au', 'aux', 'avec', 'ce', 'cet', 'cette', 'de', 'des', 'du', 'en', 'et',
+  'for', 'i', 'il', 'je', 'la', 'le', 'les', 'mon', 'my', 'of', 'ou', 'par', 'pour', 'que',
+  'qui', 'sur', 'the', 'to', 'un', 'une', 'veux', 'want', 'article', 'articles', 'knowledge',
+  'library', 'problem', 'projet', 'project', 'chantier',
+]);
+
+const tokenizeText = (value = '') =>
+  normalizeText(value)
+    .split(' ')
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
+
+const extractGeminiText = (responseData) => {
+  const candidates = Array.isArray(responseData?.candidates) ? responseData.candidates : [];
+  if (!candidates.length) return '';
+
+  for (const candidate of candidates) {
+    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    const text = parts
+      .map((part) => safeStr(part?.text))
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (text) return text;
+  }
+
+  return '';
+};
+
+const sanitizeGeminiJsonText = (text = '') =>
+  safeStr(text)
+    .replace(/```(?:json)?/gi, ' ')
+    .replace(/```/g, ' ')
+    .trim();
+
+const parseJsonObject = (text = '') => {
+  const cleaned = sanitizeGeminiJsonText(text);
+  if (!cleaned) return null;
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+};
+
+const normalizeIntentPayload = (payload, fallbackQuery = '') => {
+  const keywords = Array.isArray(payload?.keywords)
+    ? payload.keywords.map((entry) => safeStr(entry)).filter(Boolean)
+    : [];
+  const categories = Array.isArray(payload?.categories)
+    ? payload.categories.map((entry) => safeStr(entry)).filter(Boolean)
+    : [];
+  const mustIncludePhrases = Array.isArray(payload?.mustIncludePhrases)
+    ? payload.mustIncludePhrases.map((entry) => safeStr(entry)).filter(Boolean)
+    : [];
+
+  const mergedKeywords = Array.from(new Set([
+    ...keywords,
+    ...tokenizeText(fallbackQuery),
+  ])).slice(0, 16);
+
+  return {
+    keywords: mergedKeywords,
+    categories: categories.slice(0, 8),
+    mustIncludePhrases: mustIncludePhrases.slice(0, 8),
+  };
+};
+
+const buildKnowledgeSearchPrompt = (query) => `You are an AI search analyst for a B2B construction knowledge library.
+User natural language request:
+${query}
+
+Return only a valid JSON object with this exact structure:
+{
+  "keywords": ["..."],
+  "categories": ["..."],
+  "mustIncludePhrases": ["..."]
+}
+
+Rules:
+- keywords: 4 to 12 concise domain terms extracted from the request
+- categories: optional high-level construction categories inferred from the request
+- mustIncludePhrases: optional 0 to 5 phrases that represent strict needs
+- no markdown
+- no extra text outside JSON`;
+
+const requestGeminiKnowledgeIntent = async (query) => {
+  const apiKey = safeStr(process.env.GEMINI_API_KEY);
+  if (!apiKey) return { intent: normalizeIntentPayload({}, query), warning: 'GEMINI_API_KEY missing', modelUsed: null };
+
+  const model = safeStr(process.env.GEMINI_MODEL, 'gemini-2.5-flash');
+  const apiVersion = safeStr(process.env.GEMINI_API_VERSION, 'v1');
+  const endpoint = `https://generativelanguage.googleapis.com/${encodeURIComponent(apiVersion)}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  try {
+    const response = await axios.post(
+      endpoint,
+      {
+        contents: [{ role: 'user', parts: [{ text: buildKnowledgeSearchPrompt(query) }] }],
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.9,
+          maxOutputTokens: 220,
+        },
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 20000,
+      }
+    );
+
+    const raw = extractGeminiText(response.data);
+    const parsed = parseJsonObject(raw);
+    return {
+      intent: normalizeIntentPayload(parsed || {}, query),
+      warning: null,
+      modelUsed: model,
+    };
+  } catch (error) {
+    const warning = safeStr(
+      error?.response?.data?.error?.message
+      || error?.response?.data?.message
+      || error?.message,
+      'AI intent parsing failed; local semantic matching used.'
+    );
+
+    return {
+      intent: normalizeIntentPayload({}, query),
+      warning,
+      modelUsed: null,
+    };
+  }
+};
+
+const scoreArticleByIntent = (article, intent, query) => {
+  const title = normalizeText(article.title);
+  const category = normalizeText(article.category);
+  const summary = normalizeText(article.summary);
+  const content = normalizeText(article.content);
+  const tags = Array.isArray(article.tags) ? normalizeText(article.tags.join(' ')) : '';
+  const queryTokens = tokenizeText(query);
+
+  let score = 0;
+  const matchedTerms = [];
+
+  const registerTermMatch = (term, weight, inText) => {
+    if (!term || !inText.includes(term)) return;
+    score += weight;
+    matchedTerms.push(term);
+  };
+
+  intent.keywords.forEach((keyword) => {
+    const term = normalizeText(keyword);
+    if (!term) return;
+    registerTermMatch(term, 12, title);
+    registerTermMatch(term, 9, summary);
+    registerTermMatch(term, 6, category);
+    registerTermMatch(term, 7, tags);
+    registerTermMatch(term, 3, content);
+  });
+
+  intent.categories.forEach((cat) => {
+    const term = normalizeText(cat);
+    if (!term) return;
+    registerTermMatch(term, 14, category);
+    registerTermMatch(term, 6, title);
+    registerTermMatch(term, 5, summary);
+  });
+
+  intent.mustIncludePhrases.forEach((phrase) => {
+    const term = normalizeText(phrase);
+    if (!term) return;
+    if (title.includes(term) || summary.includes(term) || content.includes(term) || tags.includes(term)) {
+      score += 15;
+      matchedTerms.push(term);
+    }
+  });
+
+  queryTokens.forEach((token) => {
+    registerTermMatch(token, 4, title);
+    registerTermMatch(token, 3, summary);
+    registerTermMatch(token, 1, content);
+  });
+
+  const uniqueTerms = Array.from(new Set(matchedTerms));
+  const isMatch = score >= 18 || uniqueTerms.length >= 2;
+
+  return {
+    score,
+    isMatch,
+    matchHighlights: uniqueTerms.slice(0, 6),
+  };
 };
 
 const formatArticleResponse = (article, userId) => ({
@@ -61,6 +279,75 @@ exports.listArticles = async (req, res) => {
   } catch (error) {
     console.error('listArticles error:', error);
     return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.aiSearchArticles = async (req, res) => {
+  try {
+    const query = safeStr(req.body?.query || req.body?.text || req.body?.aiQuery || '');
+
+    if (!query) {
+      return res.status(400).json({ message: 'Please provide a natural-language project/problem description.' });
+    }
+
+    if (!req.user || req.user.role !== 'expert') {
+      return res.status(403).json({ message: 'Only expert users can run AI knowledge search.' });
+    }
+
+    const articles = await KnowledgeArticle.find({ status: 'published' }).lean();
+    if (!articles.length) {
+      return res.status(200).json({
+        query,
+        total: 0,
+        sorting: { primary: 'views', secondary: 'likes' },
+        analysis: { keywords: [], categories: [], mustIncludePhrases: [] },
+        articles: [],
+      });
+    }
+
+    const aiIntentResult = await requestGeminiKnowledgeIntent(query);
+    const intent = aiIntentResult.intent;
+
+    const scoredArticles = articles
+      .map((article) => {
+        const scoreResult = scoreArticleByIntent(article, intent, query);
+        return {
+          article,
+          ...scoreResult,
+        };
+      })
+      .filter((entry) => entry.isMatch)
+      .sort((left, right) => {
+        if ((right.article.views || 0) !== (left.article.views || 0)) {
+          return (right.article.views || 0) - (left.article.views || 0);
+        }
+        if ((right.article.likes || 0) !== (left.article.likes || 0)) {
+          return (right.article.likes || 0) - (left.article.likes || 0);
+        }
+        if (right.score !== left.score) {
+          return right.score - left.score;
+        }
+        return new Date(right.article.createdAt).getTime() - new Date(left.article.createdAt).getTime();
+      });
+
+    const responseArticles = scoredArticles.map((entry) => ({
+      ...formatArticleResponse(entry.article, req.user?._id),
+      aiMatchScore: entry.score,
+      matchHighlights: entry.matchHighlights,
+    }));
+
+    return res.status(200).json({
+      query,
+      total: responseArticles.length,
+      sorting: { primary: 'views', secondary: 'likes' },
+      analysis: intent,
+      modelUsed: aiIntentResult.modelUsed,
+      ...(aiIntentResult.warning ? { warning: aiIntentResult.warning } : {}),
+      articles: responseArticles,
+    });
+  } catch (error) {
+    console.error('aiSearchArticles error:', error?.message || error);
+    return res.status(500).json({ message: 'AI knowledge search failed', detail: error?.message || 'Unknown error' });
   }
 };
 

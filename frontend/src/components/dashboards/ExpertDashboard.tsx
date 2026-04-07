@@ -185,20 +185,22 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   );
 
   return (
-    <DashboardLayout
-      menuItems={menuItems}
-      activeItem={activeView}
-      onMenuItemClick={setActiveView}
-      onLogoClick={() => setActiveView('home')}
-      onLogout={onLogout}
-      onViewProfile={handleViewProfile}
-      onEditProfile={handleEditProfile}
-      userRole={role}
-      userName={fullName}
-      profilePhoto={profilePhoto}
-      bellComponent={headerActions}
-    >
-      {renderContent()}
-    </DashboardLayout>
+    <>
+      <DashboardLayout
+        menuItems={menuItems}
+        activeItem={activeView}
+        onMenuItemClick={setActiveView}
+        onLogoClick={() => setActiveView('home')}
+        onLogout={onLogout}
+        onViewProfile={handleViewProfile}
+        onEditProfile={handleEditProfile}
+        userRole={role}
+        userName={fullName}
+        profilePhoto={profilePhoto}
+        bellComponent={headerActions}
+      >
+        {renderContent()}
+      </DashboardLayout>
+    </>
   );
 }

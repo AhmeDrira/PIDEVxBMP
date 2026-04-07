@@ -4,6 +4,7 @@ const {
 	createProject,
 	getProjects,
 	updateProject,
+	deleteProject,
 	uploadPersonalMaterialImage,
 } = require('../controllers/projectController');
 const { getMaterialRecommendations } = require('../controllers/recommendationController');
@@ -14,6 +15,7 @@ const upload = require('../middleware/uploadMiddleware');
 router.post('/', protect, createProject);
 router.get('/', protect, getProjects);
 router.put('/:id', protect, updateProject);
+router.delete('/:id', protect, deleteProject);
 router.post('/:id/personal-materials/:materialId/image', protect, upload.single('document'), uploadPersonalMaterialImage);
 
 // Smart material recommendations

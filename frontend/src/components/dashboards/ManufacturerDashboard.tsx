@@ -122,20 +122,22 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
   };
 
   return (
-    <DashboardLayout
-      menuItems={menuItems}
-      activeItem={activeView}
-      onMenuItemClick={handleMenuItemClick}
-      onLogoClick={() => setActiveView('home')}
-      onLogout={onLogout}
-      onViewProfile={() => setActiveView('profile')}
-      onEditProfile={() => setActiveView('profile')}
-      userRole={role}
-      userName={displayName}
-      profilePhoto={profilePhoto}
-      bellComponent={<NotificationBell />}
-    >
-      {renderContent()}
-    </DashboardLayout>
+    <>
+      <DashboardLayout
+        menuItems={menuItems}
+        activeItem={activeView}
+        onMenuItemClick={handleMenuItemClick}
+        onLogoClick={() => setActiveView('home')}
+        onLogout={onLogout}
+        onViewProfile={() => setActiveView('profile')}
+        onEditProfile={() => setActiveView('profile')}
+        userRole={role}
+        userName={displayName}
+        profilePhoto={profilePhoto}
+        bellComponent={<NotificationBell />}
+      >
+        {renderContent()}
+      </DashboardLayout>
+    </>
   );
 }

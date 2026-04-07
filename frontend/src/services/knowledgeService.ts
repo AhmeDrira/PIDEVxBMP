@@ -26,6 +26,16 @@ export interface KnowledgeArticle {
   attachments?: KnowledgeAttachment[];
 }
 
+export interface KnowledgeAiSearchResponse {
+  query: string;
+  total: number;
+  sorting?: { primary: string; secondary: string };
+  analysis?: { keywords?: string[]; categories?: string[]; mustIncludePhrases?: string[] };
+  modelUsed?: string | null;
+  warning?: string;
+  articles: KnowledgeArticle[];
+}
+
 const knowledgeService = {
   async list(): Promise<KnowledgeArticle[]> {
     const response = await axios.get('/api/knowledge');
@@ -34,6 +44,10 @@ const knowledgeService = {
   async getById(id: string): Promise<KnowledgeArticle> {
     const response = await authenticatedApi.get(`/knowledge/${id}`);
     return response.data;
+  },
+  async aiSearch(query: string): Promise<KnowledgeAiSearchResponse> {
+    const response = await authenticatedApi.post('/knowledge/ai-search', { query });
+    return response.data as KnowledgeAiSearchResponse;
   },
   async create(payload: {
     title: string;
