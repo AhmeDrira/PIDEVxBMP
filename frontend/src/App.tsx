@@ -66,7 +66,6 @@ export default function App() {
       setAuthView('register');
     }
 
-    // Handle Checkout Success
     const checkoutStatus = params.get('checkout');
     const sessionId = params.get('session_id');
     
