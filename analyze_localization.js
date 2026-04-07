@@ -3,6 +3,7 @@ const path = require('path');
 
 function checkFileLocalization(filePath) {
   try {
+    
     const content = fs.readFileSync(filePath, 'utf-8');
     
     // Check for useLanguage import

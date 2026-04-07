@@ -20,7 +20,6 @@ const componentsToFix = [
 
 function addTrFunctionToComponent(filePath) {
   let content = fs.readFileSync(filePath, 'utf-8');
-  
   // Check if tr function already exists
   if (content.includes('const tr = ') || content.includes('const { tr }')) {
     return false;

@@ -13,7 +13,6 @@ function addUseLanguageHook(content) {
   // Find the last import statement
   const lastImportMatch = content.lastIndexOf("import ");
   if (lastImportMatch === -1) return content;
-  
   // Find the end of the last import
   const lastImportEnd = content.indexOf('\n', lastImportMatch);
   if (lastImportEnd === -1) return content;
