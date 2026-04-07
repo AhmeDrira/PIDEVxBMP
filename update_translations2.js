@@ -6,7 +6,6 @@ const filePath = path.join(__dirname, 'frontend', 'src', 'components', 'artisan'
 
 // Read the file
 let content = fs.readFileSync(filePath, 'utf-8');
-
 // More replacements with special character handling
 const replacements = [
     // Activity Timeline

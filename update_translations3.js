@@ -6,7 +6,6 @@ const filePath = path.join(__dirname, 'frontend', 'src', 'components', 'artisan'
 
 // Read the file
 let content = fs.readFileSync(filePath, 'utf-8');
-
 // Use regex to handle various types of apostrophes/quotes
 // According to grep search:
 // 1. Activity Timeline at line 684 - no 3rd param
