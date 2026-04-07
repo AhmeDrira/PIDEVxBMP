@@ -9,6 +9,7 @@ import ManufacturerProfile from '../manufacturer/ManufacturerProfile';
 import NotificationBell from '../common/NotificationBell';
 import MyReports from '../common/MyReports';
 import axios from 'axios';
+import CopilotChatWidget from '../common/CopilotChatWidget';
 
 interface ManufacturerDashboardProps {
   onLogout: () => void;
@@ -122,20 +123,29 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
   };
 
   return (
-    <DashboardLayout
-      menuItems={menuItems}
-      activeItem={activeView}
-      onMenuItemClick={handleMenuItemClick}
-      onLogoClick={() => setActiveView('home')}
-      onLogout={onLogout}
-      onViewProfile={() => setActiveView('profile')}
-      onEditProfile={() => setActiveView('profile')}
-      userRole={role}
-      userName={displayName}
-      profilePhoto={profilePhoto}
-      bellComponent={<NotificationBell />}
-    >
-      {renderContent()}
-    </DashboardLayout>
+    <>
+      <DashboardLayout
+        menuItems={menuItems}
+        activeItem={activeView}
+        onMenuItemClick={handleMenuItemClick}
+        onLogoClick={() => setActiveView('home')}
+        onLogout={onLogout}
+        onViewProfile={() => setActiveView('profile')}
+        onEditProfile={() => setActiveView('profile')}
+        userRole={role}
+        userName={displayName}
+        profilePhoto={profilePhoto}
+        bellComponent={<NotificationBell />}
+      >
+        {renderContent()}
+      </DashboardLayout>
+
+      <CopilotChatWidget
+        role="manufacturer"
+        activeView={activeView}
+        isVisible={activeView === 'home'}
+        onNavigate={setActiveView}
+      />
+    </>
   );
 }

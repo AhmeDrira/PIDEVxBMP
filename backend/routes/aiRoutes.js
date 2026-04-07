@@ -8,12 +8,17 @@
 
 const express              = require('express');
 const router               = express.Router();
-const { projectAutofill }  = require('../controllers/aiController');
+const { projectAutofill, copilotChat }  = require('../controllers/aiController');
 const { protect }          = require('../middleware/authMiddleware');
 
 // POST /api/ai/project-autofill
 // Body : { text: string }
 // Auth : artisan connecté requis
 router.post('/project-autofill', protect, projectAutofill);
+
+// POST /api/ai/copilot-chat
+// Body : { message: string, quickAction?: string, history?: array, context?: object }
+// Auth : utilisateur connecté requis
+router.post('/copilot-chat', protect, copilotChat);
 
 module.exports = router;

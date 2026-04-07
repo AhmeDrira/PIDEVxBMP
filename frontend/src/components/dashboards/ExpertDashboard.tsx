@@ -12,6 +12,7 @@ import MyOrders from '../common/MyOrders';
 import NotificationBell from '../common/NotificationBell';
 import { ShoppingBag } from 'lucide-react';
 import MyReports from '../common/MyReports';
+import CopilotChatWidget from '../common/CopilotChatWidget';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -185,20 +186,29 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   );
 
   return (
-    <DashboardLayout
-      menuItems={menuItems}
-      activeItem={activeView}
-      onMenuItemClick={setActiveView}
-      onLogoClick={() => setActiveView('home')}
-      onLogout={onLogout}
-      onViewProfile={handleViewProfile}
-      onEditProfile={handleEditProfile}
-      userRole={role}
-      userName={fullName}
-      profilePhoto={profilePhoto}
-      bellComponent={headerActions}
-    >
-      {renderContent()}
-    </DashboardLayout>
+    <>
+      <DashboardLayout
+        menuItems={menuItems}
+        activeItem={activeView}
+        onMenuItemClick={setActiveView}
+        onLogoClick={() => setActiveView('home')}
+        onLogout={onLogout}
+        onViewProfile={handleViewProfile}
+        onEditProfile={handleEditProfile}
+        userRole={role}
+        userName={fullName}
+        profilePhoto={profilePhoto}
+        bellComponent={headerActions}
+      >
+        {renderContent()}
+      </DashboardLayout>
+
+      <CopilotChatWidget
+        role="expert"
+        activeView={activeView}
+        isVisible={activeView === 'home'}
+        onNavigate={setActiveView}
+      />
+    </>
   );
 }
