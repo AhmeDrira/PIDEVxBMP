@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, CheckCircle, HardHat, FileText, FileDown, Tag, Layers, ExternalLink, BarChart2, Hash, Info, SlidersHorizontal, X, Mic, MicOff } from 'lucide-react';
+import { Plus, Search, Package, Edit, Trash2, Upload, ArrowRight, CheckCircle, HardHat, FileText, FileDown, Tag, Layers, ExternalLink, BarChart2, Hash, Info, SlidersHorizontal, X, Mic, MicOff, Sparkles, LoaderCircle } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { useLanguage } from '../../context/LanguageContext';
@@ -57,6 +57,7 @@ export default function ManufacturerProducts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
   // États pour les deux fichiers
@@ -320,6 +321,51 @@ export default function ManufacturerProducts() {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    const token = getToken();
+    const trimmedName = formData.name.trim();
+
+    if (!trimmedName) {
+      alert(tr('Please enter a product name before generating a description.', 'Veuillez saisir un nom de produit avant de generer une description.', 'يرجى إدخال اسم المنتج قبل توليد الوصف.'));
+      return;
+    }
+
+    if (!token) {
+      alert(tr('Please login again to generate a description.', 'Veuillez vous reconnecter pour generer une description.', 'يرجى تسجيل الدخول مرة أخرى لتوليد الوصف.'));
+      return;
+    }
+
+    try {
+      setIsGeneratingDescription(true);
+      const response = await axios.post(
+        `${API_URL}/products/generate-description`,
+        {
+          name: trimmedName,
+          category: formData.category,
+          language,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const generatedDescription = String(response.data?.description || '').trim();
+      if (!generatedDescription) {
+        throw new Error(tr('Generation returned an empty description. Please retry.', 'La generation a retourne une description vide. Veuillez reessayer.', 'أرجع التوليد وصفًا فارغًا. يرجى المحاولة مرة أخرى.'));
+      }
+
+      setFormData((previous) => ({ ...previous, description: generatedDescription }));
+    } catch (error: unknown) {
+      const serverMessage = axios.isAxiosError(error)
+        ? String(error.response?.data?.message || error.response?.data?.error?.message || error.message || '')
+        : '';
+
+      alert(serverMessage || tr('Failed to generate description. Please try again.', 'Echec de la generation de la description. Veuillez reessayer.', 'فشل توليد الوصف. يرجى المحاولة مرة أخرى.'));
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   // NOUVEAU : Fonction sécurisée pour les couleurs de statut
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -449,7 +495,20 @@ export default function ManufacturerProducts() {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <Label className="font-semibold text-foreground">{t('common.description')} / Technical Details</Label>
-                {renderSpeechButton('description')}
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isGeneratingDescription || isSubmitting}
+                    onClick={handleGenerateDescription}
+                    className="h-9 rounded-lg border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    {isGeneratingDescription
+                      ? <><LoaderCircle size={16} className="mr-2 animate-spin" />{tr('Generating...', 'Generation...', 'جارٍ التوليد...')}</>
+                      : <><Sparkles size={16} className="mr-2" />{tr('Generate', 'Generer', 'توليد')}</>}
+                  </Button>
+                  {renderSpeechButton('description')}
+                </div>
               </div>
               <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={4} className={`rounded-xl border-2 ${inputBorderClass}`} placeholder="Enter product specifications, dimensions, usage instructions..."/>
             </div>

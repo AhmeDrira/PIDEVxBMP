@@ -27,6 +27,7 @@ const upload = multer({
 });
 
 router.get('/', knowledgeController.listArticles);
+router.post('/ai-search', protect, knowledgeController.aiSearchArticles);
 router.get('/:id', protect, knowledgeController.getArticleById);
 
 router.post('/', protect, admin, upload.array('attachments', 10), knowledgeController.createArticle);

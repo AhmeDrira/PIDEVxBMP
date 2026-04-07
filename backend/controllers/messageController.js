@@ -4,6 +4,164 @@ const { getIo } = require('../socket');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
+
+function extractGeminiText(responseData) {
+  const candidates = Array.isArray(responseData?.candidates) ? responseData.candidates : [];
+  if (!candidates.length) return '';
+
+  for (const candidate of candidates) {
+    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    const text = parts
+      .map((part) => (part && typeof part.text === 'string' ? part.text : ''))
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (text) return text;
+  }
+
+  return '';
+}
+
+function sanitizeGeneratedMessage(text) {
+  return String(text || '')
+    .replace(/```(?:[a-zA-Z0-9_-]+)?/g, ' ')
+    .replace(/```/g, ' ')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function countWords(text) {
+  const cleaned = sanitizeGeneratedMessage(text);
+  if (!cleaned) return 0;
+  return cleaned.split(/\s+/).filter(Boolean).length;
+}
+
+function countSentences(text) {
+  const cleaned = sanitizeGeneratedMessage(text);
+  if (!cleaned) return 0;
+  return cleaned
+    .split(/[.!?\u061f]+/u)
+    .map((segment) => segment.trim())
+    .filter(Boolean).length;
+}
+
+function isDraftMessageTooShort(text) {
+  const cleaned = sanitizeGeneratedMessage(text);
+  return !cleaned || countWords(cleaned) < 20 || countSentences(cleaned) < 2;
+}
+
+function isDraftMessageLikelyTruncated(text) {
+  const cleaned = sanitizeGeneratedMessage(text);
+  if (!cleaned) return true;
+  if (/[.!?]$/.test(cleaned)) return false;
+
+  const connectorEndings = [
+    'et', 'ou', 'donc', 'car', 'mais', 'avec', 'sans', 'pour', 'que', 'qui', 'dont', 'si',
+    'au', 'aux', 'en', 'dans', 'sur', 'vers', 'parce', 'parce que', 'afin', 'de', 'du', 'des',
+  ];
+
+  const lower = cleaned.toLowerCase();
+  const words = lower.split(/\s+/).filter(Boolean);
+  const lastWord = words[words.length - 1] || '';
+  const lastThree = words.slice(-3).join(' ');
+
+  return connectorEndings.some((entry) => entry === lastWord || lastThree.endsWith(entry));
+}
+
+function finalizeGeneratedMessage(text) {
+  const cleaned = sanitizeGeneratedMessage(text);
+  if (!cleaned) return '';
+  if (/[.!?]$/.test(cleaned)) return cleaned;
+  return `${cleaned}.`;
+}
+
+function normalizeInstructionForFallback(aiInstruction) {
+  let instruction = sanitizeGeneratedMessage(aiInstruction)
+    .replace(/^['"«»\s]+|['"«»\s]+$/g, '')
+    .trim();
+
+  const wrappers = [
+    /^je\s+veux\s+envoyer\s+un\s+message\s+qui\s+lui\s+dit\s+que\s*/i,
+    /^je\s+veux\s+envoyer\s+un\s+message\s+pour\s+dire\s+que\s*/i,
+    /^je\s+veux\s+envoyer\s+un\s+message\s*/i,
+    /^redige\s+un\s+message\s*/i,
+    /^r[ée]dige\s+un\s+message\s*/i,
+    /^ecris\s+un\s+message\s*/i,
+    /^[ée]cris\s+un\s+message\s*/i,
+    /^message\s*:\s*/i,
+  ];
+
+  for (const pattern of wrappers) {
+    instruction = instruction.replace(pattern, '').trim();
+  }
+
+  if (!instruction) {
+    return 'vous transmettre une information importante concernant le suivi de notre echange';
+  }
+
+  instruction = instruction
+    .replace(/^que\s+/i, '')
+    .replace(/[.!?]+$/g, '')
+    .trim();
+
+  return instruction || 'vous transmettre une information importante concernant le suivi de notre echange';
+}
+
+function buildLocalDraftFallback({ aiInstruction, userRole }) {
+  const opening = userRole === 'expert'
+    ? 'Bonjour, en tant qu\'expert, je vous contacte pour le suivi technique de notre dossier.'
+    : 'Bonjour, en tant qu\'artisan, je vous contacte au sujet de l\'avancement de notre chantier.';
+  const normalized = normalizeInstructionForFallback(aiInstruction);
+
+  return `${opening} Je souhaite vous informer que ${normalized}. Je vous prie de m\'excuser pour le desagrement occasionne et je vous remercie pour votre comprehension. Merci de me confirmer la bonne reception de ce message.`;
+}
+
+function getGeminiErrorMessage(error) {
+  if (axios.isAxiosError(error)) {
+    return String(
+      error.response?.data?.error?.message
+      || error.response?.data?.message
+      || error.message
+      || 'Gemini request failed'
+    ).trim();
+  }
+
+  return String(error?.message || 'Gemini request failed').trim();
+}
+
+function isGeminiCapacityError(error) {
+  const status = Number(error?.response?.status || error?.status || 0);
+  const message = getGeminiErrorMessage(error).toLowerCase();
+
+  if ([429, 500, 503].includes(status)) return true;
+
+  return /quota exceeded|rate limit|resource_exhausted|temporarily unavailable|please retry/.test(message);
+}
+
+async function requestGeminiDraft({ endpoint, prompt, maxOutputTokens }) {
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.35,
+      topP: 0.9,
+      maxOutputTokens,
+    },
+  };
+
+  const response = await axios.post(endpoint, payload, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 20000,
+  });
+
+  return sanitizeGeneratedMessage(extractGeminiText(response.data));
+}
 
 const uploadsDir = path.join(__dirname, '..', 'uploads', 'messages');
 if (!fs.existsSync(uploadsDir)) {
@@ -305,5 +463,92 @@ exports.sendVoiceMessage = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erreur lors de l'envoi du message vocal" });
+  }
+};
+
+exports.generateAIDraftMessage = async (req, res) => {
+  const aiInstruction = sanitizeGeneratedMessage(req.body?.aiInstruction || '');
+
+  if (!aiInstruction) {
+    return res.status(400).json({ message: 'aiInstruction is required' });
+  }
+
+  if (!req.user || !['artisan', 'expert'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Only artisan and expert roles can use AI draft generation' });
+  }
+
+  const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+  const model = String(process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
+  const apiVersion = String(process.env.GEMINI_API_VERSION || 'v1').trim();
+
+  if (!apiKey) {
+    console.error('generateAIDraftMessage unrecoverable: GEMINI_API_KEY missing');
+    return res.status(500).json({ message: 'Failed to generate AI message draft', detail: 'GEMINI_API_KEY missing' });
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/${encodeURIComponent(apiVersion)}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const strictPrompt = [
+    'You are a communication assistant in a B2B construction SaaS.',
+    `Current user role: ${req.user.role}.`,
+    `Exact user instruction: ${aiInstruction}`,
+    'Mandatory rules:',
+    '- produce a complete message ready to send',
+    '- clear, natural, professional tone',
+    '- 2 to 4 sentences',
+    '- minimum 35 words',
+    '- never leave incomplete sentence',
+    '- finish with a professional closing sentence',
+    '- return only final message text, no list, no markdown, no quotes',
+  ].join('\n');
+
+  try {
+    let generatedMessage = await requestGeminiDraft({
+      endpoint,
+      prompt: strictPrompt,
+      maxOutputTokens: 360,
+    });
+
+    if (isDraftMessageTooShort(generatedMessage) || isDraftMessageLikelyTruncated(generatedMessage)) {
+      const refinementPrompt = [
+        strictPrompt,
+        '',
+        `Previous response: ${generatedMessage || '[empty]'}`,
+        'Correction instructions:',
+        '- previous response too short or incomplete',
+        '- rewrite fully and in more detail',
+        '- keep mandatory constraints',
+      ].join('\n');
+
+      generatedMessage = await requestGeminiDraft({
+        endpoint,
+        prompt: refinementPrompt,
+        maxOutputTokens: 460,
+      });
+    }
+
+    generatedMessage = finalizeGeneratedMessage(generatedMessage);
+
+    if (isDraftMessageTooShort(generatedMessage) || isDraftMessageLikelyTruncated(generatedMessage)) {
+      return res.status(200).json({
+        generatedMessage: buildLocalDraftFallback({ aiInstruction, userRole: req.user.role }),
+        fallbackUsed: true,
+        warning: 'AI draft was incomplete; local fallback draft was returned.',
+      });
+    }
+
+    return res.status(200).json({ generatedMessage });
+  } catch (error) {
+    if (isGeminiCapacityError(error)) {
+      return res.status(200).json({
+        generatedMessage: buildLocalDraftFallback({ aiInstruction, userRole: req.user.role }),
+        fallbackUsed: true,
+        warning: 'AI service is temporarily limited; local fallback draft was returned.',
+      });
+    }
+
+    const providerMessage = getGeminiErrorMessage(error);
+    console.error('generateAIDraftMessage unrecoverable:', providerMessage);
+    return res.status(500).json({ message: 'Failed to generate AI message draft', detail: providerMessage });
   }
 };
