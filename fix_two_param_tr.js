@@ -88,6 +88,7 @@ function fixTwoParameterTr(content) {
   const pattern = /tr\('([^']*)',\s*'([^']*)'\)(?!\s*,\s*')/g;
   
   let modified = false;
+  
   const updated = content.replace(pattern, (match, en, fr) => {
     const ar = arabicTranslations[en] || en;
     modified = true;

@@ -56,5 +56,6 @@ function processDirectory(dir) {
 
 const rootDir = path.join(__dirname, 'frontend/src/components');
 console.log('Updating all tr() function definitions to include Arabic parameter...\n');
+
 const updated = processDirectory(rootDir);
 console.log(`\n✓ Updated ${updated} files with tr() function definitions.`);
