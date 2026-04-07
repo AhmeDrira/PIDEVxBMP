@@ -103,11 +103,10 @@ function getTranslation(en, translations) {
   }
   return [en, en]; // If not found, use English for both
 }
-
+// test
 function findHardcodedText(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const issues = [];
-  
   // Find text in h1, h2, h3 tags
   const hTagPattern = /<h[1-3][^>]*>([^<]+)<\/h[1-3]>/g;
   let match;
