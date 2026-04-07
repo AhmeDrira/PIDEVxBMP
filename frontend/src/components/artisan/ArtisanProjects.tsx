@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
 import { useLanguage } from '../../context/LanguageContext';
 import MaterialRecommendation from './MaterialRecommendation';
+import SmartAIInput, { type ExtractedProjectData } from './SmartAIInput';
 
 type SpeechField = 'title' | 'description' | 'location' | 'startDate' | 'endDate';
 
@@ -341,6 +342,37 @@ export default function ArtisanProjects() {
     if (touched[field]) {
       setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
     }
+  };
+
+  // ── Auto-remplissage IA ──────────────────────────────────────────────────────
+  const handleAIDataExtracted = (aiData: ExtractedProjectData) => {
+    // Ne mettre à jour que les champs effectivement fournis par l'IA
+    const updates: Partial<typeof formData> = {};
+    if (aiData.title)       updates.title       = aiData.title;
+    if (aiData.description) updates.description = aiData.description;
+    if (aiData.location)    updates.location    = aiData.location;
+
+    if (Object.keys(updates).length === 0) return;
+
+    // Mettre à jour le state du formulaire
+    setFormData((prev) => ({ ...prev, ...updates }));
+
+    // Marquer les champs comme touchés et valider immédiatement
+    const newTouched: Record<string, boolean> = {};
+    const newErrors:  Record<string, string>  = {};
+    (Object.keys(updates) as SpeechField[]).forEach((field) => {
+      newTouched[field] = true;
+      newErrors[field]  = validateField(field, updates[field as keyof typeof updates] as string);
+    });
+    setTouched((prev) => ({ ...prev, ...newTouched }));
+    setErrors((prev)  => ({ ...prev, ...newErrors }));
+
+    // La localisation fournie par l'IA est acceptée comme valide
+    if (aiData.location) setLocationSelected(true);
+
+    toast.success('Form filled by AI !', {
+      description: 'Vérifiez et ajustez les champs si nécessaire.',
+    });
   };
 
   const getSpeechLanguage = () => {
@@ -1070,6 +1102,23 @@ export default function ArtisanProjects() {
         </Button>
         <Card className="rounded-xl border border-border bg-card p-8 shadow-sm md:p-10">
           <h2 className="text-3xl font-bold text-foreground mb-8">Créer un nouveau projet</h2>
+
+          {/* ── Auto-remplissage IA ───────────────────────────────────────── */}
+          <div
+            className="mb-8 rounded-lg border border-dashed p-5"
+            style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }}
+          >
+            <SmartAIInput onDataExtracted={handleAIDataExtracted} />
+          </div>
+
+          {/* ── Séparateur ───────────────────────────────────────────────── */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
+              ou remplissez manuellement
+            </span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
 
           <form className="space-y-6" onSubmit={handleCreateProject}>
             {/* Titre */}

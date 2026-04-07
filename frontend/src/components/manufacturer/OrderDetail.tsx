@@ -150,8 +150,10 @@ export default function OrderDetail({ order, onBack }: OrderDetailProps) {
             <div className="absolute top-5 left-[12.5%] right-[12.5%] h-1 bg-muted rounded-full">
               <div
                 className="h-full rounded-full transition-all duration-700"
-                style={{ backgroundColor: '#22c55e' }}
-                style={{ width: currentStepIndex >= 0 ? `${Math.min(100, (currentStepIndex / (timelineSteps.length - 1)) * 100)}%` : '0%' }}
+                style={{
+                  backgroundColor: '#22c55e',
+                  width: currentStepIndex >= 0 ? `${Math.min(100, (currentStepIndex / (timelineSteps.length - 1)) * 100)}%` : '0%',
+                }}
               />
             </div>
           </div>

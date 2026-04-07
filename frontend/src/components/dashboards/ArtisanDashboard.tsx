@@ -16,6 +16,7 @@ import MyOrders from '../common/MyOrders';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
 import ArtisanProfileReviews from '../artisan/ArtisanProfileReviews';
 import MyReports from '../common/MyReports';
+import CopilotChatWidget from '../common/CopilotChatWidget';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
@@ -338,7 +339,6 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       p: 'projects',
       m: 'marketplace',
       q: 'quotes',
-      b: 'invoices',
       i: 'invoices',
       s: 'subscription',
       c: 'messages',
@@ -347,10 +347,6 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
-      }
-
       const rawKey = event.key;
       const key = rawKey.toLowerCase();
 
@@ -449,45 +445,6 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     isShortcutHelpOpen,
     triggerNewProject,
   ]);
-
-  useEffect(() => {
-    const allowedViews = new Set(['home', 'marketplace', 'quotes', 'invoices']);
-
-    const onShortcutNavigate = (event: Event) => {
-      const customEvent = event as CustomEvent<{ view?: string }>;
-      const targetView = customEvent.detail?.view;
-      if (!targetView || !allowedViews.has(targetView)) return;
-      setActiveView(targetView);
-    };
-
-    const onShortcutNewOrder = () => {
-      triggerNewProject();
-    };
-
-    const onShortcutScanMaterials = () => {
-      setActiveView('marketplace');
-      window.setTimeout(() => {
-        const searchField = document.querySelector<HTMLElement>(
-          '[data-artisan-view="marketplace"] [data-artisan-search="true"]',
-        );
-        if (!searchField) return;
-        searchField.focus();
-        if (searchField instanceof HTMLInputElement || searchField instanceof HTMLTextAreaElement) {
-          searchField.select();
-        }
-      }, 220);
-    };
-
-    window.addEventListener('bmp-shortcut:navigate', onShortcutNavigate as EventListener);
-    window.addEventListener('bmp-shortcut:new-order', onShortcutNewOrder);
-    window.addEventListener('bmp-shortcut:scan-materials', onShortcutScanMaterials);
-
-    return () => {
-      window.removeEventListener('bmp-shortcut:navigate', onShortcutNavigate as EventListener);
-      window.removeEventListener('bmp-shortcut:new-order', onShortcutNewOrder);
-      window.removeEventListener('bmp-shortcut:scan-materials', onShortcutScanMaterials);
-    };
-  }, [triggerNewProject]);
 
   const renderContent = () => {
     switch (activeView) {
@@ -719,6 +676,13 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CopilotChatWidget
+        role="artisan"
+        activeView={activeView}
+        isVisible={activeView === 'home'}
+        onNavigate={setActiveView}
+      />
     </>
   );
 }
