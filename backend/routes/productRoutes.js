@@ -17,6 +17,7 @@ const {
   getBuyerOrders,
   getOrderDetail,
 } = require('../controllers/productController');
+const { analyzeTechSheet, generateMaterialDescription } = require('../controllers/recommendationController');
 
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -30,6 +31,7 @@ const productUploads = upload.fields([
 // ---> NOUVELLES ROUTES POUR LA MARKETPLACE
 router.get('/marketplace', protect, getMarketplaceProducts);
 router.post('/ensure-static', protect, ensureStaticProduct);
+router.post('/generate-description', protect, generateMaterialDescription);
 
 // Routes pour les achats et les avis
 router.get('/analytics', protect, getManufacturerAnalytics);
@@ -52,7 +54,6 @@ router.route('/:id')
   .delete(protect, deleteProduct);
 
 // Tech-sheet analysis (force re-analysis / cache refresh)
-const { analyzeTechSheet } = require('../controllers/recommendationController');
 router.post('/:id/analyze-tech-sheet', protect, analyzeTechSheet);
 
 module.exports = router;

@@ -22,6 +22,8 @@ import {
   Reply,
   Flag,
   X,
+  Sparkles,
+  LoaderCircle,
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
@@ -140,6 +142,10 @@ export default function Messages() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [isAIPromptOpen, setIsAIPromptOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiInlineError, setAiInlineError] = useState<string | null>(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -667,6 +673,66 @@ export default function Messages() {
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Unable to send message.');
       console.error('Error sending message:', err);
+    }
+  };
+
+  const handleGenerateMessage = async () => {
+    const trimmedInstruction = aiInstruction.trim();
+
+    if (!trimmedInstruction) {
+      const message = tr('Please enter an instruction first.', 'Veuillez saisir une instruction d abord.', 'يرجى كتابة توجيه أولاً.');
+      setAiInlineError(message);
+      toast.error(message);
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      const message = tr('Session expired. Please sign in again.', 'Session expiree. Veuillez vous reconnecter.', 'انتهت الجلسة. يرجى تسجيل الدخول مجددا.');
+      setAiInlineError(message);
+      toast.error(message);
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      setAiInlineError(null);
+
+      const response = await axios.post(
+        `${API_URL}/messages/ai-generate`,
+        { aiInstruction: trimmedInstruction },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const generatedMessage = String(response.data?.generatedMessage || '').trim();
+      if (!generatedMessage) {
+        throw new Error(tr('Generated draft is empty. Please try again.', 'Le brouillon genere est vide. Veuillez reessayer.', 'المسودة المولدة فارغة. يرجى المحاولة مرة أخرى.'));
+      }
+
+      setMessageInput(generatedMessage);
+      setAiInstruction('');
+      setIsAIPromptOpen(false);
+      setAiInlineError(null);
+      setError(null);
+
+      if (response.data?.fallbackUsed) {
+        toast.success(tr('Draft generated from local fallback.', 'Brouillon genere via fallback local.', 'تم توليد المسودة عبر البديل المحلي.'));
+      } else {
+        toast.success(tr('Draft generated successfully.', 'Brouillon genere avec succes.', 'تم توليد المسودة بنجاح.'));
+      }
+    } catch (err: any) {
+      const serverMessage = String(
+        err?.response?.data?.message
+        || err?.response?.data?.detail
+        || err?.message
+        || ''
+      ).trim();
+      const fallbackMessage = tr('Unable to generate a message draft right now.', 'Impossible de generer un brouillon pour le moment.', 'تعذر توليد مسودة الرسالة حالياً.');
+      const finalMessage = serverMessage || fallbackMessage;
+      setAiInlineError(finalMessage);
+      toast.error(finalMessage);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -1276,6 +1342,80 @@ export default function Messages() {
           </div>
 
           <div className="p-6 border-t-2 border-border">
+            <div className="mb-3 flex justify-end">
+              <Button
+                type="button"
+                variant={isAIPromptOpen ? 'default' : 'outline'}
+                className="rounded-xl"
+                onClick={() => {
+                  if (isAIPromptOpen) {
+                    setIsAIPromptOpen(false);
+                    setAiInstruction('');
+                    setAiInlineError(null);
+                    return;
+                  }
+
+                  setIsAIPromptOpen(true);
+                  setAiInlineError(null);
+                }}
+                disabled={sendingDisabled || isGenerating}
+              >
+                <Sparkles size={16} className="mr-2" />
+                {tr('AI Draft', 'Brouillon IA', 'مسودة ذكية')}
+              </Button>
+            </div>
+            {isAIPromptOpen && (
+              <div className="mb-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <p className="mb-2 text-xs font-medium text-primary">
+                  {tr(
+                    'Describe what you want to communicate and AI will draft a complete professional message.',
+                    'Decrivez ce que vous voulez communiquer et l IA generera un message professionnel complet.',
+                    'اكتب ما تريد توصيله وسيقوم الذكاء الاصطناعي بصياغة رسالة مهنية كاملة.'
+                  )}
+                </p>
+                <Textarea
+                  value={aiInstruction}
+                  onChange={(e) => {
+                    setAiInstruction(e.target.value);
+                    if (aiInlineError) setAiInlineError(null);
+                  }}
+                  rows={3}
+                  placeholder={tr(
+                    'Example: I want to inform them I will be 30 minutes late due to traffic.',
+                    'Exemple : Je veux l informer que je serai en retard de 30 minutes a cause de la circulation.',
+                    'مثال: أريد إبلاغه أنني سأتأخر 30 دقيقة بسبب الازدحام.'
+                  )}
+                  className="min-h-[88px] rounded-xl border-2 border-border focus:border-primary"
+                  disabled={isGenerating}
+                />
+                {aiInlineError && <p className="mt-2 text-xs text-red-500">{aiInlineError}</p>}
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={isGenerating}
+                    onClick={() => {
+                      setAiInstruction('');
+                      setAiInlineError(null);
+                      setIsAIPromptOpen(false);
+                    }}
+                  >
+                    {tr('Cancel', 'Annuler', 'إلغاء')}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-xl bg-primary text-white hover:bg-primary/90"
+                    disabled={isGenerating || !aiInstruction.trim()}
+                    onClick={handleGenerateMessage}
+                  >
+                    {isGenerating
+                      ? <><LoaderCircle size={16} className="mr-2 animate-spin" />{tr('Generating...', 'Generation...', 'جارٍ التوليد...')}</>
+                      : <><Sparkles size={16} className="mr-2" />{tr('Generate', 'Generer', 'توليد')}</>}
+                  </Button>
+                </div>
+              </div>
+            )}
             {blockedByMe && selectedConv && (
               <div className="mb-3 rounded-xl border border-yellow-200 bg-yellow-50 p-3">
                 <p className="text-sm text-yellow-900 font-medium">Vous avez bloque {selectedConv.name}.</p>

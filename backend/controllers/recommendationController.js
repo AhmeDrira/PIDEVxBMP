@@ -37,6 +37,7 @@ const conversionService    = require('../services/conversionService');
 const ProjectAnalyzer      = require('../services/projectAnalyzer');
 const ProductAnalyzer      = require('../services/productAnalyzer');
 const { calculateProductQuantity } = require('../services/conversionFactors');
+const axios = require('axios');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,11 @@ function posNum(val, fallback = 0) {
   const n = Number(val);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
-function safeStr(val) { return val ? String(val).trim() : ''; }
+function safeStr(val, fallback = '') {
+  if (val === undefined || val === null) return fallback;
+  const str = String(val).trim();
+  return str || fallback;
+}
 function safeBool(val, fallback = true) {
   if (val === undefined || val === null) return fallback;
   if (typeof val === 'boolean') return val;
@@ -53,7 +58,317 @@ function safeBool(val, fallback = true) {
   return fallback;
 }
 
+function extractGeminiText(payload) {
+  const candidates = Array.isArray(payload?.candidates) ? payload.candidates : [];
+  if (!candidates.length) return '';
+
+  for (const candidate of candidates) {
+    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    const merged = parts
+      .map((part) => safeStr(part?.text))
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (merged) return merged;
+  }
+
+  return '';
+}
+
+function sanitizeGeneratedDescription(rawText) {
+  let text = safeStr(rawText)
+    .replace(/```(?:json|markdown|md|txt)?/gi, ' ')
+    .replace(/```/g, ' ')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  text = text
+    .replace(/^#+\s*/g, '')
+    .replace(/^[-*•]\s+/g, '')
+    .replace(/^\d+[.)]\s+/g, '')
+    .replace(/^(description|material description|product description)\s*:\s*/i, '')
+    .replace(/^"+|"+$/g, '')
+    .trim();
+
+  return text;
+}
+
+function getGeminiErrorMessage(error) {
+  if (axios.isAxiosError(error)) {
+    return safeStr(
+      error.response?.data?.error?.message
+      || error.response?.data?.message
+      || error.message,
+      'Gemini request failed'
+    );
+  }
+
+  return safeStr(error?.message, 'Gemini request failed');
+}
+
+function isGeminiCapacityError(error) {
+  const status = Number(error?.response?.status || error?.status || 0);
+  const message = getGeminiErrorMessage(error).toLowerCase();
+
+  return status === 429
+    || status === 503
+    || status === 504
+    || /resource_exhausted|quota|rate\s*limit|too many requests|temporar|unavailable|deadline exceeded|timed out|timeout|overloaded|try again later/.test(message);
+}
+
+function isGeminiModelUnsupportedError(error) {
+  const status = Number(error?.response?.status || error?.status || 0);
+  const message = getGeminiErrorMessage(error).toLowerCase();
+
+  return status === 404
+    || /model.+not found|is not found|unknown model|unsupported model|not supported|does not exist|listmodels|invalid argument.+model/.test(message);
+}
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getGeminiModelCandidates() {
+  const primary = safeStr(process.env.GEMINI_MODEL, 'gemini-2.5-flash');
+  const fallbackModels = safeStr(process.env.GEMINI_FALLBACK_MODELS)
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  const candidates = [];
+  const seen = new Set();
+
+  for (const model of [primary, ...fallbackModels]) {
+    const key = model.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      candidates.push(model);
+    }
+  }
+
+  return candidates;
+}
+
+function buildLocalDescriptionFallback({ name, category, language }) {
+  const normalizedLanguage = safeStr(language, 'en').toLowerCase();
+  const productName = safeStr(name, normalizedLanguage === 'fr' ? 'ce materiau' : normalizedLanguage === 'ar' ? 'هذه المادة' : 'this material');
+  const productCategory = safeStr(category, normalizedLanguage === 'fr' ? 'materiaux de construction' : normalizedLanguage === 'ar' ? 'مواد البناء' : 'construction materials');
+  const materialContext = `${productName} ${productCategory}`.toLowerCase();
+  const isCementRelated = /cement|ciment|beton|beton\s*&\s*ciment|cpj|cpa|mortier|concrete|\u0627\u0633\u0645\u0646\u062a|\u0625\u0633\u0645\u0646\u062A|\u062e\u0631\u0633\u0627\u0646\u0629|\u0645\u0644\u0627\u0637/.test(materialContext);
+
+  if (normalizedLanguage === 'fr') {
+    if (isCementRelated) {
+      return `${productName} est adapte aux travaux de ${productCategory} sur chantier neuf comme en renovation, notamment pour les couches structurelles et les zones sollicitees. Sa formulation cimentaire offre une bonne tenue mecanique, une resistance fiable a l'humidite moderee et une stabilite utile lorsque les conditions de travail varient pendant la journee. Avant application, il est conseille de preparer un support propre, sain et legerement humidifie, puis de respecter un dosage eau-melange constant afin d'obtenir une consistance homogene. Pendant la mise en oeuvre, melangez par petites quantites successives pour garder une ouvrabilite reguliere et limiter les pertes de performance. Pour la durabilite, prevoyez une cure adaptee apres pose et evitez les chocs thermiques precoces qui peuvent fragiliser la prise. Stockez les sacs dans un endroit sec, sur palette, a l'abri de l'humidite et utilisez les equipements de protection individuels pour reduire les risques de poussiere et d'irritation.`;
+    }
+    return `${productName} convient aux travaux de ${productCategory} sur chantier residentiel et professionnel, avec une utilisation pratique pour les phases de preparation, de pose et de finition. Le materiau offre une bonne fiabilite en service, une resistance adaptee aux sollicitations courantes et un comportement stable lorsque la mise en oeuvre respecte les preconisations techniques. Avant application, nettoyez soigneusement le support, verifiez sa planete et appliquez une preparation compatible afin d'ameliorer l'adherence et la regularite du resultat final. Pendant les travaux, il est recommande de controler l'epaisseur appliquee et d'ajuster la methode selon la temperature, l'humidite et le niveau d'exposition de la zone. Cette approche permet d'obtenir une finition plus durable et de reduire les reprises sur le chantier. Conservez le produit dans son emballage d'origine, a l'abri du soleil et de l'humidite, puis appliquez les consignes de securite et de controle qualite avant chaque utilisation.`;
+  }
+
+  if (normalizedLanguage === 'ar') {
+    if (isCementRelated) {
+      return `${productName} مناسب لاعمال ${productCategory} في الورشات الجديدة واعمال الترميم، خصوصا في الطبقات الانشائية والمناطق التي تتعرض لاجهاد مستمر. تركيبة المادة الاسمنتية تعطي تماسك جيد ومقاومة مستقرة للرطوبة المعتدلة وسلوك موثوق عند اختلاف ظروف التنفيذ خلال اليوم. قبل الاستعمال يفضل تجهيز السطح ليكون نظيفا وخاليا من الشوائب مع ترطيب خفيف، ثم الالتزام بنسبة ماء وخلط ثابتة للحصول على قوام متجانس. اثناء التطبيق من الافضل تحضير كميات متدرجة والتحريك المنتظم لتفادي التكتل والحفاظ على جودة الفرد والالتصاق. من اجل اداء طويل المدى ينصح بمرحلة معالجة بعد التطبيق وتجنب الحرارة العالية او الجفاف السريع في الساعات الاولى. احفظ الاكياس في مكان جاف فوق منصات بعيدا عن الرطوبة، واستعمل معدات السلامة الشخصية لضمان جودة العمل وتقليل مخاطر الغبار على الفريق.`;
+    }
+    return `${productName} مناسب لاعمال ${productCategory} في مواقع البناء السكنية والمشاريع المهنية، ويمكن اعتماده في مراحل التحضير والتنفيذ والانهاء بشكل عملي. المادة تقدم مستوى جيد من المتانة والاعتمادية وتبقى نتائجها مستقرة عندما يتم احترام خطوات التركيب والتعليمات الفنية. قبل التطبيق يجب تنظيف السطح جيدا والتاكد من توازنه واختيار طبقة تحضيرية مناسبة لتحسين الالتصاق وتوحيد النتيجة النهائية. اثناء العمل يفضل مراقبة السماكة وتوزيع المادة بشكل منتظم مع تعديل طريقة التطبيق حسب درجة الحرارة والرطوبة داخل الورشة. هذا الاسلوب يساعد على رفع الجودة وتقليل اعادة العمل ويحسن سلوك المنتج على المدى الطويل. يحفظ المنتج في عبوة مغلقة داخل مكان جاف ومهوى، مع الالتزام بقواعد السلامة ومراقبة الجودة قبل كل استخدام.`;
+  }
+
+  if (isCementRelated) {
+    return `${productName} is suitable for ${productCategory} operations in both new construction and renovation sites, especially where structural consistency is required across multiple work phases. Its cement-based composition delivers reliable compressive behavior, stable day-to-day workability, and practical resistance to moderate moisture exposure in normal site conditions. Before application, prepare a clean and sound substrate, lightly pre-wet absorbent surfaces, and keep a consistent water-to-mix ratio to maintain predictable performance. During installation, mix in controlled batches and apply with steady thickness so the material cures uniformly and reduces avoidable defects. For long-term reliability, protect fresh application from early thermal shock and support proper curing according to the project schedule. Store sealed bags in a dry elevated area away from humidity, and enforce safety and quality checks, including dust protection, before each use.`;
+  }
+
+  return `${productName} is designed for ${productCategory} use on active worksites, providing practical value during preparation, installation, and finishing stages of the project. The material offers dependable behavior under routine field constraints, with balanced durability, reliable resistance, and stable results when applied according to recommended methods. Before application, ensure the substrate is clean, structurally sound, and compatible with the selected primer or preparation layer to improve adhesion quality. During execution, maintain controlled application thickness and adapt handling to onsite temperature and humidity to keep performance consistent across different zones. This approach improves service life, reduces rework risk, and supports predictable quality outcomes for contractors and technicians. Store the product in original sealed packaging away from moisture and heat, and follow safety and quality-control practices on every shift before use.`;
+}
+
+function countSentences(text) {
+  return safeStr(text)
+    .split(/[.!?\u061f]+/u)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .length;
+}
+
+function isDescriptionTooShort(text) {
+  const description = safeStr(text);
+  return description.length < 260 || countSentences(description) < 5;
+}
+
+function buildMaterialDescriptionPrompt({ name, category, language, previousDescription = '', refinementInstruction = '' }) {
+  const normalizedLanguage = safeStr(language, 'en').toLowerCase();
+  const outputLanguage = normalizedLanguage === 'fr' ? 'French' : normalizedLanguage === 'ar' ? 'Arabic' : 'English';
+  const productName = safeStr(name);
+  const productCategory = safeStr(category, 'Construction Materials');
+
+  const refinementBlock = refinementInstruction
+    ? `\nRefinement instruction: ${refinementInstruction}.\nPrevious answer: ${safeStr(previousDescription)}`
+    : '';
+
+  return `You are a senior construction materials technical writer. Write one production-ready marketplace product description.
+Output language: ${outputLanguage}.
+Product name: ${productName}.
+Product category: ${productCategory}.
+
+Mandatory constraints:
+- Write exactly 6 to 8 complete sentences.
+- Target 140 to 220 words.
+- Include practical chantier/worksite usage context.
+- Explain performance qualities including durability, resistance, reliability, and behavior under realistic conditions.
+- Include at least one preparation or application recommendation.
+- Include one storage, quality, or safety recommendation.
+- No markdown, no bullet points, no headings, no emojis.
+- Return only the final description text.${refinementBlock}`;
+}
+
+async function requestGeminiDescription({ apiKey, apiVersion, model, prompt }) {
+  const endpoint = `https://generativelanguage.googleapis.com/${encodeURIComponent(apiVersion)}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.4,
+      topP: 0.9,
+      maxOutputTokens: 220,
+    },
+  };
+
+  const response = await axios.post(endpoint, payload, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 20000,
+  });
+
+  const extracted = extractGeminiText(response.data);
+  const sanitized = sanitizeGeneratedDescription(extracted);
+
+  if (!sanitized) {
+    const emptyError = new Error('Gemini returned an empty description');
+    emptyError.code = 'EMPTY_OUTPUT';
+    throw emptyError;
+  }
+
+  return sanitized;
+}
+
 const ALLOWED_UNITS = new Set(['m²', 'm³', 'm', 'pièce']);
+
+const generateMaterialDescription = async (req, res) => {
+  const name = safeStr(req.body?.name);
+  const category = safeStr(req.body?.category);
+  const language = safeStr(req.body?.language, 'en').toLowerCase();
+
+  if (!name) {
+    return res.status(400).json({ message: 'name is required' });
+  }
+
+  if (!req.user || req.user.role !== 'manufacturer') {
+    return res.status(403).json({ message: 'Only manufacturer users can generate product descriptions' });
+  }
+
+  const apiKey = safeStr(process.env.GEMINI_API_KEY);
+  if (!apiKey) {
+    console.error('generateMaterialDescription unrecoverable:', 'GEMINI_API_KEY is missing');
+    return res.status(500).json({ message: 'Description generation is temporarily unavailable' });
+  }
+
+  const apiVersion = safeStr(process.env.GEMINI_API_VERSION, 'v1');
+  const parsedRetries = Number.parseInt(process.env.GEMINI_MAX_RETRIES, 10);
+  const maxRetries = Number.isFinite(parsedRetries)
+    ? Math.min(4, Math.max(1, parsedRetries))
+    : 2;
+
+  const models = getGeminiModelCandidates();
+  let lastError = null;
+  let sawCapacityOrShortOutput = false;
+
+  for (const model of models) {
+    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+      try {
+        const firstPrompt = buildMaterialDescriptionPrompt({ name, category, language });
+        let description = await requestGeminiDescription({
+          apiKey,
+          apiVersion,
+          model,
+          prompt: firstPrompt,
+        });
+
+        if (isDescriptionTooShort(description)) {
+          const refinementPrompt = buildMaterialDescriptionPrompt({
+            name,
+            category,
+            language,
+            previousDescription: description,
+            refinementInstruction: 'previous answer too short, rewrite with significantly more useful detail',
+          });
+
+          description = await requestGeminiDescription({
+            apiKey,
+            apiVersion,
+            model,
+            prompt: refinementPrompt,
+          });
+        }
+
+        description = sanitizeGeneratedDescription(description);
+        if (isDescriptionTooShort(description)) {
+          const shortOutputError = new Error('Gemini output too short after refinement');
+          shortOutputError.code = 'SHORT_OUTPUT';
+          throw shortOutputError;
+        }
+
+        if (!description) {
+          const emptyOutputError = new Error('Gemini output is empty');
+          emptyOutputError.code = 'EMPTY_OUTPUT';
+          throw emptyOutputError;
+        }
+
+        return res.status(200).json({
+          description,
+          modelUsed: model,
+          fallbackUsed: false,
+        });
+      } catch (error) {
+        lastError = error;
+        const providerMessage = getGeminiErrorMessage(error);
+        const shortOutput = safeStr(error?.code).toUpperCase() === 'SHORT_OUTPUT';
+
+        if (shortOutput) {
+          sawCapacityOrShortOutput = true;
+          break;
+        }
+
+        if (isGeminiModelUnsupportedError(error)) {
+          break;
+        }
+
+        if (isGeminiCapacityError(error)) {
+          sawCapacityOrShortOutput = true;
+          if (attempt < maxRetries) {
+            await sleepMs(350 * attempt);
+            continue;
+          }
+          break;
+        }
+
+        console.error('generateMaterialDescription unrecoverable:', providerMessage);
+        return res.status(500).json({ message: 'Failed to generate product description' });
+      }
+    }
+  }
+
+  if (sawCapacityOrShortOutput) {
+    const fallbackDescription = buildLocalDescriptionFallback({ name, category, language });
+    return res.status(200).json({
+      description: fallbackDescription,
+      fallbackUsed: true,
+      warning: 'AI provider is temporarily limited, so a local detailed description was generated.',
+    });
+  }
+
+  console.error('generateMaterialDescription unrecoverable:', getGeminiErrorMessage(lastError));
+  return res.status(500).json({ message: 'Failed to generate product description' });
+};
 
 // ── Endpoint principal ────────────────────────────────────────────────────────
 
@@ -405,4 +720,4 @@ const analyzeTechSheet = async (req, res) => {
   }
 };
 
-module.exports = { getMaterialRecommendations, analyzeTechSheet };
+module.exports = { getMaterialRecommendations, analyzeTechSheet, generateMaterialDescription };
