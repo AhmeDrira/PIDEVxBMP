@@ -149,6 +149,50 @@ const updateProject = async (req, res) => {
   }
 };
 
+// @desc    Delete a project
+// @route   DELETE /api/projects/:id
+// @access  Private (Artisan only)
+const deleteProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid project ID' });
+    }
+
+    const project = await Project.findById(id);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    if (project.artisan.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
+    await Project.deleteOne({ _id: project._id });
+
+    await logAction(req, {
+      actionKey: 'artisan.project.delete',
+      actionLabel: 'Deleted Project',
+      entityType: 'project',
+      entityId: project._id,
+      description: `Project "${project.title}" deleted by artisan.`,
+      metadata: {
+        title: project.title,
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Project deleted successfully',
+      id: String(project._id),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error while deleting project' });
+  }
+};
+
 // @desc    Upload/update image for a personal material in a project
 // @route   POST /api/projects/:id/personal-materials/:materialId/image
 // @access  Private (Artisan only)
@@ -202,5 +246,6 @@ module.exports = {
   createProject,
   getProjects,
   updateProject,
+  deleteProject,
   uploadPersonalMaterialImage,
 };

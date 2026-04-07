@@ -4,14 +4,13 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban, X, Upload, CheckCircle, Sparkles, Mic, MicOff } from 'lucide-react';
+import { Plus, Search, Filter, MapPin, Calendar, DollarSign, Eye, Edit, ShoppingCart, FileText, Receipt, ArrowRight, FolderKanban, X, Upload, CheckCircle, Sparkles, Mic, MicOff, Trash2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
 import { useLanguage } from '../../context/LanguageContext';
 import MaterialRecommendation from './MaterialRecommendation';
-import SmartAIInput, { type ExtractedProjectData } from './SmartAIInput';
 
 type SpeechField = 'title' | 'description' | 'location' | 'startDate' | 'endDate';
 
@@ -214,6 +213,8 @@ export default function ArtisanProjects() {
   const [showAddMaterialOptions, setShowAddMaterialOptions] = useState(false);
   const [materialProjectContext, setMaterialProjectContext] = useState<any>(null);
   const [showRecommendation, setShowRecommendation] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<any | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [showPersonalMaterialForm, setShowPersonalMaterialForm] = useState(false);
   const [isSavingPersonalMaterial, setIsSavingPersonalMaterial] = useState(false);
   const [selectedPersonalImageFile, setSelectedPersonalImageFile] = useState<File | null>(null);
@@ -342,37 +343,6 @@ export default function ArtisanProjects() {
     if (touched[field]) {
       setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
     }
-  };
-
-  // ── Auto-remplissage IA ──────────────────────────────────────────────────────
-  const handleAIDataExtracted = (aiData: ExtractedProjectData) => {
-    // Ne mettre à jour que les champs effectivement fournis par l'IA
-    const updates: Partial<typeof formData> = {};
-    if (aiData.title)       updates.title       = aiData.title;
-    if (aiData.description) updates.description = aiData.description;
-    if (aiData.location)    updates.location    = aiData.location;
-
-    if (Object.keys(updates).length === 0) return;
-
-    // Mettre à jour le state du formulaire
-    setFormData((prev) => ({ ...prev, ...updates }));
-
-    // Marquer les champs comme touchés et valider immédiatement
-    const newTouched: Record<string, boolean> = {};
-    const newErrors:  Record<string, string>  = {};
-    (Object.keys(updates) as SpeechField[]).forEach((field) => {
-      newTouched[field] = true;
-      newErrors[field]  = validateField(field, updates[field as keyof typeof updates] as string);
-    });
-    setTouched((prev) => ({ ...prev, ...newTouched }));
-    setErrors((prev)  => ({ ...prev, ...newErrors }));
-
-    // La localisation fournie par l'IA est acceptée comme valide
-    if (aiData.location) setLocationSelected(true);
-
-    toast.success('Form filled by AI !', {
-      description: 'Vérifiez et ajustez les champs si nécessaire.',
-    });
   };
 
   const getSpeechLanguage = () => {
@@ -872,6 +842,46 @@ export default function ArtisanProjects() {
     }
   };
 
+  const openDeleteProjectModal = (project: any) => {
+    if (!project?._id) return;
+    setProjectToDelete(project);
+  };
+
+  const closeDeleteProjectModal = () => {
+    if (isDeletingProject) return;
+    setProjectToDelete(null);
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete?._id || isDeletingProject) return;
+
+    const deletingProject = projectToDelete;
+
+    try {
+      setIsDeletingProject(true);
+      const token = getToken();
+
+      await axios.delete(`${API_URL}/projects/${deletingProject._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setProjects((prev) => prev.filter((p) => String(p._id) !== String(deletingProject._id)));
+
+      if (selectedProject?._id && String(selectedProject._id) === String(deletingProject._id)) {
+        setSelectedProject(null);
+        setView('list');
+      }
+
+      setProjectToDelete(null);
+      toast.success(tr('Project deleted successfully', 'Projet supprime avec succes', 'Project deleted successfully'));
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression du projet:', error);
+      toast.error(error?.response?.data?.message || tr('Unable to delete project', 'Impossible de supprimer le projet', 'Unable to delete project'));
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
+
   const getProjectProgress = (project: any) => {
     const tasks = normalizeTasks(project.tasks);
     return tasks.length ? computeProgressFromTasks(tasks) : project.progress || 0;
@@ -1102,23 +1112,6 @@ export default function ArtisanProjects() {
         </Button>
         <Card className="rounded-xl border border-border bg-card p-8 shadow-sm md:p-10">
           <h2 className="text-3xl font-bold text-foreground mb-8">Créer un nouveau projet</h2>
-
-          {/* ── Auto-remplissage IA ───────────────────────────────────────── */}
-          <div
-            className="mb-8 rounded-lg border border-dashed p-5"
-            style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }}
-          >
-            <SmartAIInput onDataExtracted={handleAIDataExtracted} />
-          </div>
-
-          {/* ── Séparateur ───────────────────────────────────────────────── */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
-              ou remplissez manuellement
-            </span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
 
           <form className="space-y-6" onSubmit={handleCreateProject}>
             {/* Titre */}
@@ -2275,16 +2268,25 @@ export default function ArtisanProjects() {
                     <Eye size={16} className="mr-2" /> View
                   </Button>
                   <Button
-  variant="outline"
-  className="h-11 px-4 rounded-xl border-2 hover:bg-primary hover:text-white hover:border-primary"
-  onClick={() => guard(() => {
-    setSelectedProject(project);
-    setView('edit');
-  })}
->
-  <Edit size={16} />
-</Button>
-                  
+                    variant="outline"
+                    className="h-11 px-4 rounded-xl border-2 hover:bg-primary hover:text-white hover:border-primary"
+                    onClick={() => guard(() => {
+                      setSelectedProject(project);
+                      setView('edit');
+                    })}
+                  >
+                    <Edit size={16} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-11 px-4 rounded-xl border-2 border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600"
+                    onClick={() => guard(() => openDeleteProjectModal(project))}
+                    aria-label="Delete project"
+                    title="Delete project"
+                  >
+                    <Trash2 size={16} className="mr-2" />
+                    {tr('Delete', 'Supprimer', 'حذف')}
+                  </Button>
                 </div>
               </Card>
             );
@@ -2407,6 +2409,48 @@ export default function ArtisanProjects() {
           </Card>
         </div>
       )}
+
+      {projectToDelete && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+          onClick={closeDeleteProjectModal}
+        >
+          <div
+            style={{ backgroundColor: 'var(--card)', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--foreground)', textAlign: 'center', margin: '0 0 8px' }}>
+              {tr('Delete Project', 'Supprimer le projet', 'حذف المشروع')}
+            </h3>
+            <p style={{ fontSize: 14, color: 'var(--muted-foreground)', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>
+              {tr(
+                `Are you sure you want to delete "${projectToDelete.title}"? This action cannot be undone.`,
+                `Voulez-vous vraiment supprimer "${projectToDelete.title}" ? Cette action est irreversible.`,
+                `هل أنت متأكد من حذف "${projectToDelete.title}"؟ لا يمكن التراجع عن هذا الإجراء.`
+              )}
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={closeDeleteProjectModal}
+                disabled={isDeletingProject}
+                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '2px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, cursor: isDeletingProject ? 'not-allowed' : 'pointer', opacity: isDeletingProject ? 0.7 : 1 }}
+              >
+                {tr('Cancel', 'Annuler', 'إلغاء')}
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                disabled={isDeletingProject}
+                style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: 14, fontWeight: 600, cursor: isDeletingProject ? 'not-allowed' : 'pointer', opacity: isDeletingProject ? 0.7 : 1 }}
+              >
+                {isDeletingProject
+                  ? tr('Deleting...', 'Suppression...', 'جارٍ الحذف...')
+                  : tr('Delete', 'Supprimer', 'حذف')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {PopupElement}
     </div>
   );
