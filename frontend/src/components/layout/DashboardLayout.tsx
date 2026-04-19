@@ -59,7 +59,29 @@ export default function DashboardLayout({
   const isRTL = language === 'ar';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : false
+  );
   const { socket } = useSocket();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const handleViewportChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+
+    setIsDesktop(mediaQuery.matches);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleViewportChange);
+      return () => mediaQuery.removeEventListener('change', handleViewportChange);
+    }
+
+    mediaQuery.addListener(handleViewportChange);
+    return () => mediaQuery.removeListener(handleViewportChange);
+  }, []);
 
   useEffect(() => {
     if (userRole !== 'expert' && userRole !== 'artisan') return;
@@ -232,7 +254,7 @@ export default function DashboardLayout({
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className={`absolute top-16 bottom-0 w-80 bg-card shadow-2xl overflow-y-auto ${isRTL ? 'right-0' : 'left-0'}`}
+            className={`absolute top-16 bottom-0 w-full max-w-xs bg-card shadow-2xl overflow-y-auto ${isRTL ? 'right-0' : 'left-0'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4">
@@ -290,13 +312,9 @@ export default function DashboardLayout({
       )}
 
       {/* Main Content */}
-      <div 
-        className="lg:block w-full"
-        style={
-          isRTL 
-            ? { paddingRight: '18rem' }  // 18rem = w-72 sidebar width
-            : { paddingLeft: '18rem' }
-        }
+      <div
+        className={`w-full lg:block ${isRTL ? '' : 'lg:pl-72'}`}
+        style={isRTL && isDesktop ? { paddingRight: '18rem' } : undefined}
       >
         {/* Header */}
         <header className="hidden lg:flex items-center justify-between h-20 px-8 bg-card border-b border-border shadow-sm">
@@ -358,14 +376,14 @@ export default function DashboardLayout({
               <button
                 key={item.id}
                 onClick={() => onMenuItemClick(item.id)}
-                className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl transition-all ${
+                className={`flex flex-1 min-w-0 flex-col items-center justify-center px-1 py-2 rounded-xl transition-all ${
                   item.disabled
                     ? 'opacity-40 cursor-not-allowed'
                     : activeItem === item.id ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
                 <span className={activeItem === item.id ? 'scale-110' : ''}>{item.icon}</span>
-                <span className="text-xs mt-1 font-medium">{item.label}</span>
+                <span className="w-full truncate text-center text-xs mt-1 font-medium">{item.label}</span>
               </button>
             ))}
           </div>

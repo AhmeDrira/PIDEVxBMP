@@ -80,7 +80,7 @@ export default function RegisterLeftSection() {
             ))}
           </div>
 
-          <div className="mt-16 grid grid-cols-3 gap-8">
+          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <p className="text-4xl font-bold text-white mb-1">{formatCount(siteStats.activeUsers)}</p>
               <p className="text-white/70">Active Users</p>

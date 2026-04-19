@@ -2,6 +2,7 @@ const Quote = require('../models/Quote');
 
 let featurePipeline = null;
 let featurePipelinePromise = null;
+let testEmbeddingProvider = null;
 
 // Cache quote embeddings in-memory to reduce repeated model inference cost.
 const quoteEmbeddingCache = new Map();
@@ -103,6 +104,17 @@ const getFeaturePipeline = async () => {
 };
 
 const embedText = async (text) => {
+  if (typeof testEmbeddingProvider === 'function') {
+    const providedVector = await testEmbeddingProvider(normalizeText(text));
+    const vector = Array.isArray(providedVector)
+      ? providedVector.map((value) => Number(value))
+      : [];
+    if (!vector.length) {
+      throw new Error('Empty embedding vector produced by test embedding provider.');
+    }
+    return vector;
+  }
+
   const pipe = await getFeaturePipeline();
   const output = await pipe(normalizeText(text), {
     pooling: 'mean',
@@ -366,6 +378,16 @@ const predictQuoteDraftFromHistory = async ({
   };
 };
 
+const __setEmbeddingProviderForTests = (provider) => {
+  testEmbeddingProvider = provider;
+};
+
+const __resetEmbeddingProviderForTests = () => {
+  testEmbeddingProvider = null;
+};
+
 module.exports = {
   predictQuoteDraftFromHistory,
+  __setEmbeddingProviderForTests,
+  __resetEmbeddingProviderForTests,
 };
