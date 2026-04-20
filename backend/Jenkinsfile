@@ -23,7 +23,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'npm ci'
+                    sh 'npm install'
                 }
             }
         }
