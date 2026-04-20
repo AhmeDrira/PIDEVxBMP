@@ -19,6 +19,14 @@ pipeline {
                 git branch: 'test_unitaire', url: 'https://github.com/AhmeDrira/PIDEVxBMP.git'
             }
         }
+        stage('Install Dependencies') {
+    steps {
+        dir("${APP_DIR}") {
+            sh 'npm install'
+        }
+    }
+}
+        
 
         
 
