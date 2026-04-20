@@ -38,23 +38,23 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                dir("${APP_DIR}") {
-                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                        sh '''
-                            npx --yes sonar-scanner \
-                              -Dsonar.projectKey=pidevxbmp-backend \
-                              -Dsonar.projectName=PIDEVxBMP \
-                              -Dsonar.sources=. \
-                              -Dsonar.exclusions=node_modules/**,coverage/** \
-                              -Dsonar.host.url=http://localhost:9000 \
-                              -Dsonar.token=$SONAR_TOKEN
-                        '''
-                    }
-                }
+   stage('SonarQube Analysis') {
+    steps {
+        dir("${APP_DIR}") {
+            withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                sh '''
+                    npx --yes sonar-scanner \
+                      -Dsonar.projectKey=pidevxbmp-backend \
+                      -Dsonar.projectName=PIDEVxBMP \
+                      -Dsonar.sources=. \
+                      -Dsonar.exclusions=node_modules/**,coverage/** \
+                      -Dsonar.host.url=http://localhost:9000 \
+                      -Dsonar.login=$SONAR_TOKEN
+                '''
             }
         }
+    }
+}
 
         stage('Build Docker Image') {
             when {
