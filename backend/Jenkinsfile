@@ -20,13 +20,7 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'npm install'
-                }
-            }
-        }
+        
 
         stage('Run Unit Tests') {
             steps {
