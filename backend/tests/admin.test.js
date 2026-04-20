@@ -13,18 +13,34 @@ beforeAll(async () => {
   process.env.APP_URL = 'http://localhost:3000';
   global.fetch = async () => ({ ok: true, text: async () => 'ok' });
   app = require('../app');
-  await request(app).post('/api/auth/admin/create').send({
+  
+  // Créer l'utilisateur admin DIRECTEMENT dans la base de données
+  const User = require('../models/User');
+  const bcrypt = require('bcryptjs');
+  
+  await User.create({
     firstName: 'Admin',
     lastName: 'User',
     email: 'admin@example.com',
     phone: '11111111',
-    password: 'password123',
+    password: await bcrypt.hash('password123', 10),
+    role: 'admin',  // ← IMPORTANT: rôle admin
+    isEmailVerified: true
   });
+  
+  // Login pour obtenir le token
   const login = await request(app).post('/api/auth/login').send({
     email: 'admin@example.com',
     password: 'password123',
   });
+  
   adminToken = login.body.token;
+  
+  if (!adminToken) {
+    console.error('❌ Token admin non reçu!');
+  } else {
+    console.log('✅ Token admin obtenu');
+  }
 });
 
 afterAll(async () => {
