@@ -1,11 +1,7 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'node20'
-        jdk 'jdk17'
-    }
-
+    
     options {
         timestamps()
         disableConcurrentBuilds()
