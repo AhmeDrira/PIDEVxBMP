@@ -137,4 +137,25 @@ async function warmUp() {
   }
 }
 
-module.exports = { extractProjectData, warmUp };
+/**
+ * Test hook: inject a mocked pipeline to avoid loading the real model.
+ */
+function __setPipelineForTests(mockedPipeline) {
+  _pipeline = mockedPipeline || null;
+  _loadingPromise = mockedPipeline ? Promise.resolve(mockedPipeline) : null;
+}
+
+/**
+ * Test hook: reset singleton internal state.
+ */
+function __resetForTests() {
+  _pipeline = null;
+  _loadingPromise = null;
+}
+
+module.exports = {
+  extractProjectData,
+  warmUp,
+  __setPipelineForTests,
+  __resetForTests,
+};
