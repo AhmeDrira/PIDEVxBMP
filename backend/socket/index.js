@@ -20,7 +20,12 @@ const initSocket = (server) => {
       if (!token) {
         return next(new Error('Authentication error: Token missing'));
       }
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'votre_secret_jwt');
+      const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+console.error('Socket authentication error: JWT_SECRET is not configured');
+return next(new Error('Authentication error: Server misconfiguration'));
+}
+const decoded = jwt.verify(token, jwtSecret);
       socket.user = decoded; // { id: userId, ... }
       next();
     } catch (err) {
