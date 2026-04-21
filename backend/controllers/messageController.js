@@ -77,11 +77,32 @@ function finalizeGeneratedMessage(text) {
   return `${cleaned}.`;
 }
 
+function trimBoundaryQuotesAndWhitespace(value) {
+  const source = safeStr(value);
+  let start = 0;
+  let end = source.length;
+
+  const isBoundaryChar = (char) => (
+    char === '\''
+    || char === '"'
+    || char === '«'
+    || char === '»'
+    || char.trim() === ''
+  );
+
+  while (start < end && isBoundaryChar(source[start])) {
+    start += 1;
+  }
+
+  while (end > start && isBoundaryChar(source[end - 1])) {
+    end -= 1;
+  }
+
+  return source.slice(start, end);
+}
+
 function normalizeInstructionForFallback(aiInstruction) {
-  let instruction = sanitizeGeneratedMessage(aiInstruction)
-    .replace(/^['"«»\s]+/g, '')
-    .replace(/['"«»\s]+$/g, '')
-    .trim();
+  let instruction = trimBoundaryQuotesAndWhitespace(sanitizeGeneratedMessage(aiInstruction));
 
   const wrappers = [
     /^je\s+veux\s+envoyer\s+un\s+message\s+qui\s+lui\s+dit\s+que\s*/i,
