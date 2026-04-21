@@ -36,31 +36,31 @@ pipeline {
         }
 
         stage('Generate Coverage Report') {
-    steps {
-        dir("${APP_DIR}") {
-            sh 'npm run test:coverage'
-        }
-    }
-}
-
-stage('SonarQube Analysis') {
-    steps {
-        dir("${APP_DIR}") {
-            withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                sh '''
-                    sonar-scanner \
-                      -Dsonar.projectKey=pidevxbmp-backend \
-                      -Dsonar.projectName=PIDEVxBMP \
-                      -Dsonar.sources=. \
-                      Dsonar.exclusions=node_modules/,coverage/,/.env,/.env.,**/.pem,**/*.key \
-                      -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-                      -Dsonar.host.url=http://localhost:9000 \
-                      -Dsonar.login=$SONAR_TOKEN
-                '''
+            steps {
+                dir("${APP_DIR}") {
+                    sh 'npm run test:coverage'
+                }
             }
         }
-    }
-}
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir("${APP_DIR}") {
+                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                        sh '''
+                            sonar-scanner \
+                              -Dsonar.projectKey=pidevxbmp-backend \
+                              -Dsonar.projectName=PIDEVxBMP \
+                              -Dsonar.sources=. \
+                              -Dsonar.exclusions=node_modules/**,coverage/** \
+                              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                              -Dsonar.host.url=http://localhost:9000 \
+                              -Dsonar.login=$SONAR_TOKEN
+                        '''
+                    }
+                }
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
