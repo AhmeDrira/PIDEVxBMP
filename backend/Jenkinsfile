@@ -12,7 +12,7 @@ pipeline {
     }
 
     environment {
-        APP_DIR = 'backend'  // ← Changé : '.' → 'backend'
+        APP_DIR = 'backend'
         DOCKER_IMAGE = 'ahmedrira/pidevxbmp-backend'
         DOCKER_TAG = "${BUILD_NUMBER}"
     }
@@ -27,7 +27,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'npm install'  // ← Changé : npm ci → npm install
+                    sh 'npm install'
                 }
             }
         }
@@ -35,7 +35,7 @@ pipeline {
         stage('Run Unit Tests') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'npm test || echo "No tests configured yet"'
+                    sh 'npm test'
                 }
             }
         }
@@ -45,12 +45,11 @@ pipeline {
                 dir("${APP_DIR}") {
                     withSonarQubeEnv('SonarQube') {
                         sh '''
-                            npx --yes sonar-scanner \
+                            sonar-scanner \
                               -Dsonar.projectKey=pidevxbmp-backend \
                               -Dsonar.projectName=PIDEVxBMP \
                               -Dsonar.sources=. \
-                              -Dsonar.exclusions=node_modules/**,coverage/**,tests/** \
-                              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                              -Dsonar.exclusions=node_modules/**,coverage/**
                         '''
                     }
                 }
