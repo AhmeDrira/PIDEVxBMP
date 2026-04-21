@@ -52,7 +52,7 @@ stage('SonarQube Analysis') {
                       -Dsonar.projectKey=pidevxbmp-backend \
                       -Dsonar.projectName=PIDEVxBMP \
                       -Dsonar.sources=. \
-                      -Dsonar.exclusions=node_modules/**,coverage/** \
+                      Dsonar.exclusions=node_modules/,coverage/,/.env,/.env.,**/.pem,**/*.key \
                       -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
                       -Dsonar.host.url=http://localhost:9000 \
                       -Dsonar.login=$SONAR_TOKEN

@@ -1027,7 +1027,9 @@ async function sendResetEmail(email, resetUrl) {
     }
   }
   
-  console.log('[DEV] Reset password URL:', resetUrl);
+  if (process.env.NODE_ENV !== 'production') {
+console.log('[DEV] Reset password fallback email generated for', email);
+}
 }
 
 async function sendVerificationEmail(email, verificationUrl) {
@@ -1048,7 +1050,9 @@ async function sendVerificationEmail(email, verificationUrl) {
     }
   }
   
-  console.log('[DEV] Verification URL:', verificationUrl);
+  if (process.env.NODE_ENV !== 'production') {
+console.log('[DEV] Verification fallback email generated for', email);
+}
 }
 
 async function sendTemporaryPasswordEmail(email, tempPassword) {
@@ -1069,7 +1073,9 @@ async function sendTemporaryPasswordEmail(email, tempPassword) {
     }
   }
 
-  console.log('[DEV] Temporary password:', tempPassword);
+  if (process.env.NODE_ENV !== 'production') {
+console.log('[DEV] Temporary password fallback email generated for', email);
+}
 }
 
 // Normalize phone to E.164 format (handles Tunisian local numbers)
@@ -1089,7 +1095,9 @@ async function sendSMS(phone, message) {
   const normalizedPhone = normalizePhone(phone);
   
   // Log to console so verification codes are still usable during development
-  console.log(`\n[DEV SMS to ${normalizedPhone}]:\n  ${message}\n`);
+  if (process.env.NODE_ENV !== 'production') {
+console.log('[DEV SMS fallback] Message prepared for', normalizedPhone);
+}
   return { sent: false };
 }
 
