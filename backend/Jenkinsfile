@@ -36,21 +36,22 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                dir("${APP_DIR}") {
-                    withSonarQubeEnv('SonarQube') {
-                        sh '''
-                            sonar-scanner \
-                              -Dsonar.projectKey=pidevxbmp-backend \
-                              -Dsonar.projectName=PIDEVxBMP \
-                              -Dsonar.sources=. \
-                              -Dsonar.exclusions=node_modules/**,coverage/** \
-                              -Dsonar.host.url=http://localhost:9000
-                        '''
-                    }
-                }
+    steps {
+        dir("${APP_DIR}") {
+            withSonarQubeEnv('SonarQube') {
+                sh '''
+                    sonar-scanner \
+                      -Dsonar.projectKey=pidevxbmp-backend \
+                      -Dsonar.projectName=PIDEVxBMP \
+                      -Dsonar.sources=. \
+                      -Dsonar.exclusions=node_modules/**,coverage/** \
+                      -Dsonar.host.url=http://localhost:9000 \
+                      -Dsonar.waitForReportProcessing=true
+                '''
             }
         }
+    }
+}
 
         stage('Build Docker Image') {
             steps {
