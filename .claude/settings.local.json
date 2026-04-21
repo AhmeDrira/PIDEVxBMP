@@ -9,7 +9,11 @@
       "Bash(npx vite:*)",
       "Bash(node -e \"const m = require\\(''mongoose''\\); console.log\\(''Mongoose version:'', m.version\\)\")",
       "Bash(node -e \":*)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "Bash(dir \"C:\\\\Users\\\\ahmed\\\\Documents\\\\esprit\\\\pi\\\\bmp\\\\PIDEVxBMP\\\\frontend\\\\src\" /s /b)",
+      "Bash(findstr /i \"language context\")",
+      "Bash(node -e \"const zod = require\\('./node_modules/zod/package.json'\\); console.log\\('Zod version:', zod.version\\)\")",
+      "Bash(npx vitest *)"
     ]
   }
 }

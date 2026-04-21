@@ -1,4 +1,4 @@
-
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
@@ -49,6 +49,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // ─── Test configuration (Vitest) ─────────────────────────────────────────
+  test: {
+    globals: true,               // expose describe / it / expect / vi globally
+    environment: 'jsdom',        // simulate a browser DOM (needed for React)
+    setupFiles: ['./src/setupTests.ts'], // run before every test suite
+    css: false,                  // skip CSS processing — faster tests
+  },
+  // ─────────────────────────────────────────────────────────────────────────
   build: {
     target: 'esnext',
     outDir: 'build',
