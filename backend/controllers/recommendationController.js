@@ -87,20 +87,9 @@ function sanitizeGeneratedDescription(rawText) {
     .replace(/^#+\s*/g, '')
     .replace(/^[-*•]\s+/g, '')
     .replace(/^\d+[.)]\s+/g, '')
-    .replace(/^(description|material description|product description)\s*:\s*/i, '');
-
-  let start = 0;
-  let end = text.length;
-
-  while (start < end && text[start] === '"') {
-    start += 1;
-  }
-
-  while (end > start && text[end - 1] === '"') {
-    end -= 1;
-  }
-
-  text = text.slice(start, end).trim();
+    .replace(/^(description|material description|product description)\s*:\s*/i, '')
+    .replace(/^"+|"+$/g, '')
+    .trim();
 
   return text;
 }
