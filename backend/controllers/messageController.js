@@ -6,6 +6,11 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 
+function safeStr(value) {
+  if (value === null || value === undefined) return '';
+  return String(value);
+}
+
 function extractGeminiText(responseData) {
   const candidates = Array.isArray(responseData?.candidates) ? responseData.candidates : [];
   if (!candidates.length) return '';
