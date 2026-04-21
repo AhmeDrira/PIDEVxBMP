@@ -35,18 +35,27 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('Generate Coverage Report') {
     steps {
         dir("${APP_DIR}") {
-            withSonarQubeEnv('SonarQube') {
+            sh 'npm run test:coverage'
+        }
+    }
+}
+
+stage('SonarQube Analysis') {
+    steps {
+        dir("${APP_DIR}") {
+            withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                 sh '''
                     sonar-scanner \
                       -Dsonar.projectKey=pidevxbmp-backend \
                       -Dsonar.projectName=PIDEVxBMP \
                       -Dsonar.sources=. \
                       -Dsonar.exclusions=node_modules/**,coverage/** \
+                      -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
                       -Dsonar.host.url=http://localhost:9000 \
-                      -Dsonar.waitForReportProcessing=true
+                      -Dsonar.login=$SONAR_TOKEN
                 '''
             }
         }
