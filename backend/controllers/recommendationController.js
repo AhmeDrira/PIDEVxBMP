@@ -88,7 +88,8 @@ function sanitizeGeneratedDescription(rawText) {
     .replace(/^[-*•]\s+/g, '')
     .replace(/^\d+[.)]\s+/g, '')
     .replace(/^(description|material description|product description)\s*:\s*/i, '')
-    .replace(/^"+|"+$/g, '')
+    .replace(/^"+/g, '')
+    .replace(/"+$/g, '')
     .trim();
 
   return text;

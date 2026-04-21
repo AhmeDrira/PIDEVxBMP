@@ -79,7 +79,8 @@ function finalizeGeneratedMessage(text) {
 
 function normalizeInstructionForFallback(aiInstruction) {
   let instruction = sanitizeGeneratedMessage(aiInstruction)
-    .replace(/^['"«»\s]+|['"«»\s]+$/g, '')
+    .replace(/^['"«»\s]+/g, '')
+    .replace(/['"«»\s]+$/g, '')
     .trim();
 
   const wrappers = [

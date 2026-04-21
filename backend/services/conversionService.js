@@ -195,7 +195,7 @@ function getCategoryKeywords(category) {
  * @returns {string[]}
  */
 function getAllCategories() {
-  return Object.keys(CONVERSION_TABLE).sort();
+  return Object.keys(CONVERSION_TABLE).sort((a, b) => a.localeCompare(b, 'fr'));
 }
 
 module.exports = {
