@@ -50,3 +50,46 @@ describe('conversionService', () => {
     expect(result.quantity).toBe(1);
   });
 });
+
+describe('ConversionService - Tests additionnels pour couverture', () => {
+  test('calculateQuantity -> uses piece fallback when unit is unsupported', () => {
+    const result = calculateQuantity(5, 'unsupported-unit', 'Carrelage');
+
+    expect(result.factor).toBe(1);
+    expect(result.quantity).toBe(6);
+  });
+
+  test('calculateQuantity -> zero margin returns exact quantity', () => {
+    const result = calculateQuantity(10, 'm', 'Plomberie', 0, true);
+
+    expect(result.rawQuantity).toBe(10);
+    expect(result.quantity).toBe(10);
+  });
+
+  test('calculateQuantity -> negative margin still keeps quantity >= 1', () => {
+    const result = calculateQuantity(0.2, 'm²', 'Peinture', -0.9, true);
+
+    expect(result.quantity).toBeGreaterThanOrEqual(1);
+  });
+
+  test('getUnitsForCategory -> returns ordered units for known category', () => {
+    const units = getUnitsForCategory('Béton');
+
+    expect(Array.isArray(units)).toBe(true);
+    expect(units[0]).toBe('m³');
+  });
+
+  test('getCategoryKeywords -> unknown category returns empty array', () => {
+    const keywords = getCategoryKeywords('categorie_inconnue');
+
+    expect(Array.isArray(keywords)).toBe(true);
+    expect(keywords).toEqual([]);
+  });
+
+  test('getAllCategories -> includes expected domain categories', () => {
+    const categories = getAllCategories();
+
+    expect(categories).toContain('Carrelage');
+    expect(categories).toContain('Béton');
+  });
+});
