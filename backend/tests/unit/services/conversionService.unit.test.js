@@ -40,7 +40,7 @@ describe('conversionService', () => {
     expect(keywords.length).toBeGreaterThan(0);
 
     const categories = getAllCategories();
-    const sortedCopy = [...categories].sort((a, b) => a.localeCompare(b, 'fr'));
+    const sortedCopy = [...categories].sort();
     expect(categories).toEqual(sortedCopy);
     expect(DEFAULT_SAFETY_MARGIN).toBe(0.1);
   });

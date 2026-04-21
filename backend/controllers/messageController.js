@@ -6,11 +6,6 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 
-function safeStr(value) {
-  if (value === null || value === undefined) return '';
-  return String(value);
-}
-
 function extractGeminiText(responseData) {
   const candidates = Array.isArray(responseData?.candidates) ? responseData.candidates : [];
   if (!candidates.length) return '';
@@ -82,32 +77,10 @@ function finalizeGeneratedMessage(text) {
   return `${cleaned}.`;
 }
 
-function trimBoundaryQuotesAndWhitespace(value) {
-  const source = safeStr(value);
-  let start = 0;
-  let end = source.length;
-
-  const isBoundaryChar = (char) => (
-    char === '\''
-    || char === '"'
-    || char === '«'
-    || char === '»'
-    || char.trim() === ''
-  );
-
-  while (start < end && isBoundaryChar(source[start])) {
-    start += 1;
-  }
-
-  while (end > start && isBoundaryChar(source[end - 1])) {
-    end -= 1;
-  }
-
-  return source.slice(start, end);
-}
-
 function normalizeInstructionForFallback(aiInstruction) {
-  let instruction = trimBoundaryQuotesAndWhitespace(sanitizeGeneratedMessage(aiInstruction));
+  let instruction = sanitizeGeneratedMessage(aiInstruction)
+    .replace(/^['"«»\s]+|['"«»\s]+$/g, '')
+    .trim();
 
   const wrappers = [
     /^je\s+veux\s+envoyer\s+un\s+message\s+qui\s+lui\s+dit\s+que\s*/i,
