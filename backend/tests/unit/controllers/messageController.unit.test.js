@@ -142,6 +142,27 @@ describe('messageController', () => {
     expect(res.body.generatedMessage).toMatch(/Bonjour/i);
   });
 
+  test('generateAIDraftMessage -> trims boundary quotes before building fallback message', async () => {
+    axios.post.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 429, data: { error: { message: 'quota exceeded' } } },
+      message: 'quota exceeded',
+    });
+
+    const req = buildReq({
+      user: { _id: 'u1', role: 'artisan' },
+      body: { aiInstruction: '   ""« message: que la livraison est retarde »""   ' },
+    });
+    const res = buildRes();
+
+    await controller.generateAIDraftMessage(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.body.fallbackUsed).toBe(true);
+    expect(res.body.generatedMessage).toMatch(/la livraison est retarde/i);
+    expect(res.body.generatedMessage).not.toMatch(/[«»"]/);
+  });
+
   test('getMessages -> 500 on unexpected error', async () => {
     Conversation.findById.mockRejectedValue(new Error('db crash'));
 
