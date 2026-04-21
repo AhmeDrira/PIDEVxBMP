@@ -1,3 +1,5 @@
+process.env.JWT_SECRET = 'test-secret-key-for-socket-tests';
+
 const mockIo = {
   use: jest.fn(),
   on: jest.fn(),
