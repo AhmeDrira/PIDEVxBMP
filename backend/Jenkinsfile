@@ -15,7 +15,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'test_unitaire', url: 'https://github.com/AhmeDrira/PIDEVxBMP.git'
+                git branch: 'test_unitaire_coverage', url: 'https://github.com/AhmeDrira/PIDEVxBMP.git'
             }
         }
 
