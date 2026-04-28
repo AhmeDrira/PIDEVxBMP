@@ -9,7 +9,8 @@
       "Bash(npx vite:*)",
       "Bash(node -e \"const m = require\\(''mongoose''\\); console.log\\(''Mongoose version:'', m.version\\)\")",
       "Bash(node -e \":*)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")"
     ]
   }
 }

@@ -3,9 +3,10 @@ import axios from 'axios';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ArrowRight, MapPin, Briefcase, Calendar, Star, MessageSquare, Phone, Mail, Award, Image, ArrowLeft, Send } from 'lucide-react';
+import { ArrowRight, MapPin, Briefcase, Calendar, Star, MessageSquare, Phone, Mail, Award, Image, ArrowLeft, Send, FileText, X, CheckCircle } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { useLanguage } from '../../context/LanguageContext';
+import ReadOnlyCalendar from './ReadOnlyCalendar';
 
 interface ViewArtisanProfileProps {
   artisanId?: string;
@@ -67,6 +68,20 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
   const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'profile' | 'availability'>('profile');
+
+  // ── Proposition de projet ──────────────────────────────────────────────────
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [proposalForm, setProposalForm] = useState({
+    description: '',
+    localisation: '',
+    proposedPrice: '',
+    startDate: '',
+  });
+  const [proposalSubmitting, setProposalSubmitting] = useState(false);
+  const [proposalError, setProposalError]   = useState('');
+  const [proposalSuccess, setProposalSuccess] = useState(false);
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -179,6 +194,54 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
     }
   };
 
+  const handleSubmitProposal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProposalError('');
+
+    const { description, localisation, proposedPrice, startDate } = proposalForm;
+    if (!description.trim() || !localisation.trim() || !proposedPrice || !startDate) {
+      setProposalError(tr('Please fill in all required fields.', 'Veuillez remplir tous les champs obligatoires.', 'يرجى ملء جميع الحقول المطلوبة.'));
+      return;
+    }
+
+    setProposalSubmitting(true);
+    try {
+      const token = getToken();
+      await axios.post(
+        `${API_URL}/proposals`,
+        {
+          artisanId,
+          description: description.trim(),
+          localisation: localisation.trim(),
+          proposedPrice: Number(proposedPrice),
+          startDate,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProposalSuccess(true);
+      setProposalForm({ description: '', localisation: '', proposedPrice: '', startDate: '' });
+      // Fermer automatiquement après 2 secondes
+      setTimeout(() => {
+        setIsProposalModalOpen(false);
+        setProposalSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      setProposalError(
+        err?.response?.data?.message ||
+        tr('Failed to send proposal. Please try again.', 'Échec de l\'envoi. Veuillez réessayer.', 'فشل الإرسال. يرجى المحاولة مجدداً.')
+      );
+    } finally {
+      setProposalSubmitting(false);
+    }
+  };
+
+  const closeProposalModal = () => {
+    setIsProposalModalOpen(false);
+    setProposalSuccess(false);
+    setProposalError('');
+    setProposalForm({ description: '', localisation: '', proposedPrice: '', startDate: '' });
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -252,7 +315,7 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <Button
                   onClick={onViewPortfolio}
                   variant="outline"
@@ -263,10 +326,18 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
                 </Button>
                 <Button
                   onClick={onContact}
-                  className="h-12 px-8 text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg"
+                  variant="outline"
+                  className="h-12 px-6 rounded-xl border-2"
                 >
                   <MessageSquare size={20} className="mr-2" />
-                  {tr('Contact Artisan', 'Contacter l\'artisan', 'اتصل بالحرفي')}
+                  {tr('Contact', 'Contacter', 'تواصل')}
+                </Button>
+                <Button
+                  onClick={() => setIsProposalModalOpen(true)}
+                  className="h-12 px-8 text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg"
+                >
+                  <FileText size={20} className="mr-2" />
+                  {tr('Propose a Project', 'Proposer un projet', 'اقتراح مشروع')}
                 </Button>
               </div>
             </div>
@@ -299,7 +370,36 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
         </div>
       </Card>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      {/* ── Tab navigation ── */}
+      <div className="flex border-b border-border gap-1">
+        {(['profile', 'availability'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-5 py-2.5 text-sm font-medium rounded-t-xl transition-colors border-b-2 -mb-px ${
+              activeTab === tab
+                ? 'border-primary text-primary bg-primary/5'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab === 'profile'
+              ? tr('Profile', 'Profil', 'الملف الشخصي')
+              : `📅 ${tr('Availabilities', 'Disponibilités', 'التوافر')}`}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Availability tab ── */}
+      {activeTab === 'availability' && (
+        <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg">
+          <h2 className="text-xl font-bold text-foreground mb-4">
+            📅 {tr('Artisan Availability Calendar', 'Calendrier des disponibilités', 'تقويم توافر الحرفي')}
+          </h2>
+          <ReadOnlyCalendar artisanId={artisanId || ''} onContact={onContact} />
+        </Card>
+      )}
+
+      {activeTab === 'profile' && <><div className="grid lg:grid-cols-3 gap-6">
         {/* Contact Information */}
         <Card className="p-6 bg-card rounded-2xl border border-border shadow-lg lg:col-span-1">
           <h2 className="text-xl font-bold text-foreground mb-6">{tr('Contact Information', 'Informations de contact', 'Contact Information')}</h2>
@@ -474,7 +574,149 @@ export default function ViewArtisanProfile({ artisanId, onBack, onContact, onVie
             ))}
           </div>
         )}
-      </Card>
+      </Card></>}
+
+      {/* ── Modal : Proposer un projet ── */}
+      {isProposalModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={e => e.target === e.currentTarget && closeProposalModal()}
+        >
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg border border-border">
+
+            {/* Header du modal */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <FileText size={20} className="text-blue-600" />
+                {tr('Propose a Project', 'Proposer un projet', 'اقتراح مشروع')}
+              </h2>
+              <button
+                onClick={closeProposalModal}
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                aria-label="close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Corps du modal */}
+            <div className="p-6">
+              {/* ─ Succès ─ */}
+              {proposalSuccess ? (
+                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                  <CheckCircle size={56} className="text-green-500" />
+                  <p className="text-lg font-semibold text-foreground">
+                    {tr('Proposal sent!', 'Demande envoyée à l\'artisan !', 'تم إرسال الطلب إلى الحرفي!')}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {tr(
+                      'The artisan will review your proposal shortly.',
+                      'L\'artisan examinera votre demande prochainement.',
+                      'سيراجع الحرفي طلبك قريباً.'
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitProposal} className="space-y-4">
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      {tr('Project Description', 'Description du projet', 'وصف المشروع')} *
+                    </label>
+                    <textarea
+                      value={proposalForm.description}
+                      onChange={e => setProposalForm(p => ({ ...p, description: e.target.value }))}
+                      rows={4}
+                      placeholder={tr(
+                        'Describe the work you need done in detail…',
+                        'Décrivez les travaux souhaités en détail…',
+                        'صف الأعمال المطلوبة بالتفصيل…'
+                      )}
+                      className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+                      required
+                    />
+                  </div>
+
+                  {/* Localisation */}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      {tr('Location / Site', 'Localisation / Chantier', 'الموقع / مكان العمل')} *
+                    </label>
+                    <input
+                      type="text"
+                      value={proposalForm.localisation}
+                      onChange={e => setProposalForm(p => ({ ...p, localisation: e.target.value }))}
+                      placeholder={tr('e.g. Tunis, Menzah 9', 'Ex : Tunis, Menzah 9', 'مثال: تونس، المنزه 9')}
+                      className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                      required
+                    />
+                  </div>
+
+                  {/* Budget + Date côte à côte */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        {tr('Proposed Budget (TND)', 'Budget proposé (TND)', 'الميزانية المقترحة (TND)')} *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={proposalForm.proposedPrice}
+                        onChange={e => setProposalForm(p => ({ ...p, proposedPrice: e.target.value }))}
+                        placeholder="3 500"
+                        className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        {tr('Desired Start Date', 'Date souhaitée', 'تاريخ البدء المقترح')} *
+                      </label>
+                      <input
+                        type="date"
+                        value={proposalForm.startDate}
+                        onChange={e => setProposalForm(p => ({ ...p, startDate: e.target.value }))}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Message d'erreur */}
+                  {proposalError && (
+                    <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2">
+                      {proposalError}
+                    </p>
+                  )}
+
+                  {/* Boutons */}
+                  <div className="flex justify-end gap-3 pt-2 border-t border-border">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={closeProposalModal}
+                      className="rounded-xl"
+                    >
+                      {tr('Cancel', 'Annuler', 'إلغاء')}
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={proposalSubmitting}
+                      className="rounded-xl text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {proposalSubmitting
+                        ? tr('Sending…', 'Envoi en cours…', 'جاري الإرسال…')
+                        : tr('Send Proposal', 'Envoyer la demande', 'إرسال الطلب')}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

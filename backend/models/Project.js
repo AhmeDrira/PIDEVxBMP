@@ -98,7 +98,27 @@ const projectSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-  }
+  },
+  // ── Champs collaboratifs (remplis lors de la signature du contrat) ──────────
+  expertId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  contractId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Contract',
+    default: null,
+  },
+  proposalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ProjectProposal',
+    default: null,
+  },
+  isCollaborative: {
+    type: Boolean,
+    default: false,
+  },
 }, {
   timestamps: true // Ajoute automatiquement createdAt et updatedAt
 });

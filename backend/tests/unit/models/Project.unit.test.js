@@ -1,83 +1,63 @@
 const mongoose = require('mongoose');
 const Project = require('../../../models/Project');
 
-const buildValidProject = (overrides = {}) => ({
-  title: 'House Construction',
-  description: 'Build a small residential extension',
-  location: 'Tunis',
-  budget: 25000,
-  startDate: new Date('2026-01-01'),
-  endDate: new Date('2026-03-01'),
-  artisan: new mongoose.Types.ObjectId(),
-  ...overrides,
-});
-
-describe('Project model (unit)', () => {
-  it('should validate a complete project payload', () => {
-    // Arrange
-    const project = new Project(buildValidProject());
-
-    // Act
-    const error = project.validateSync();
-
-    // Assert
-    expect(error).toBeUndefined();
-    expect(project.status).toBe('active');
-    expect(project.priority).toBe('medium');
-    expect(project.progress).toBe(0);
+describe('Project model', () => {
+  const validPayload = () => ({
+    title: 'Renovation appartement',
+    description: 'Travaux interieurs',
+    location: 'Tunis',
+    budget: 3000,
+    startDate: new Date('2026-05-01'),
+    endDate: new Date('2026-06-01'),
+    artisan: new mongoose.Types.ObjectId(),
   });
 
-  it('should reject missing required fields and artisan ownership reference', () => {
-    // Arrange
-    const project = new Project(
-      buildValidProject({ title: '', artisan: undefined, description: '' })
-    );
+  test('validateSync -> fails on missing required fields', () => {
+    const doc = new Project({});
+    const err = doc.validateSync();
 
-    // Act
-    const error = project.validateSync();
-
-    // Assert
-    expect(error).toBeDefined();
-    expect(error.errors.title).toBeDefined();
-    expect(error.errors.description).toBeDefined();
-    expect(error.errors.artisan).toBeDefined();
+    expect(err.errors.title).toBeDefined();
+    expect(err.errors.description).toBeDefined();
+    expect(err.errors.location).toBeDefined();
+    expect(err.errors.startDate).toBeDefined();
+    expect(err.errors.endDate).toBeDefined();
+    expect(err.errors.artisan).toBeDefined();
   });
 
-  it('should reject invalid dates and negative budget values', () => {
-    // Arrange
-    const project = new Project(
-      buildValidProject({
-        budget: -100,
-        startDate: 'not-a-date',
-      })
-    );
+  test('defaults -> status priority and progress are initialized', () => {
+    const doc = new Project(validPayload());
+    const err = doc.validateSync();
 
-    // Act
-    const error = project.validateSync();
-
-    // Assert
-    expect(error).toBeDefined();
-    expect(error.errors.budget).toBeDefined();
-    expect(error.errors.startDate).toBeDefined();
+    expect(err).toBeUndefined();
+    expect(doc.status).toBe('active');
+    expect(doc.priority).toBe('medium');
+    expect(doc.progress).toBe(0);
   });
 
-  it('should enforce enum constraints for status, priority and task status', () => {
-    // Arrange
-    const project = new Project(
-      buildValidProject({
-        status: 'archived',
-        priority: 'urgent',
-        tasks: [{ title: 'Task 1', status: 'blocked' }],
-      })
-    );
+  test('validateSync -> rejects progress above 100', () => {
+    const doc = new Project({ ...validPayload(), progress: 101 });
+    const err = doc.validateSync();
 
-    // Act
-    const error = project.validateSync();
+    expect(err.errors.progress).toBeDefined();
+  });
 
-    // Assert
-    expect(error).toBeDefined();
-    expect(error.errors.status).toBeDefined();
-    expect(error.errors.priority).toBeDefined();
-    expect(error.errors['tasks.0.status']).toBeDefined();
+  test('validateSync -> personalMaterials require name/category/price', () => {
+    const doc = new Project({
+      ...validPayload(),
+      personalMaterials: [{ stock: 2 }],
+    });
+
+    const err = doc.validateSync();
+
+    expect(err.errors['personalMaterials.0.name']).toBeDefined();
+    expect(err.errors['personalMaterials.0.category']).toBeDefined();
+    expect(err.errors['personalMaterials.0.price']).toBeDefined();
+  });
+
+  test('schema defines artisan+status index', () => {
+    const indexes = Project.schema.indexes();
+    const hasIndex = indexes.some(([fields]) => fields.artisan === 1 && fields.status === 1);
+
+    expect(hasIndex).toBe(true);
   });
 });

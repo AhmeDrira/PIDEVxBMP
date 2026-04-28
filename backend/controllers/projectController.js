@@ -1,4 +1,9 @@
 const Project = require('../models/Project');
+const CalendarEvent = require('../models/CalendarEvent');
+const Contract = require('../models/Contract');
+const ProjectProposal = require('../models/ProjectProposal');
+const { User } = require('../models/User');
+const Product = require('../models/Product');
 const mongoose = require('mongoose');
 const { logAction } = require('../utils/actionLogger');
 
@@ -69,6 +74,23 @@ const createProject = async (req, res) => {
       },
     });
 
+    // Sync: create a calendar event for this project
+    try {
+      await CalendarEvent.create({
+        artisanId: req.user._id,
+        title: project.title,
+        type: 'projet',
+        startDate: project.startDate,
+        endDate: project.endDate,
+        description: project.description || '',
+        location: project.location || '',
+        projectId: project._id,
+        isPublic: true,
+      });
+    } catch (calErr) {
+      console.error('Calendar sync error on project create:', calErr);
+    }
+
     res.status(201).json(project);
   } catch (error) {
     console.error(error);
@@ -84,6 +106,8 @@ const getProjects = async (req, res) => {
     // On cherche tous les projets dont l'artisan correspond à l'ID de l'utilisateur connecté
     const projects = await Project.find({ artisan: req.user._id })
       .populate('materials')
+      .populate('expertId', 'firstName lastName email profilePhoto')
+      .populate('contractId', 'status signedByArtisanAt _id')
       .sort({ createdAt: -1 });
     res.status(200).json(projects);
   } catch (error) {
@@ -141,6 +165,20 @@ const updateProject = async (req, res) => {
       { returnDocument: 'after', runValidators: true }
     ).populate('materials');
 
+    // Sync: update linked calendar event if dates or title changed
+    try {
+      const calUpdate = {};
+      if (updatePayload.title) calUpdate.title = updatePayload.title;
+      if (updatePayload.startDate) calUpdate.startDate = new Date(updatePayload.startDate);
+      if (updatePayload.endDate) calUpdate.endDate = new Date(updatePayload.endDate);
+      if (updatePayload.description !== undefined) calUpdate.description = updatePayload.description;
+      if (Object.keys(calUpdate).length > 0) {
+        await CalendarEvent.findOneAndUpdate({ projectId: req.params.id }, calUpdate);
+      }
+    } catch (calErr) {
+      console.error('Calendar sync error on project update:', calErr);
+    }
+
     res.status(200).json(updatedProject);
 
   } catch (error) {
@@ -171,6 +209,13 @@ const deleteProject = async (req, res) => {
     }
 
     await Project.deleteOne({ _id: project._id });
+
+    // Sync: remove linked calendar event
+    try {
+      await CalendarEvent.deleteOne({ projectId: project._id });
+    } catch (calErr) {
+      console.error('Calendar sync error on project delete:', calErr);
+    }
 
     await logAction(req, {
       actionKey: 'artisan.project.delete',
@@ -242,9 +287,41 @@ const uploadPersonalMaterialImage = async (req, res) => {
   }
 };
 
+// @desc    Get collaborative projects where the expert is involved
+// @route   GET /api/projects/expert/:expertId
+// @access  Private (expert or admin)
+const getExpertProjects = async (req, res) => {
+  try {
+    const { expertId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(expertId)) {
+      return res.status(400).json({ message: 'Invalid expert ID' });
+    }
+
+    // Only the expert themselves (or admin) can access
+    if (
+      req.user.role !== 'admin' &&
+      req.user._id.toString() !== expertId
+    ) {
+      return res.status(403).json({ message: 'Not authorized to view these projects' });
+    }
+
+    const projects = await Project.find({ expertId, isCollaborative: true })
+      .populate('artisan', 'firstName lastName email profilePhoto domain location')
+      .populate('contractId', 'status signedByArtisanAt signatureData _id')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(projects);
+  } catch (error) {
+    console.error('getExpertProjects error:', error);
+    return res.status(500).json({ message: 'Server error while fetching expert projects' });
+  }
+};
+
 module.exports = {
   createProject,
   getProjects,
+  getExpertProjects,
   updateProject,
   deleteProject,
   uploadPersonalMaterialImage,

@@ -94,5 +94,8 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/ai',      require('./routes/aiRoutes'));
 app.use('/api/recommendations', require('./routes/recommendationRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/calendar', require('./routes/calendarRoutes'));
+app.use('/api/contracts', require('./routes/contractRoutes'));
+app.use('/api/proposals', require('./routes/proposalRoutes'));
 
 module.exports = app;

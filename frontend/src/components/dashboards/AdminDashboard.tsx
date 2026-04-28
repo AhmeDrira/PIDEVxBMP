@@ -45,29 +45,29 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const profilePhoto = currentUser?.profilePhoto || '';
 
   const menuItems = useMemo(() => ([
-    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
-    { id: 'users', label: t('nav.userManagement'), icon: <Users size={20} /> },
+    { id: 'home', label: t('home'), icon: <Home size={20} /> },
+    { id: 'users', label: t('userManagement'), icon: <Users size={20} /> },
     {
       id: 'verification',
-      label: t('nav.manufacturerVerification'),
+      label: t('manufacturerVerification'),
       icon: <CheckSquare size={20} />,
       visible: isSuperAdmin || permissions.canVerifyManufacturers,
     },
     {
       id: 'knowledge',
-      label: t('nav.knowledgeLibrary'),
+      label: t('knowledgeLibrary'),
       icon: <BookOpen size={20} />,
       visible: isSuperAdmin || permissions.canManageKnowledge,
     },
     {
       id: 'logs',
-      label: t('nav.logs'),
+      label: t('logs'),
       icon: <History size={20} />,
       visible: isSuperAdmin || isSubAdmin,
     },
     {
       id: 'reports',
-      label: t('nav.reports'),
+      label: t('reports'),
       icon: <Flag size={20} />,
       visible: isSuperAdmin || isSubAdmin,
     },

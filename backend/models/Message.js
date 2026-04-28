@@ -4,6 +4,22 @@ const messageSchema = new mongoose.Schema({
   conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   content: { type: String, default: '' },
+  // ── Proposal message fields ───────────────────────────────────────────────
+  messageType: {
+    type: String,
+    enum: ['text', 'price_proposal', 'counter_proposal', 'proposal_accepted', 'proposal_rejected', 'file', 'voice'],
+    default: 'text',
+  },
+  proposedPrice: {
+    type: Number,
+    default: null,
+  },
+  proposalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ProjectProposal',
+    default: null,
+  },
+  // ─────────────────────────────────────────────────────────────────────────
   attachments: [{
     filename: { type: String },
     originalName: { type: String },

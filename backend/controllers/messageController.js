@@ -1,5 +1,6 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
+const ProjectProposal = require('../models/ProjectProposal');
 const { getIo } = require('../socket');
 const multer = require('multer');
 const path = require('path');
@@ -463,6 +464,249 @@ exports.sendVoiceMessage = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erreur lors de l'envoi du message vocal" });
+  }
+};
+
+// ─── Shared helper: find-or-create conversation + create proposal message ────
+// Used both by this controller and by proposalController (via import).
+// Returns { message: populated, conversationId }
+async function createProposalMessage({ senderId, recipientId, proposalId, messageType, proposedPrice, content }) {
+  // Find existing conversation between the two participants
+  let conversation = await Conversation.findOne({
+    participants: { $all: [senderId, recipientId] },
+    $expr: { $eq: [{ $size: '$participants' }, 2] },
+  });
+
+  if (!conversation) {
+    conversation = await Conversation.create({
+      participants: [senderId, recipientId],
+      lastMessage: content || '',
+    });
+  }
+
+  const message = await Message.create({
+    conversation: conversation._id,
+    sender: senderId,
+    content: content || '',
+    messageType,
+    proposedPrice: proposedPrice ?? null,
+    proposalId: proposalId ?? null,
+    readBy: [senderId],
+  });
+
+  // Update lastMessage preview
+  conversation.lastMessage = content || '💰 Proposition';
+  conversation.deletedBy = [];
+  await conversation.save();
+
+  const populated = await Message.findById(message._id)
+    .populate('sender', 'firstName lastName');
+
+  // Real-time notify the other party
+  try {
+    getIo().to(`user:${String(recipientId)}`).emit('message:new', {
+      conversationId: String(conversation._id),
+      senderId: String(senderId),
+      message: populated,
+    });
+  } catch (_) { /* socket may not be running in tests */ }
+
+  return { message: populated, conversationId: conversation._id };
+}
+exports.createProposalMessage = createProposalMessage;
+
+// ─── @desc    Artisan envoie une proposition de prix depuis la messagerie
+// ─── @route   POST /api/messages/price-proposal
+// ─── @access  Private (artisan)
+exports.sendPriceProposalFromChat = async (req, res) => {
+  try {
+    const { conversationId, proposalId, proposedPrice, content } = req.body;
+    const senderId = req.user._id;
+
+    if (!proposalId) return res.status(400).json({ message: 'proposalId is required' });
+    const price = Number(proposedPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({ message: 'proposedPrice must be a valid positive number' });
+    }
+
+    // Verify proposal exists and caller is the artisan
+    const proposal = await ProjectProposal.findById(proposalId);
+    if (!proposal) return res.status(404).json({ message: 'Proposal not found' });
+    if (proposal.artisanId.toString() !== senderId.toString()) {
+      return res.status(403).json({ message: 'Only the artisan can send a price proposal' });
+    }
+    if (!['pending', 'negotiating'].includes(proposal.status)) {
+      return res.status(400).json({ message: `Cannot propose on a proposal with status "${proposal.status}"` });
+    }
+
+    // If conversationId provided, use it; otherwise resolve from participants
+    let convId = conversationId;
+    if (!convId) {
+      const conv = await Conversation.findOne({
+        participants: { $all: [proposal.artisanId, proposal.expertId] },
+        $expr: { $eq: [{ $size: '$participants' }, 2] },
+      });
+      convId = conv?._id || null;
+    }
+
+    // If still no conversation, create one
+    if (!convId) {
+      const newConv = await Conversation.create({
+        participants: [proposal.artisanId, proposal.expertId],
+        lastMessage: '',
+      });
+      convId = newConv._id;
+    }
+
+    // Update the proposal (via counter endpoint logic)
+    proposal.negotiationHistory.push({
+      senderId,
+      senderRole: 'artisan',
+      proposedPrice: price,
+      message: content || '',
+      createdAt: new Date(),
+    });
+    proposal.currentPrice    = price;
+    proposal.lastProposedBy  = 'artisan';
+    proposal.negotiatedPrice = price;
+    proposal.status          = 'negotiating';
+    await proposal.save();
+
+    // Create the message
+    const message = await Message.create({
+      conversation: convId,
+      sender: senderId,
+      content: content || '',
+      messageType: 'price_proposal',
+      proposedPrice: price,
+      proposalId,
+      readBy: [senderId],
+    });
+
+    await Conversation.findByIdAndUpdate(convId, {
+      lastMessage: `💰 ${price.toLocaleString('fr-TN')} TND`,
+      deletedBy: [],
+    });
+
+    const populated = await Message.findById(message._id)
+      .populate('sender', 'firstName lastName');
+
+    try {
+      getIo().to(`user:${String(proposal.expertId)}`).emit('message:new', {
+        conversationId: String(convId),
+        senderId: String(senderId),
+        message: populated,
+      });
+    } catch (_) {}
+
+    return res.status(201).json(populated);
+  } catch (err) {
+    console.error('sendPriceProposalFromChat error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ─── @desc    Accept a proposal directly from a chat message
+// ─── @route   PUT /api/messages/proposal/:proposalId/accept
+// ─── @access  Private (artisan)
+exports.acceptProposalFromChat = async (req, res) => {
+  try {
+    const { proposalId } = req.params;
+    const userId = req.user._id;
+
+    const proposal = await ProjectProposal.findById(proposalId)
+      .populate('artisanId', 'firstName lastName')
+      .populate('expertId', 'firstName lastName');
+    if (!proposal) return res.status(404).json({ message: 'Proposal not found' });
+
+    const isArtisan = proposal.artisanId._id.toString() === userId.toString();
+    const isExpert  = proposal.expertId._id.toString() === userId.toString();
+
+    if (!isArtisan && !isExpert) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (!['pending', 'negotiating'].includes(proposal.status)) {
+      return res.status(400).json({ message: `Cannot accept a proposal with status "${proposal.status}"` });
+    }
+
+    proposal.status = 'accepted';
+    await proposal.save();
+
+    const finalPrice = proposal.currentPrice ?? proposal.negotiatedPrice ?? proposal.proposedPrice;
+    const acceptorName = isArtisan
+      ? `${proposal.artisanId.firstName} ${proposal.artisanId.lastName}`
+      : `${proposal.expertId.firstName} ${proposal.expertId.lastName}`;
+    const recipientId = isArtisan ? proposal.expertId._id : proposal.artisanId._id;
+
+    // Create accepted message
+    setImmediate(async () => {
+      try {
+        await createProposalMessage({
+          senderId:      userId,
+          recipientId,
+          proposalId:    proposal._id,
+          messageType:   'proposal_accepted',
+          proposedPrice: finalPrice,
+          content:       `✅ ${acceptorName} a accepté la proposition au prix de ${finalPrice.toLocaleString('fr-TN')} TND.`,
+        });
+      } catch (e) { console.error('accepted message error:', e); }
+    });
+
+    return res.status(200).json({ message: 'Proposal accepted', proposal });
+  } catch (err) {
+    console.error('acceptProposalFromChat error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ─── @desc    Reject a proposal directly from a chat message
+// ─── @route   PUT /api/messages/proposal/:proposalId/reject
+// ─── @access  Private
+exports.rejectProposalFromChat = async (req, res) => {
+  try {
+    const { proposalId } = req.params;
+    const userId = req.user._id;
+
+    const proposal = await ProjectProposal.findById(proposalId)
+      .populate('artisanId', 'firstName lastName')
+      .populate('expertId', 'firstName lastName');
+    if (!proposal) return res.status(404).json({ message: 'Proposal not found' });
+
+    const isParty =
+      proposal.artisanId._id.toString() === userId.toString() ||
+      proposal.expertId._id.toString() === userId.toString();
+    if (!isParty) return res.status(403).json({ message: 'Not authorized' });
+
+    if (!['pending', 'negotiating'].includes(proposal.status)) {
+      return res.status(400).json({ message: `Cannot reject a proposal with status "${proposal.status}"` });
+    }
+
+    proposal.status = 'rejected';
+    await proposal.save();
+
+    const isArtisan   = proposal.artisanId._id.toString() === userId.toString();
+    const rejectorName = isArtisan
+      ? `${proposal.artisanId.firstName} ${proposal.artisanId.lastName}`
+      : `${proposal.expertId.firstName} ${proposal.expertId.lastName}`;
+    const recipientId  = isArtisan ? proposal.expertId._id : proposal.artisanId._id;
+
+    setImmediate(async () => {
+      try {
+        await createProposalMessage({
+          senderId:    userId,
+          recipientId,
+          proposalId:  proposal._id,
+          messageType: 'proposal_rejected',
+          content:     `❌ ${rejectorName} a refusé la proposition.`,
+        });
+      } catch (e) { console.error('rejected message error:', e); }
+    });
+
+    return res.status(200).json({ message: 'Proposal rejected', proposal });
+  } catch (err) {
+    console.error('rejectProposalFromChat error:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 

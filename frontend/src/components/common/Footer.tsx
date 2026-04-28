@@ -8,10 +8,10 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   const quickLinks = [
-    { label: t('nav.home'), href: '#' },
-    { label: t('nav.knowledgeLibrary'), href: '#' },
-    { label: t('nav.artisanDirectory'), href: '#' },
-    { label: t('nav.marketplace'), href: '#' },
+    { label: t('home'), href: '#' },
+    { label: t('knowledgeLibrary'), href: '#' },
+    { label: t('artisanDirectory'), href: '#' },
+    { label: t('marketplace'), href: '#' },
   ];
 
   const supportLinks = [

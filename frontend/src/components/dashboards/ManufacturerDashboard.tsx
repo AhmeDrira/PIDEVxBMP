@@ -67,10 +67,10 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
   // ------------------------------
 
   const menuItems =[
-    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
-    { id: 'products', label: t('nav.myProducts'), icon: <Package size={20} /> },
-    { id: 'orders', label: t('nav.orders'), icon: <ShoppingBag size={20} /> },
-    { id: 'reports', label: t('nav.myReports'), icon: <ClipboardList size={20} /> },
+    { id: 'home', label: t('home'), icon: <Home size={20} /> },
+    { id: 'products', label: t('myProducts'), icon: <Package size={20} /> },
+    { id: 'orders', label: t('orders'), icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: t('myReports'), icon: <ClipboardList size={20} /> },
   ];
 
   const handleMenuItemClick = async (id: string) => {

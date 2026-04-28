@@ -1,4 +1,5 @@
 
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
@@ -69,6 +70,21 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/tests/setup/setupTests.ts'],
+    clearMocks: true,
+    restoreMocks: true,
+    mockReset: true,
+    css: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/tests/**', 'src/**/*.d.ts'],
     },
   },
 });

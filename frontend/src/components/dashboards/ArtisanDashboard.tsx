@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, ShoppingBag, ClipboardList, Keyboard, Search } from 'lucide-react';
+import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, ShoppingBag, ClipboardList, Keyboard, Search, CalendarDays, Inbox } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import ArtisanHome from '../artisan/ArtisanHome';
 import ArtisanProjects from '../artisan/ArtisanProjects';
@@ -13,6 +13,10 @@ import ArtisanProfile from '../artisan/ArtisanProfile';
 import ArtisanPortfolio from '../artisan/ArtisanPortfolio';
 import PortfolioGalleryPage from '../artisan/PortfolioGalleryPage';
 import MyOrders from '../common/MyOrders';
+import ArtisanCalendar from '../artisan/ArtisanCalendar';
+import ArtisanProposals from '../artisan/ArtisanProposals';
+import ArtisanContractView from '../artisan/ArtisanContractView';
+import ArtisanContractSign from '../artisan/ArtisanContractSign';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
 import ArtisanProfileReviews from '../artisan/ArtisanProfileReviews';
 import MyReports from '../common/MyReports';
@@ -42,6 +46,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     return fromQuery || 'home';
   });
   const [selectedPortfolioItemId, setSelectedPortfolioItemId] = useState<string | null>(null);
+  const [signingContractId, setSigningContractId] = useState<string | null>(null);
   const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
@@ -104,6 +109,20 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
     return () => window.removeEventListener('goto-messages-call', handler);
   }, []);
 
+  // Navigate to contracts after artisan accepts an offer (from messaging)
+  useEffect(() => {
+    const handler = () => setActiveView('contracts');
+    window.addEventListener('goto-contracts', handler);
+    return () => window.removeEventListener('goto-contracts', handler);
+  }, []);
+
+  // Navigate to proposals after artisan accepts but chooses to sign later (from messaging)
+  useEffect(() => {
+    const handler = () => setActiveView('proposals');
+    window.addEventListener('goto-artisan-proposals', handler);
+    return () => window.removeEventListener('goto-artisan-proposals', handler);
+  }, []);
+
   useEffect(() => {
     const getCartKey = () => {
       try {
@@ -147,15 +166,18 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
   const profilePhoto = currentUser?.profilePhoto || '';
 
   const menuItems = [
-    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
-    { id: 'projects', label: t('nav.myProjects'), icon: <FolderKanban size={20} /> },
-    { id: 'marketplace', label: t('nav.marketplace'), icon: <ShoppingCart size={20} /> },
-    { id: 'quotes', label: t('nav.quotes'), icon: <FileText size={20} /> },
-    { id: 'invoices', label: t('nav.invoices'), icon: <Receipt size={20} /> },
-    { id: 'messages', label: t('nav.messages'), icon: <MessageSquare size={20} /> },
-    { id: 'subscription', label: t('nav.subscription'), icon: <CreditCard size={20} /> },
-    { id: 'orders', label: t('nav.myOrders'), icon: <ShoppingBag size={20} /> },
-    { id: 'reports', label: t('nav.myReports'), icon: <ClipboardList size={20} /> },
+    { id: 'home', label: t('home'), icon: <Home size={20} /> },
+    { id: 'projects', label: t('myProjects'), icon: <FolderKanban size={20} /> },
+    { id: 'marketplace', label: t('marketplace'), icon: <ShoppingCart size={20} /> },
+    { id: 'quotes', label: t('quotes'), icon: <FileText size={20} /> },
+    { id: 'invoices', label: t('invoices'), icon: <Receipt size={20} /> },
+    { id: 'calendar', label: t('calendar'), icon: <CalendarDays size={20} /> },
+    { id: 'proposals', label: t('proposals'), icon: <Inbox size={20} /> },
+    { id: 'contracts', label: t('contracts'), icon: <FileText size={20} /> },
+    { id: 'messages', label: t('messages'), icon: <MessageSquare size={20} /> },
+    { id: 'subscription', label: t('subscription'), icon: <CreditCard size={20} /> },
+    { id: 'orders', label: t('myOrders'), icon: <ShoppingBag size={20} /> },
+    { id: 'reports', label: t('myReports'), icon: <ClipboardList size={20} /> },
   ];
 
   const isEditableTarget = (target: EventTarget | null) => {
@@ -343,6 +365,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       c: 'messages',
       o: 'orders',
       r: 'reports',
+      l: 'calendar',
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -457,6 +480,25 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
         return <ArtisanQuotes />;
       case 'invoices':
         return <ArtisanInvoices />;
+      case 'calendar':
+        return <ArtisanCalendar />;
+      case 'proposals':
+        return <ArtisanProposals onNavigate={setActiveView} />;
+      case 'contracts':
+        return <ArtisanContractView onNavigate={(view, params) => {
+          if (view === 'sign-contract' && params?.contractId) {
+            setSigningContractId(params.contractId);
+          }
+          setActiveView(view);
+        }} />;
+      case 'sign-contract':
+        return signingContractId ? (
+          <ArtisanContractSign
+            contractId={signingContractId}
+            onBack={() => { setSigningContractId(null); setActiveView('contracts'); }}
+            onSigned={() => { setSigningContractId(null); setActiveView('contracts'); }}
+          />
+        ) : null;
       case 'messages':
         return <ArtisanMessages />;
       case 'subscription':

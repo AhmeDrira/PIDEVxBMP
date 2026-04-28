@@ -215,6 +215,54 @@ html {
   font-size: var(--font-size);
 }
 
+/* ─── Missing Tailwind color utilities (not in pre-compiled index.css) ──────── */
+@layer utilities {
+  /* Blues */
+  .bg-blue-50  { background-color: #eff6ff; }
+  .bg-blue-100 { background-color: #dbeafe; }
+  .bg-blue-600 { background-color: #2563eb; }
+  .bg-blue-700 { background-color: #1d4ed8; }
+  .hover\:bg-blue-50:hover  { background-color: #eff6ff; }
+  .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+  .text-blue-600 { color: #2563eb; }
+  .text-blue-700 { color: #1d4ed8; }
+  .border-blue-300 { border-color: #93c5fd; }
+  /* dark-mode blues */
+  .dark .dark\:bg-blue-950\/20 { background-color: rgb(23 37 84 / 0.2); }
+  .dark .dark\:bg-blue-950\/30 { background-color: rgb(23 37 84 / 0.3); }
+  .dark .dark\:text-blue-300   { color: #93c5fd; }
+  .dark .dark\:hover\:bg-blue-950\/30:hover { background-color: rgb(23 37 84 / 0.3); }
+  .dark .dark\:border-blue-800 { border-color: #1e40af; }
+
+  /* Greens */
+  .bg-green-600 { background-color: #16a34a; }
+  .bg-green-700 { background-color: #15803d; }
+  .hover\:bg-green-700:hover { background-color: #15803d; }
+  .text-green-600 { color: #16a34a; }
+
+  /* Reds */
+  .bg-red-50  { background-color: #fef2f2; }
+  .text-red-500 { color: #ef4444; }
+  .hover\:bg-red-50:hover   { background-color: #fef2f2; }
+  .hover\:text-red-500:hover { color: #ef4444; }
+
+  /* Oranges */
+  .bg-orange-50  { background-color: #fff7ed; }
+  .bg-orange-100 { background-color: #ffedd5; }
+  .text-orange-700 { color: #c2410c; }
+  .dark .dark\:bg-orange-900\/30 { background-color: rgb(124 45 18 / 0.3); }
+  .dark .dark\:text-orange-300   { color: #fdba74; }
+  .dark .dark\:bg-orange-950\/20 { background-color: rgb(67 20 7 / 0.2); }
+
+  /* Ambers */
+  .bg-amber-50  { background-color: #fffbeb; }
+  .bg-amber-100 { background-color: #fef3c7; }
+  .text-amber-700 { color: #b45309; }
+  .dark .dark\:bg-amber-900\/30 { background-color: rgb(120 53 15 / 0.3); }
+  .dark .dark\:text-amber-300   { color: #fcd34d; }
+  .dark .dark\:bg-amber-950\/20 { background-color: rgb(69 26 3 / 0.2); }
+}
+
 /* Responsive Utilities */
 @layer utilities {
   /* Prevent horizontal scroll */
@@ -291,4 +339,19 @@ body {
 
 .dark .text-white {
   color: #ffffff !important;
+}
+
+/* ─── Grid utilities missing from compiled Tailwind ─────────────────────────── */
+@layer utilities {
+  .grid-cols-7 {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  /* Week view: 56px time gutter + 7 equal day columns */
+  .grid-cols-week {
+    grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  }
+  /* Day view: 64px time gutter + 1 event column */
+  .grid-cols-day {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
 }

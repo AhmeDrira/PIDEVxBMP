@@ -28,6 +28,10 @@ import {
 import { Badge } from '../ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
+import ConfirmationPopup from './ConfirmationPopup';
+import CounterProposalForm from './CounterProposalForm';
+import AcceptOfferPopup from './AcceptOfferPopup';
+import RejectProposalPopup from './RejectProposalPopup';
 import ViewArtisanProfile from '../expert/ViewArtisanProfile';
 import VoiceMessage from './VoiceMessage';
 import VoiceRecorder from './VoiceRecorder';
@@ -63,6 +67,8 @@ interface Attachment {
   url: string;
 }
 
+type ProposalMessageType = 'price_proposal' | 'counter_proposal' | 'proposal_accepted' | 'proposal_rejected';
+
 interface Message {
   id: string;
   senderName: string;
@@ -70,6 +76,11 @@ interface Message {
   isSelf?: boolean;
   content: string;
   timestamp: string;
+  // ── Proposal fields ──────────────────────────────────────────────────────
+  messageType?: 'text' | ProposalMessageType | 'file' | 'voice';
+  proposedPrice?: number | null;
+  proposalId?: string | null;
+  // ─────────────────────────────────────────────────────────────────────────
   attachments?: Attachment[];
   reactions?: Array<{ user: string; emoji: string }>;
   replyTo?: {
@@ -168,6 +179,18 @@ export default function Messages() {
   const [reportDetails, setReportDetails] = useState('');
   const [activeReportSpeechField, setActiveReportSpeechField] = useState<ReportSpeechField | null>(null);
   const [isReportListening, setIsReportListening] = useState(false);
+  // ── Proposal modal state ────────────────────────────────────────────────────
+  type ProposalModalState =
+    | null
+    | { phase: 'confirm_counter'; proposalId: string; currentPrice: number }
+    | { phase: 'counter_form';   proposalId: string; currentPrice: number; formError?: string }
+    | { phase: 'confirm_accept'; proposalId: string; price: number }
+    | { phase: 'post_accept';    price: number; userRole: string }
+    | { phase: 'confirm_reject'; proposalId: string; currentPrice: number };
+
+  const [proposalModal,        setProposalModal]        = useState<ProposalModalState>(null);
+  const [proposalActionLoading, setProposalActionLoading] = useState<string | null>(null);
+  // ───────────────────────────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const conversationMenuRef = useRef<HTMLDivElement | null>(null);
@@ -468,14 +491,6 @@ export default function Messages() {
 
     const isSelf = currentUserId ? senderId === currentUserId : false;
 
-    console.log('Mapping message:', {
-      messageId: m._id || m.id,
-      senderId,
-      senderName,
-      isSelf,
-      content: m.content,
-    });
-
     return {
       id: m._id || m.id,
       senderName,
@@ -483,6 +498,9 @@ export default function Messages() {
       isSelf,
       content: m.content || '',
       timestamp,
+      messageType: m.messageType || 'text',
+      proposedPrice: m.proposedPrice ?? null,
+      proposalId: m.proposalId ? (typeof m.proposalId === 'object' ? (m.proposalId._id || String(m.proposalId)) : String(m.proposalId)) : null,
       attachments: Array.isArray(m.attachments) ? m.attachments : [],
       reactions: Array.isArray(m.reactions)
         ? m.reactions.map((r: any) => ({
@@ -565,7 +583,6 @@ export default function Messages() {
 
         const msgs = Array.isArray(response.data) ? response.data : [];
         const mappedMsgs = msgs.map(mapMessage);
-        console.log('Fetched messages:', mappedMsgs);
         setMessages(mappedMsgs);
         setConversations((prev) =>
           prev.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
@@ -626,6 +643,140 @@ export default function Messages() {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
+  // ── Proposal modal action handlers ──────────────────────────────────────
+
+  const getUserRole = (): string => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      return u.role || 'artisan';
+    } catch { return 'artisan'; }
+  };
+
+  /** "Accept" button clicked → open confirm popup (step 1) */
+  const handleAcceptButtonClick = (proposalId: string, price: number) => {
+    setProposalModal({ phase: 'confirm_accept', proposalId, price });
+  };
+
+  /** "Counter" button clicked → open confirm popup */
+  const handleCounterButtonClick = (proposalId: string, currentPrice: number) => {
+    setProposalModal({ phase: 'confirm_counter', proposalId, currentPrice });
+  };
+
+  /** Confirm counter "Oui" → open form */
+  const handleCounterConfirmed = () => {
+    if (proposalModal?.phase !== 'confirm_counter') return;
+    setProposalModal({
+      phase: 'counter_form',
+      proposalId: proposalModal.proposalId,
+      currentPrice: proposalModal.currentPrice,
+    });
+  };
+
+  /** Counter form submitted */
+  const handleCounterFormSubmit = async (price: number, message: string) => {
+    if (proposalModal?.phase !== 'counter_form') return;
+    const { proposalId } = proposalModal;
+    setProposalActionLoading(proposalId);
+    try {
+      const token = getToken();
+      await axios.post(
+        `${API_URL}/proposals/${proposalId}/counter`,
+        { proposedPrice: price, message },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProposalModal(null);
+      if (selectedConversationId) {
+        setTimeout(() => fetchMessages(selectedConversationId), 700);
+      }
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message ||
+        tr('Error sending. Please try again.', 'Erreur lors de l\'envoi. Veuillez réessayer.', 'خطأ أثناء الإرسال. يرجى المحاولة مجددًا.');
+      setProposalModal(prev =>
+        prev?.phase === 'counter_form' ? { ...prev, formError: errMsg } : prev
+      );
+    } finally {
+      setProposalActionLoading(null);
+    }
+  };
+
+  /** Confirm accept "Oui, accepter" → call API → decide next step */
+  const handleAcceptConfirmed = async () => {
+    if (proposalModal?.phase !== 'confirm_accept') return;
+    const { proposalId, price } = proposalModal;
+    setProposalActionLoading(proposalId);
+    try {
+      const token = getToken();
+      await axios.put(
+        `${API_URL}/messages/proposal/${proposalId}/accept`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (selectedConversationId) {
+        setTimeout(() => fetchMessages(selectedConversationId), 700);
+      }
+      const userRole = getUserRole();
+      if (userRole === 'artisan') {
+        setProposalModal({ phase: 'post_accept', price, userRole });
+      } else {
+        // Expert: no signing → navigate to proposals
+        setProposalModal(null);
+        window.dispatchEvent(new CustomEvent('goto-expert-proposals'));
+      }
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ||
+        tr('Failed to accept proposal', 'Échec de l\'acceptation', 'فشل القبول')
+      );
+      setProposalModal(null);
+    } finally {
+      setProposalActionLoading(null);
+    }
+  };
+
+  /** "Reject" button clicked → open the 3-choice confirm popup */
+  const handleRejectButtonClick = (proposalId: string, currentPrice: number) => {
+    setProposalModal({ phase: 'confirm_reject', proposalId, currentPrice });
+  };
+
+  /** Inside reject popup: "Counter-offer" → jump straight to counter form */
+  const handleCounterFromRejectPopup = () => {
+    if (proposalModal?.phase !== 'confirm_reject') return;
+    setProposalModal({
+      phase: 'counter_form',
+      proposalId: proposalModal.proposalId,
+      currentPrice: proposalModal.currentPrice,
+    });
+  };
+
+  /** Inside reject popup: "Reject definitively" → call API */
+  const handleRejectConfirmed = async () => {
+    if (proposalModal?.phase !== 'confirm_reject') return;
+    const { proposalId } = proposalModal;
+    setProposalActionLoading(proposalId);
+    try {
+      const token = getToken();
+      await axios.put(
+        `${API_URL}/proposals/${proposalId}/reject`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProposalModal(null);
+      if (selectedConversationId) {
+        setTimeout(() => fetchMessages(selectedConversationId), 700);
+      }
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ||
+        tr('Failed to reject proposal', 'Échec du refus', 'فشل الرفض')
+      );
+      setProposalModal(null);
+    } finally {
+      setProposalActionLoading(null);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!messageInput.trim() && selectedFiles.length === 0) || !selectedConversationId) return;
@@ -660,8 +811,6 @@ export default function Messages() {
           },
         }
       );
-
-      console.log('Message response:', response.data);
 
       const newMsg = mapMessage(response.data);
       setMessages(prev => [...prev, newMsg]);
@@ -894,7 +1043,7 @@ export default function Messages() {
       const response = await axios.post(
         `${API_URL}/messages/${messageId}/reaction`,
         { emoji },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const updated = mapMessage(response.data);
       setMessages((prev) => prev.map((msg) => (msg.id === messageId ? updated : msg)));
@@ -1188,7 +1337,95 @@ export default function Messages() {
             {loadingMessages && <p className="text-sm text-muted-foreground">{tr('Loading messages...', 'Chargement des messages...', 'جاري تحميل الرسالات...')}</p>}
             {!loadingMessages && messages.length === 0 && selectedConv && <p className="text-sm text-muted-foreground">{tr('No messages yet.', 'Aucun message pour le moment.', 'لا توجد رسالات حتى الآن.')}</p>}
             {!selectedConv && !loadingConversations && <p className="text-sm text-muted-foreground">{tr('Select a conversation to start chatting.', 'Selectionnez une conversation pour commencer a discuter.', 'ابتدئ محادثة لبدء الدردشة.')}</p>}
-            {messages.map(message => (
+            {messages.map(message => {
+              // ── Special rendering for proposal messages ──────────────────
+              const isProposalMsg = message.messageType && message.messageType !== 'text' && message.messageType !== 'file' && message.messageType !== 'voice';
+              if (isProposalMsg) {
+                const type = message.messageType as ProposalMessageType;
+                const price = message.proposedPrice;
+                const pId   = message.proposalId;
+                const isAccepted = type === 'proposal_accepted';
+                const isRejected = type === 'proposal_rejected';
+                const isActionable = (type === 'price_proposal' || type === 'counter_proposal') && !message.isSelf && pId;
+                const isLoading = proposalActionLoading === pId;
+
+                const bgClass = isAccepted
+                  ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+                  : isRejected
+                  ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                  : type === 'counter_proposal'
+                  ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800'
+                  : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800';
+
+                const icon = isAccepted ? '✅' : isRejected ? '❌' : type === 'counter_proposal' ? '🔄' : '💰';
+
+                return (
+                  <div key={message.id} className="flex justify-center my-1">
+                    <div className={`w-full max-w-sm min-w-0 overflow-hidden rounded-2xl border p-4 shadow-sm ${bgClass}`}>
+                      {/* Header row */}
+                      <div className="flex items-start gap-2 mb-1">
+                        <span className="text-lg leading-none">{icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold text-foreground">
+                            {message.isSelf
+                              ? tr('You', 'Vous', 'أنت')
+                              : message.senderName}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            {type === 'price_proposal'    && tr('proposed a price', 'a proposé un prix', 'اقترح سعرًا')}
+                            {type === 'counter_proposal'  && tr('sent a counter-offer', 'a envoyé une contre-offre', 'أرسل عرضًا مضادًا')}
+                            {type === 'proposal_accepted' && tr('accepted the proposal', 'a accepté la proposition', 'قبل الاقتراح')}
+                            {type === 'proposal_rejected' && tr('rejected the proposal', 'a refusé la proposition', 'رفض الاقتراح')}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">{message.timestamp}</span>
+                      </div>
+
+                      {/* Price */}
+                      {price != null && (
+                        <p className={`text-xl font-bold mb-1 break-all ${isAccepted ? 'text-green-600' : isRejected ? 'text-red-500' : 'text-foreground'}`}>
+                          {price.toLocaleString()} TND
+                        </p>
+                      )}
+
+                      {/* Optional note */}
+                      {message.content && (
+                        <p className="text-xs text-muted-foreground italic mb-2 break-words">"{message.content}"</p>
+                      )}
+
+                      {/* Action buttons — only for the OTHER party on actionable messages */}
+                      {isActionable && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleAcceptButtonClick(pId!, price ?? 0)}
+                            disabled={isLoading}
+                            className="flex-1 min-w-[80px] px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm"
+                          >
+                            {isLoading ? '…' : tr('Accept', 'Accepter', 'قبول')}
+                          </button>
+                          <button
+                            onClick={() => handleCounterButtonClick(pId!, price ?? 0)}
+                            disabled={isLoading}
+                            className="flex-1 min-w-[80px] px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                          >
+                            {tr('Counter', 'Contre-offre', 'عرض مضاد')}
+                          </button>
+                          <button
+                            onClick={() => handleRejectButtonClick(pId!, price ?? 0)}
+                            disabled={isLoading}
+                            className="flex-1 min-w-[80px] px-3 py-1.5 rounded-xl text-xs font-semibold bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50 transition-colors"
+                          >
+                            {tr('Reject', 'Refuser', 'رفض')}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              // ── End proposal message ─────────────────────────────────────
+
+              return (
               <div
                 key={message.id}
                 className={`flex ${message.isSelf ? 'justify-end' : 'justify-start'}`}
@@ -1316,7 +1553,6 @@ export default function Messages() {
                                   <Download size={16} />
                                 </a>
                               </div>
-                              <p className="text-[11px] text-right text-muted-foreground mt-1">Envoyé</p>
                             </div>
                           );
                         })}
@@ -1338,7 +1574,8 @@ export default function Messages() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="p-6 border-t-2 border-border">
@@ -1679,6 +1916,79 @@ export default function Messages() {
           </div>
         </div>
       )}
+
+      {/* ── Proposal action modals ───────────────────────────────────────── */}
+
+      {/* Step 1: Confirm counter-propose */}
+      {proposalModal?.phase === 'confirm_counter' && (
+        <ConfirmationPopup
+          title={tr('Counter-offer', 'Contre-proposition', 'عرض مضاد')}
+          message={tr(
+            'Do you want to make a counter-offer?',
+            'Voulez-vous faire une contre-proposition ?',
+            'هل تريد إرسال عرض مضاد؟'
+          )}
+          confirmLabel={tr('Yes', 'Oui', 'نعم')}
+          cancelLabel={tr('No', 'Non', 'لا')}
+          onConfirm={handleCounterConfirmed}
+          onCancel={() => setProposalModal(null)}
+        />
+      )}
+
+      {/* Step 2: Counter-propose form */}
+      {proposalModal?.phase === 'counter_form' && (
+        <CounterProposalForm
+          currentPrice={proposalModal.currentPrice}
+          onSubmit={handleCounterFormSubmit}
+          onCancel={() => setProposalModal(null)}
+          loading={proposalActionLoading !== null}
+          error={proposalModal.formError}
+        />
+      )}
+
+      {/* Step 1: Confirm accept */}
+      {proposalModal?.phase === 'confirm_accept' && (
+        <AcceptOfferPopup
+          phase="confirm_accept"
+          price={proposalModal.price}
+          loading={proposalActionLoading !== null}
+          onConfirm={handleAcceptConfirmed}
+          onCancel={() => setProposalModal(null)}
+          onSignNow={() => {}}
+          onSignLater={() => {}}
+        />
+      )}
+
+      {/* Step 2: Sign now or later (artisan only) */}
+      {proposalModal?.phase === 'post_accept' && (
+        <AcceptOfferPopup
+          phase="post_accept"
+          price={proposalModal.price}
+          onSignNow={() => {
+            setProposalModal(null);
+            window.dispatchEvent(new CustomEvent('goto-contracts'));
+          }}
+          onSignLater={() => {
+            setProposalModal(null);
+            window.dispatchEvent(new CustomEvent('goto-artisan-proposals'));
+          }}
+          onCancel={() => {}}
+          onConfirm={() => {}}
+        />
+      )}
+
+      {/* Reject confirmation: 3 choices — Cancel / Counter-offer / Reject definitively */}
+      {proposalModal?.phase === 'confirm_reject' && (
+        <RejectProposalPopup
+          price={proposalModal.currentPrice}
+          loading={proposalActionLoading !== null}
+          onCancel={() => setProposalModal(null)}
+          onCounter={handleCounterFromRejectPopup}
+          onReject={handleRejectConfirmed}
+        />
+      )}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+
     </div>
   );
 }

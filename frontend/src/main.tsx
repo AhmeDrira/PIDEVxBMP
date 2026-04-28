@@ -2,6 +2,7 @@
   import { createRoot } from "react-dom/client";
   import App from "./App.tsx";
   import "./index.css";
+  import "./styles/globals.css";
   import { SocketProvider } from "./context/SocketContext";
   import { GlobalCallProvider } from "./context/GlobalCallContext";
   import { ThemeProvider } from "next-themes";

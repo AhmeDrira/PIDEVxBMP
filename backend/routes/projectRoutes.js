@@ -3,6 +3,7 @@ const router = express.Router();
 const {
 	createProject,
 	getProjects,
+	getExpertProjects,
 	updateProject,
 	deleteProject,
 	uploadPersonalMaterialImage,
@@ -14,6 +15,8 @@ const upload = require('../middleware/uploadMiddleware');
 // Project CRUD
 router.post('/', protect, createProject);
 router.get('/', protect, getProjects);
+// Collaborative projects for an expert (must be before /:id routes)
+router.get('/expert/:expertId', protect, getExpertProjects);
 router.put('/:id', protect, updateProject);
 router.delete('/:id', protect, deleteProject);
 router.post('/:id/personal-materials/:materialId/image', protect, upload.single('document'), uploadPersonalMaterialImage);

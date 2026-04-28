@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList } from 'lucide-react';
+import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList, Handshake, Send } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import ExpertHome from '../expert/ExpertHome';
 import ExpertKnowledgeLibrary from '../expert/ExpertKnowledgeLibrary';
@@ -12,6 +12,8 @@ import MyOrders from '../common/MyOrders';
 import NotificationBell from '../common/NotificationBell';
 import { ShoppingBag } from 'lucide-react';
 import MyReports from '../common/MyReports';
+import ExpertCollaborativeProjects from '../expert/ExpertCollaborativeProjects';
+import ExpertProposals from '../expert/ExpertProposals';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -53,6 +55,13 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     const handler = () => setActiveView('messages');
     window.addEventListener('goto-messages-call', handler);
     return () => window.removeEventListener('goto-messages-call', handler);
+  }, []);
+
+  // Navigate to proposals after expert accepts artisan's counter-offer (from messaging)
+  useEffect(() => {
+    const handler = () => setActiveView('proposals');
+    window.addEventListener('goto-expert-proposals', handler);
+    return () => window.removeEventListener('goto-expert-proposals', handler);
   }, []);
 
   useEffect(() => {
@@ -112,13 +121,15 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
   const profilePhoto = currentUser?.profilePhoto || '';
 
   const menuItems = [
-    { id: 'home', label: t('nav.home'), icon: <Home size={20} /> },
-    { id: 'library', label: t('nav.knowledgeLibrary'), icon: <BookOpen size={20} /> },
-    { id: 'directory', label: t('nav.artisanDirectory'), icon: <Users size={20} /> },
-    { id: 'messages', label: t('nav.messages'), icon: <MessageSquare size={20} /> },
-    { id: 'marketplace', label: t('nav.marketplace'), icon: <ShoppingCart size={20} /> },
-    { id: 'orders', label: t('nav.myOrders'), icon: <ShoppingBag size={20} /> },
-    { id: 'reports', label: t('nav.myReports'), icon: <ClipboardList size={20} /> },
+    { id: 'home',                  label: t('home'),                     icon: <Home size={20} /> },
+    { id: 'library',               label: t('knowledgeLibrary'),         icon: <BookOpen size={20} /> },
+    { id: 'directory',             label: t('artisanDirectory'),         icon: <Users size={20} /> },
+    { id: 'proposals',              label: t('proposals'),                icon: <Send size={20} /> },
+    { id: 'collaborative-projects', label: t('collaborativeProjects'),   icon: <Handshake size={20} /> },
+    { id: 'messages',              label: t('messages'),                 icon: <MessageSquare size={20} /> },
+    { id: 'marketplace', label: t('marketplace'),    icon: <ShoppingCart size={20} /> },
+    { id: 'orders',    label: t('myOrders'),         icon: <ShoppingBag size={20} /> },
+    { id: 'reports',   label: t('myReports'),        icon: <ClipboardList size={20} /> },
   ];
 
   const renderContent = () => {
@@ -129,6 +140,10 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         return <ExpertKnowledgeLibrary />;
       case 'directory':
         return <ExpertArtisanDirectory onNavigate={setActiveView} />;
+      case 'proposals':
+        return <ExpertProposals onNavigate={setActiveView} />;
+      case 'collaborative-projects':
+        return <ExpertCollaborativeProjects onNavigate={setActiveView} />;
       case 'messages':
         return <ExpertMessages />;
       case 'marketplace':

@@ -1,7 +1,19 @@
 // routes/messageRoutes.js
 const express = require('express');
 const router = express.Router();
-const { getMessages, sendMessage, deleteMessage, uploadAttachments, toggleReaction, uploadVoice, sendVoiceMessage, generateAIDraftMessage } = require('../controllers/messageController');
+const {
+  getMessages,
+  sendMessage,
+  deleteMessage,
+  uploadAttachments,
+  toggleReaction,
+  uploadVoice,
+  sendVoiceMessage,
+  generateAIDraftMessage,
+  sendPriceProposalFromChat,
+  acceptProposalFromChat,
+  rejectProposalFromChat,
+} = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
 
 // GET messages d'une conversation
@@ -12,6 +24,11 @@ router.post('/', protect, uploadAttachments, sendMessage);
 router.post('/ai-generate', protect, generateAIDraftMessage);
 router.delete('/:id', protect, deleteMessage);
 router.post('/:id/reaction', protect, toggleReaction);
+
+// Actions sur les propositions depuis le chat
+router.post('/price-proposal', protect, sendPriceProposalFromChat);
+router.put('/proposal/:proposalId/accept', protect, acceptProposalFromChat);
+router.put('/proposal/:proposalId/reject', protect, rejectProposalFromChat);
 
 // POST envoyer un message vocal
 router.post('/voice', protect, uploadVoice, sendVoiceMessage);

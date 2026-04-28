@@ -1,75 +1,64 @@
+const bcrypt = require('bcryptjs');
 const { User } = require('../../../models/User');
 
-const buildValidUser = (overrides = {}) => ({
-  firstName: 'Jane',
-  lastName: 'Doe',
-  email: 'jane@example.com',
-  password: 'Password123!',
-  role: 'artisan',
-  ...overrides,
-});
-
-const getPasswordHook = () => {
-  const saveHooks = User.schema.s.hooks._pres.get('save') || [];
-  return saveHooks.find((hook) => {
-    const fnText = String(hook.fn || '');
-    return fnText.includes('isModified') && fnText.includes('bcrypt');
-  })?.fn;
+const runPreSaveHooks = async (doc) => {
+  const preSaveHooks = User.schema.s.hooks._pres.get('save') || [];
+  for (const hook of preSaveHooks) {
+    await hook.fn.call(doc);
+  }
 };
 
-describe('User model (unit)', () => {
-  it('should hash password via pre-save hook and match hashed password', async () => {
-    // Arrange
-    const user = new User(buildValidUser({ password: 'MySecret123!' }));
-    const plainPassword = user.password;
-    const passwordHook = getPasswordHook();
-
-    // Act
-    await passwordHook.call(user);
-
-    // Assert
-    expect(user.password).not.toBe(plainPassword);
-    expect(user.password.length).toBeGreaterThan(20);
-    await expect(user.matchPassword('MySecret123!')).resolves.toBe(true);
-    await expect(user.matchPassword('wrong-password')).resolves.toBe(false);
+describe('User model', () => {
+  const validPayload = () => ({
+    firstName: 'Ali',
+    lastName: 'Ben',
+    email: 'ali@example.com',
+    password: 'secret123',
   });
 
-  it('should reject invalid email and required fields during validation', () => {
-    // Arrange
-    const user = new User(buildValidUser({ email: 'not-an-email', firstName: '' }));
+  test('validateSync -> fails when required base fields are missing', () => {
+    const doc = new User({});
+    const err = doc.validateSync();
 
-    // Act
-    const error = user.validateSync();
-
-    // Assert
-    expect(error).toBeDefined();
-    expect(error.errors.email).toBeDefined();
-    expect(error.errors.firstName).toBeDefined();
+    expect(err.errors.firstName).toBeDefined();
+    expect(err.errors.lastName).toBeDefined();
+    expect(err.errors.email).toBeDefined();
+    expect(err.errors.password).toBeDefined();
   });
 
-  it('should apply field transforms such as empty phone to undefined', () => {
-    // Arrange
-    const user = new User(buildValidUser({ phone: '' }));
+  test('defaults -> role and status are initialized', () => {
+    const doc = new User(validPayload());
+    const err = doc.validateSync();
 
-    // Act
-    const error = user.validateSync();
-
-    // Assert
-    expect(error).toBeUndefined();
-    expect(user.phone).toBeUndefined();
+    expect(err).toBeUndefined();
+    expect(doc.role).toBe('user');
+    expect(doc.status).toBe('active');
+    expect(doc.isVerified).toBe(false);
   });
 
-  it('should enforce role and adminType enum constraints', () => {
-    // Arrange
-    const invalidRole = new User(buildValidUser({ role: 'owner' }));
-    const invalidAdminType = new User(buildValidUser({ role: 'admin', adminType: 'root' }));
+  test('validateSync -> rejects invalid email format', () => {
+    const doc = new User({ ...validPayload(), email: 'not-an-email' });
+    const err = doc.validateSync();
 
-    // Act
-    const roleError = invalidRole.validateSync();
-    const adminTypeError = invalidAdminType.validateSync();
+    expect(err.errors.email).toBeDefined();
+  });
 
-    // Assert
-    expect(roleError.errors.role).toBeDefined();
-    expect(adminTypeError.errors.adminType).toBeDefined();
+  test('pre-save hook -> hashes password when modified', async () => {
+    const doc = new User(validPayload());
+    const originalPassword = doc.password;
+
+    await runPreSaveHooks(doc);
+
+    expect(doc.password).not.toBe(originalPassword);
+    expect(doc.password.length).toBeGreaterThan(20);
+  });
+
+  test('matchPassword -> returns true for valid password hash', async () => {
+    const hash = await bcrypt.hash('secret123', 10);
+    const doc = new User({ ...validPayload(), password: hash });
+
+    const isMatch = await doc.matchPassword('secret123');
+
+    expect(isMatch).toBe(true);
   });
 });

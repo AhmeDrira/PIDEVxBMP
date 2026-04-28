@@ -137,4 +137,26 @@ async function warmUp() {
   }
 }
 
-module.exports = { extractProjectData, warmUp };
+// ── Test helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Reset singleton state (for unit tests only)
+ */
+function __resetForTests() {
+  _pipeline = null;
+  _loadingPromise = null;
+}
+
+/**
+ * Inject a mock pipeline (for unit tests only)
+ */
+function __setPipelineForTests(mockPipeline) {
+  _pipeline = mockPipeline;
+}
+
+module.exports = {
+  extractProjectData,
+  warmUp,
+  __resetForTests,
+  __setPipelineForTests,
+};

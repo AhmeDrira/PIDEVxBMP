@@ -1,71 +1,53 @@
 const mongoose = require('mongoose');
 const Product = require('../../../models/Product');
 
-const buildValidProduct = (overrides = {}) => ({
-  name: 'Portland Cement',
-  category: 'Beton',
-  price: 18,
-  stock: 120,
-  manufacturer: new mongoose.Types.ObjectId(),
-  ...overrides,
-});
-
-describe('Product model (unit)', () => {
-  it('should validate a correct payload and set schema defaults', () => {
-    // Arrange
-    const product = new Product(buildValidProduct());
-
-    // Act
-    const error = product.validateSync();
-
-    // Assert
-    expect(error).toBeUndefined();
-    expect(product.status).toBe('active');
-    expect(product.rating).toBe(0);
-    expect(product.numReviews).toBe(0);
-    expect(product.image).toBeTruthy();
+describe('Product model', () => {
+  const validPayload = () => ({
+    name: 'Ciment 50kg',
+    category: 'Beton',
+    price: 18,
+    stock: 10,
+    manufacturer: new mongoose.Types.ObjectId(),
   });
 
-  it('should reject invalid enum values such as status', () => {
-    // Arrange
-    const product = new Product(buildValidProduct({ status: 'deleted' }));
+  test('validateSync -> fails when required fields are missing', () => {
+    const doc = new Product({});
+    const err = doc.validateSync();
 
-    // Act
-    const error = product.validateSync();
-
-    // Assert
-    expect(error).toBeDefined();
-    expect(error.errors.status).toBeDefined();
+    expect(err.errors.name).toBeDefined();
+    expect(err.errors.category).toBeDefined();
+    expect(err.errors.price).toBeDefined();
+    expect(err.errors.manufacturer).toBeDefined();
   });
 
-  it('should surface validation failures for required fields', () => {
-    // Arrange
-    const product = new Product({});
+  test('defaults -> status, image and marketplace counters are initialized', () => {
+    const doc = new Product(validPayload());
+    const err = doc.validateSync();
 
-    // Act
-    const error = product.validateSync();
-
-    // Assert
-    expect(error).toBeDefined();
-    expect(error.errors.name).toBeDefined();
-    expect(error.errors.category).toBeDefined();
-    expect(error.errors.price).toBeDefined();
-    expect(error.errors.manufacturer).toBeDefined();
+    expect(err).toBeUndefined();
+    expect(doc.status).toBe('active');
+    expect(doc.rating).toBe(0);
+    expect(doc.numReviews).toBe(0);
+    expect(typeof doc.image).toBe('string');
+    expect(doc.image.length).toBeGreaterThan(0);
   });
 
-  it('should reject malformed review subdocuments for security and integrity', () => {
-    // Arrange
-    const product = new Product(
-      buildValidProduct({
-        reviews: [{ rating: 5, comment: 'ok' }],
-      })
-    );
+  test('validateSync -> rejects invalid status enum', () => {
+    const doc = new Product({ ...validPayload(), status: 'archived' });
+    const err = doc.validateSync();
 
-    // Act
-    const error = product.validateSync();
+    expect(err.errors.status).toBeDefined();
+  });
 
-    // Assert
-    expect(error).toBeDefined();
-    expect(error.errors['reviews.0.user']).toBeDefined();
+  test('validateSync -> review subdocument requires user and rating', () => {
+    const doc = new Product({
+      ...validPayload(),
+      reviews: [{ comment: 'ok' }],
+    });
+
+    const err = doc.validateSync();
+
+    expect(err.errors['reviews.0.user']).toBeDefined();
+    expect(err.errors['reviews.0.rating']).toBeDefined();
   });
 });

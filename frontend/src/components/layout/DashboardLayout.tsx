@@ -320,7 +320,7 @@ export default function DashboardLayout({
         <header className="hidden lg:flex items-center justify-between h-20 px-8 bg-card border-b border-border shadow-sm">
           <div>
             <h2 className="text-2xl font-bold text-foreground">
-              {menuItems.find((item) => item.id === activeItem)?.label || t('nav.dashboard')}
+              {menuItems.find((item) => item.id === activeItem)?.label || t('dashboard')}
             </h2>
           </div>
           <div className="flex items-center gap-2">
