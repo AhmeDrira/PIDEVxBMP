@@ -136,30 +136,34 @@ function EventTooltip({ tooltip, language }: { tooltip: TooltipState; language: 
   return (
     <div
       style={{ position: 'fixed', left: x, top: y, zIndex: 9999, transform: 'translateY(-100%)' }}
-      className="w-56 bg-card border border-border rounded-xl shadow-2xl p-3 pointer-events-none"
+      className="w-60 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden pointer-events-none"
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span
-          className="text-xs text-white font-medium px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: color }}
-        >
-          {typeLabel[ev.type]}
-        </span>
-      </div>
-      <p className="font-semibold text-sm text-foreground truncate mb-1">{ev.title}</p>
-      <p className="text-xs text-muted-foreground flex items-center gap-1">
-        <Clock size={11} />
-        {fmtTime(new Date(ev.startDate))} – {fmtTime(new Date(ev.endDate))}
-      </p>
-      {ev.location && (
-        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-          <MapPin size={11} />
-          {ev.location}
+      {/* color bar */}
+      <div className="h-1" style={{ backgroundColor: color }} />
+      <div className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="text-[10px] text-white font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+            style={{ backgroundColor: color }}
+          >
+            {typeLabel[ev.type]}
+          </span>
+        </div>
+        <p className="font-bold text-sm text-foreground truncate mb-2">{ev.title}</p>
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Clock size={11} />
+          {fmtTime(new Date(ev.startDate))} – {fmtTime(new Date(ev.endDate))}
         </p>
-      )}
-      {ev.description && (
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{ev.description}</p>
-      )}
+        {ev.location && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+            <MapPin size={11} />
+            {ev.location}
+          </p>
+        )}
+        {ev.description && (
+          <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">{ev.description}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -185,11 +189,15 @@ function EventPill({
       onClick={e => { e.stopPropagation(); onClick(); }}
       onMouseEnter={e => onHover?.(event, e.clientX, e.clientY)}
       onMouseLeave={() => onHoverEnd?.()}
-      className="w-full text-left text-xs px-1.5 py-0.5 rounded-md text-white font-medium leading-5 hover:brightness-110 transition-all overflow-hidden"
-      style={{ backgroundColor: color }}
+      className="w-full text-left text-xs px-2 py-[3px] rounded-md font-semibold leading-5 transition-all overflow-hidden hover:opacity-90"
+      style={{
+        backgroundColor: `${color}1a`,
+        borderLeft: `3px solid ${color}`,
+        color: color,
+      }}
     >
       <span className="flex items-center gap-1 min-w-0">
-        {showTime && <span className="opacity-90 flex-shrink-0 text-[10px] font-normal">{startTime}</span>}
+        {showTime && <span className="opacity-75 flex-shrink-0 text-[10px] font-medium">{startTime}</span>}
         <span className="truncate">{event.title}</span>
       </span>
     </button>
@@ -482,11 +490,18 @@ function MonthView({
   return (
     <div className="flex-1 overflow-auto">
       {/* Day of week header */}
-      <div className="grid grid-cols-7 border-b border-border" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
+      <div className="grid grid-cols-7" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
         {labels.map((l, i) => {
           const isWeekendCol = i === 5 || i === 6;
           return (
-            <div key={l} className={`py-2.5 text-center text-xs font-semibold uppercase tracking-wider ${isWeekendCol ? 'text-muted-foreground/60 bg-muted/20' : 'text-muted-foreground bg-muted/30'}`}>
+            <div
+              key={l}
+              className={`py-3 text-center text-[11px] font-bold uppercase tracking-widest border-b border-border ${
+                isWeekendCol
+                  ? 'text-muted-foreground/50'
+                  : 'text-muted-foreground'
+              }`}
+            >
               {l}
             </div>
           );
@@ -498,30 +513,37 @@ function MonthView({
           const isCurrentMonth = day.getMonth() === currentDate.getMonth();
           const isToday = isSameDay(day, today);
           const dayEvents = eventsOnDay(events, day);
-          const dow = day.getDay(); // 0=Sun, 6=Sat
+          const dow = day.getDay();
           const isWeekend = dow === 0 || dow === 6;
           return (
             <div
               key={idx}
               onClick={() => onDayClick(day)}
-              className={`min-h-[120px] p-1.5 border-r border-b border-border cursor-pointer transition-colors group ${
+              className={`min-h-[130px] border-r border-b border-border cursor-pointer transition-colors group ${
                 !isCurrentMonth
-                  ? 'bg-muted/20'
+                  ? 'bg-muted/30'
                   : isWeekend
-                  ? 'bg-muted/10 hover:bg-muted/20'
-                  : 'bg-card hover:bg-muted/20'
+                  ? 'bg-muted/10 hover:bg-primary/5'
+                  : 'bg-card hover:bg-primary/5'
               }`}
             >
-              <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold mb-1 transition-colors ${
-                isToday
-                  ? 'bg-primary text-white shadow-sm'
-                  : isCurrentMonth
-                  ? isWeekend ? 'text-muted-foreground' : 'text-foreground'
-                  : 'text-muted-foreground opacity-40'
-              }`}>
-                {day.getDate()}
+              {/* Day number row */}
+              <div className="flex items-center justify-between px-2 pt-2 pb-1">
+                <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold transition-colors ${
+                  isToday
+                    ? 'bg-primary text-white shadow-md'
+                    : isCurrentMonth
+                    ? isWeekend ? 'text-muted-foreground/60' : 'text-foreground'
+                    : 'text-muted-foreground/30'
+                }`}>
+                  {day.getDate()}
+                </div>
+                {dayEvents.length > 0 && !isToday && (
+                  <span className="w-1.5 h-1.5 rounded-full opacity-50" style={{ backgroundColor: dayEvents[0].color || TYPE_COLORS[dayEvents[0].type] }} />
+                )}
               </div>
-              <div className="space-y-0.5">
+              {/* Events */}
+              <div className="px-1.5 pb-1.5 space-y-[3px]">
                 {dayEvents.slice(0, 3).map(ev => (
                   <EventPill
                     key={ev._id}
@@ -534,9 +556,9 @@ function MonthView({
                 {dayEvents.length > 3 && (
                   <button
                     onClick={e => { e.stopPropagation(); onEventClick(dayEvents[3]); }}
-                    className="text-xs text-primary font-medium pl-1 hover:underline"
+                    className="text-[11px] text-primary font-semibold pl-1 hover:underline"
                   >
-                    +{dayEvents.length - 3} {language === 'fr' ? 'autre(s)' : language === 'ar' ? 'أخرى' : 'more'}
+                    +{dayEvents.length - 3} {language === 'fr' ? 'de plus' : language === 'ar' ? 'أخرى' : 'more'}
                   </button>
                 )}
               </div>
@@ -803,11 +825,14 @@ function Legend({ language }: { language: string }) {
   ];
 
   return (
-    <div className="flex flex-wrap gap-4 px-4 py-3 border-t border-border bg-muted/20">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-t border-border bg-muted/10">
       {items.map(item => (
-        <div key={item.type} className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: TYPE_COLORS[item.type] }} />
-          <span className="text-xs text-muted-foreground">{item.label}</span>
+        <div key={item.type} className="flex items-center gap-2">
+          <span
+            className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
+            style={{ backgroundColor: TYPE_COLORS[item.type] }}
+          />
+          <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
         </div>
       ))}
     </div>
@@ -931,37 +956,37 @@ export default function ArtisanCalendar() {
   return (
     <div className="flex flex-col h-full min-h-[600px] bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
       {/* ── Toolbar ── */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-wrap gap-2 bg-card">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-wrap gap-3 bg-card">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="px-3 py-1.5 text-sm font-medium rounded-xl border border-border hover:bg-muted transition-colors text-foreground"
+            className="px-4 py-2 text-sm font-semibold rounded-xl border-2 border-border hover:border-primary hover:text-primary transition-all text-foreground"
           >
             {tr('Today', "Aujourd'hui", 'اليوم')}
           </button>
-          <div className="flex items-center rounded-lg border border-border overflow-hidden">
-            <button onClick={goToPrev} className="p-1.5 hover:bg-muted transition-colors border-r border-border" aria-label="prev">
-              <ChevronLeft size={16} className="text-foreground" />
+          <div className="flex items-center rounded-xl border border-border overflow-hidden shadow-sm">
+            <button onClick={goToPrev} className="p-2 hover:bg-muted transition-colors border-r border-border" aria-label="prev">
+              <ChevronLeft size={15} className="text-foreground" />
             </button>
-            <button onClick={goToNext} className="p-1.5 hover:bg-muted transition-colors" aria-label="next">
-              <ChevronRight size={16} className="text-foreground" />
+            <button onClick={goToNext} className="p-2 hover:bg-muted transition-colors" aria-label="next">
+              <ChevronRight size={15} className="text-foreground" />
             </button>
           </div>
-          <h2 className="text-base font-bold text-foreground">{headerLabel()}</h2>
-          {loading && <span className="text-xs text-muted-foreground animate-pulse">{tr('Loading...', 'Chargement...', 'جاري التحميل...')}</span>}
+          <h2 className="text-lg font-bold text-foreground tracking-tight">{headerLabel()}</h2>
+          {loading && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* View switcher */}
-          <div className="flex rounded-xl border border-border overflow-hidden bg-muted/30">
+          <div className="flex rounded-xl border border-border overflow-hidden bg-muted/20 p-0.5 gap-0.5">
             {(['month', 'week', 'day'] as ViewMode[]).map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${
                   view === v
                     ? 'bg-primary text-white shadow-sm'
-                    : 'hover:bg-muted text-foreground'
+                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {v === 'month' ? tr('Month', 'Mois', 'شهر') : v === 'week' ? tr('Week', 'Semaine', 'أسبوع') : tr('Day', 'Jour', 'يوم')}
@@ -972,9 +997,9 @@ export default function ArtisanCalendar() {
           {/* Add event button */}
           <Button
             onClick={() => openCreateModal(currentDate)}
-            className="flex items-center gap-1.5 rounded-xl text-white h-9 px-4 text-sm"
+            className="flex items-center gap-2 rounded-xl text-white h-9 px-5 text-sm font-semibold shadow-sm"
           >
-            <Plus size={15} />
+            <Plus size={16} />
             {tr('Add', 'Ajouter', 'إضافة')}
           </Button>
         </div>
