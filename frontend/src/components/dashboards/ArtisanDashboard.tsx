@@ -20,6 +20,7 @@ import ArtisanContractSign from '../artisan/ArtisanContractSign';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
 import ArtisanProfileReviews from '../artisan/ArtisanProfileReviews';
 import MyReports from '../common/MyReports';
+import PersonalisationSettings from '../common/PersonalisationSettings';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
@@ -520,6 +521,8 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
         return <MyOrders />;
       case 'reports':
         return <MyReports role="artisan" userId={String(currentUser?._id || currentUser?.id || 'artisan')} />;
+      case 'personalisation':
+        return <PersonalisationSettings />;
       default:
         return <ArtisanHome onNavigate={setActiveView} />;
     }
@@ -581,6 +584,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
         onEditProfile={handleEditProfile}
         editProfileLabel={t('profile.viewPortfolio')}
         onViewReviews={handleViewReviews}
+        onPersonalisation={() => setActiveView('personalisation')}
         userRole={role}
         userName={fullName}
         profilePhoto={profilePhoto}

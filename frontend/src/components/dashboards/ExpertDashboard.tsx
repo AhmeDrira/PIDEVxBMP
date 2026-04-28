@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList, Handshake, Send } from 'lucide-react';
+import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList, Handshake, Send, FileText } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import ExpertHome from '../expert/ExpertHome';
 import ExpertKnowledgeLibrary from '../expert/ExpertKnowledgeLibrary';
@@ -14,6 +14,9 @@ import { ShoppingBag } from 'lucide-react';
 import MyReports from '../common/MyReports';
 import ExpertCollaborativeProjects from '../expert/ExpertCollaborativeProjects';
 import ExpertProposals from '../expert/ExpertProposals';
+import ExpertContractView from '../expert/ExpertContractView';
+import ExpertContractSign from '../expert/ExpertContractSign';
+import PersonalisationSettings from '../common/PersonalisationSettings';
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -29,6 +32,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     return fromQuery || 'home';
   });
   const [cartCount, setCartCount] = useState(0);
+  const [signingContractId, setSigningContractId] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -125,6 +129,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     { id: 'library',               label: t('knowledgeLibrary'),         icon: <BookOpen size={20} /> },
     { id: 'directory',             label: t('artisanDirectory'),         icon: <Users size={20} /> },
     { id: 'proposals',              label: t('proposals'),                icon: <Send size={20} /> },
+    { id: 'contracts',             label: tr('Contracts', 'Contrats', 'العقود'), icon: <FileText size={20} /> },
     { id: 'collaborative-projects', label: t('collaborativeProjects'),   icon: <Handshake size={20} /> },
     { id: 'messages',              label: t('messages'),                 icon: <MessageSquare size={20} /> },
     { id: 'marketplace', label: t('marketplace'),    icon: <ShoppingCart size={20} /> },
@@ -142,6 +147,25 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         return <ExpertArtisanDirectory onNavigate={setActiveView} />;
       case 'proposals':
         return <ExpertProposals onNavigate={setActiveView} />;
+      case 'contracts':
+        return (
+          <ExpertContractView
+            onNavigate={(view, params) => {
+              if (view === 'sign-contract' && params?.contractId) {
+                setSigningContractId(params.contractId);
+                setActiveView('sign-contract');
+              }
+            }}
+          />
+        );
+      case 'sign-contract':
+        return signingContractId ? (
+          <ExpertContractSign
+            contractId={signingContractId}
+            onBack={() => { setSigningContractId(null); setActiveView('contracts'); }}
+            onSigned={() => { setSigningContractId(null); setActiveView('contracts'); }}
+          />
+        ) : null;
       case 'collaborative-projects':
         return <ExpertCollaborativeProjects onNavigate={setActiveView} />;
       case 'messages':
@@ -154,6 +178,8 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         return <MyReports role="expert" userId={String(currentUser?._id || currentUser?.id || 'expert')} />;
       case 'profile':
         return <ExpertProfile />;
+      case 'personalisation':
+        return <PersonalisationSettings />;
       default:
         return <ExpertHome onNavigate={setActiveView} />;
     }
@@ -203,12 +229,13 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
     <>
       <DashboardLayout
         menuItems={menuItems}
-        activeItem={activeView}
+        activeItem={activeView === 'sign-contract' ? 'contracts' : activeView}
         onMenuItemClick={setActiveView}
         onLogoClick={() => setActiveView('home')}
         onLogout={onLogout}
         onViewProfile={handleViewProfile}
         onEditProfile={handleEditProfile}
+        onPersonalisation={() => setActiveView('personalisation')}
         userRole={role}
         userName={fullName}
         profilePhoto={profilePhoto}

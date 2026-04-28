@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, User, LogOut, Settings, KeyRound, Star } from 'lucide-react';
+import { ChevronDown, User, LogOut, Settings, KeyRound, Star, SlidersHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { useLanguage } from '../../context/LanguageContext';
@@ -13,10 +13,11 @@ interface ProfileDropdownProps {
   editProfileLabel?: string;
   onUpdatePassword?: () => void;
   onViewReviews?: () => void;
+  onPersonalisation?: () => void;
   onLogout: () => void;
 }
 
-export default function ProfileDropdown({ userName, userRole, profilePhoto, onViewProfile, onEditProfile, editProfileLabel, onUpdatePassword, onViewReviews, onLogout }: ProfileDropdownProps) {
+export default function ProfileDropdown({ userName, userRole, profilePhoto, onViewProfile, onEditProfile, editProfileLabel, onUpdatePassword, onViewReviews, onPersonalisation, onLogout }: ProfileDropdownProps) {
 
   const { language } = useLanguage();
   const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);  const { t } = useLanguage();
@@ -124,8 +125,23 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
                 </button>
               )}
               
+              {onPersonalisation && (
+                <button
+                  onClick={() => {
+                    onPersonalisation();
+                    setIsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                >
+                  <SlidersHorizontal size={18} className="text-muted-foreground" />
+                  <span className="font-medium text-foreground">
+                    {tr('Personalisation', 'Personnalisation', 'التخصيص')}
+                  </span>
+                </button>
+              )}
+
               <div className="my-2 h-px bg-border" />
-              
+
               <button
                 onClick={() => {
                   onLogout();

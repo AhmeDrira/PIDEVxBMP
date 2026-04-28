@@ -355,7 +355,7 @@ const acceptProposal = async (req, res) => {
           artisanId:  artisan._id,
           expertId:   expert._id,
           content:    fillTemplate(template.content, vars),
-          status:     'pending_artisan_signature',
+          status:     'pending_expert_signature',   // expert signs first
         });
       } catch (contractErr) {
         console.error('Auto-contract generation error:', contractErr);

@@ -4,6 +4,7 @@ const ContractTemplate = require('../models/ContractTemplate');
 const ProjectProposal  = require('../models/ProjectProposal');
 const Project          = require('../models/Project');
 const CalendarEvent    = require('../models/CalendarEvent');
+const Notification     = require('../models/Notification');
 const { User }         = require('../models/User');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -19,14 +20,32 @@ function fillTemplate(template, vars) {
 
 /**
  * Récupère ou crée le template actif.
- * Si aucun template n'existe en base, en crée un par défaut.
  */
 async function getActiveTemplate() {
   let tpl = await ContractTemplate.findOne({ isActive: true }).sort({ updatedAt: -1 });
   if (!tpl) {
-    tpl = await ContractTemplate.create({});   // utilise les valeurs par défaut du schéma
+    tpl = await ContractTemplate.create({});
   }
   return tpl;
+}
+
+/**
+ * Crée une notification pour un utilisateur.
+ */
+async function createContractNotification({ recipient, type, title, message, contractId }) {
+  try {
+    await Notification.create({
+      type,
+      title,
+      message,
+      relatedId: contractId,
+      relatedModel: 'Contract',
+      recipient,
+      read: false,
+    });
+  } catch (err) {
+    console.error('createContractNotification error:', err);
+  }
 }
 
 // ─── @desc    Générer un contrat à partir d'une proposition acceptée
@@ -48,7 +67,6 @@ const generateContract = async (req, res) => {
       return res.status(404).json({ message: 'Proposal not found' });
     }
 
-    // Seuls artisan et expert concernés peuvent générer le contrat
     const userId = req.user._id.toString();
     const isParty =
       proposal.artisanId._id.toString() === userId ||
@@ -58,55 +76,75 @@ const generateContract = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to generate this contract' });
     }
 
-    // La proposition doit être acceptée (ou déjà signée)
     if (!['accepted', 'signed'].includes(proposal.status)) {
       return res.status(400).json({
         message: `Cannot generate a contract for a proposal with status "${proposal.status}". It must be "accepted" first.`,
       });
     }
 
-    // Vérifier si un contrat existe déjà pour cette proposition
-    const existing = await Contract.findOne({ proposalId })
-      .populate('artisanId', 'firstName lastName email profilePhoto')
-      .populate('expertId',  'firstName lastName email profilePhoto');
+    // Vérifier si un contrat existe déjà
+    const existing = await Contract.findOne({ proposalId });
 
     if (existing) {
-      return res.status(200).json(existing);
+      // ── Correction des anciens contrats ──────────────────────────────────────
+      // Si le contrat existe mais n'a pas de signature expert ET est dans un
+      // statut incorrect (ancien code générait pending_artisan_signature directement),
+      // on le remet dans le bon état : pending_expert_signature
+      if (
+        !existing.signedByExpertAt &&
+        !existing.signatureDataExpert &&
+        existing.status === 'pending_artisan_signature'
+      ) {
+        existing.status = 'pending_expert_signature';
+        await existing.save();
+      }
+
+      const populated = await Contract.findById(existing._id)
+        .populate('artisanId', 'firstName lastName email profilePhoto')
+        .populate('expertId',  'firstName lastName email profilePhoto')
+        .populate('proposalId');
+      return res.status(200).json(populated);
     }
 
     // Construire le contenu à partir du template
-    const template = await getActiveTemplate();
-    const artisan  = proposal.artisanId;
-    const expert   = proposal.expertId;
-    const finalPrice = proposal.negotiatedPrice ?? proposal.proposedPrice;
+    const template    = await getActiveTemplate();
+    const artisan     = proposal.artisanId;
+    const expert      = proposal.expertId;
+    const finalPrice  = proposal.negotiatedPrice ?? proposal.proposedPrice;
 
     const vars = {
-      artisanName: `${artisan.firstName} ${artisan.lastName}`,
-      expertName:  `${expert.firstName} ${expert.lastName}`,
-      description: proposal.description,
+      artisanName:  `${artisan.firstName} ${artisan.lastName}`,
+      expertName:   `${expert.firstName} ${expert.lastName}`,
+      description:  proposal.description,
       localisation: proposal.localisation,
-      finalPrice:  finalPrice.toLocaleString('fr-TN'),
-      startDate:   new Date(proposal.startDate).toLocaleDateString('fr-TN', {
+      finalPrice:   finalPrice.toLocaleString('fr-TN'),
+      startDate:    new Date(proposal.startDate).toLocaleDateString('fr-TN', {
         day: '2-digit', month: 'long', year: 'numeric',
       }),
-      createdAt:   new Date().toLocaleDateString('fr-TN', {
+      createdAt:    new Date().toLocaleDateString('fr-TN', {
         day: '2-digit', month: 'long', year: 'numeric',
       }),
     };
 
     const filledContent = fillTemplate(template.content, vars);
 
-    // Créer le contrat
+    // Créer le contrat — l'expert signe EN PREMIER
     const contract = await Contract.create({
-      proposalId:  proposal._id,
-      artisanId:   artisan._id,
-      expertId:    expert._id,
-      content:     filledContent,
-      status:      'pending_artisan_signature',
+      proposalId: proposal._id,
+      artisanId:  artisan._id,
+      expertId:   expert._id,
+      content:    filledContent,
+      status:     'pending_expert_signature',
     });
 
-    // Passer le statut de la proposition à "signed" (en attente de signature)
-    // Non — on garde "accepted" ; le statut passera à "signed" lors de la signature ÉTAPE 8.
+    // Notifier l'expert qu'il doit signer en premier
+    await createContractNotification({
+      recipient:  expert._id,
+      type:       'contract_pending_expert_signature',
+      title:      'Contrat à signer',
+      message:    `Un contrat a été généré pour votre proposition avec ${artisan.firstName} ${artisan.lastName}. Veuillez le signer en premier.`,
+      contractId: contract._id,
+    });
 
     const populated = await Contract.findById(contract._id)
       .populate('artisanId', 'firstName lastName email profilePhoto')
@@ -117,6 +155,228 @@ const generateContract = async (req, res) => {
   } catch (error) {
     console.error('generateContract error:', error);
     return res.status(500).json({ message: 'Server error while generating contract' });
+  }
+};
+
+// ─── @desc    Signer électroniquement le contrat (expert — 1er signataire)
+// ─── @route   POST /api/contracts/:id/sign-expert
+// ─── @access  Private (expert)
+const signExpertContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { signatureData } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid contract ID' });
+    }
+
+    if (
+      !signatureData ||
+      typeof signatureData !== 'string' ||
+      !signatureData.startsWith('data:image/')
+    ) {
+      return res.status(400).json({ message: 'signatureData must be a valid base64 image data URL' });
+    }
+
+    if (signatureData.length > 700000) {
+      return res.status(400).json({ message: 'Signature image is too large (max 500 KB)' });
+    }
+
+    const contract = await Contract.findById(id);
+    if (!contract) {
+      return res.status(404).json({ message: 'Contract not found' });
+    }
+
+    // Seul l'expert du contrat peut utiliser cette route
+    if (contract.expertId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the expert can sign via this endpoint' });
+    }
+
+    // Le contrat doit être en attente de la signature de l'expert.
+    // On accepte aussi 'pending_artisan_signature' pour les anciens contrats
+    // créés avant la mise en place du workflow double signature (sans signedByExpertAt).
+    const expertCanSign =
+      contract.status === 'pending_expert_signature' ||
+      (contract.status === 'pending_artisan_signature' && !contract.signedByExpertAt);
+
+    if (!expertCanSign) {
+      if (contract.signedByExpertAt) {
+        return res.status(400).json({ message: 'You have already signed this contract.' });
+      }
+      return res.status(400).json({
+        message: `Cannot sign: contract status is "${contract.status}"`,
+      });
+    }
+
+    contract.signatureDataExpert = signatureData;
+    contract.signedByExpertAt    = new Date();
+    contract.status              = 'pending_artisan_signature';
+    await contract.save();
+
+    // Notifier l'artisan qu'il doit signer à son tour
+    await createContractNotification({
+      recipient:  contract.artisanId,
+      type:       'contract_expert_signed',
+      title:      'L\'expert a signé le contrat',
+      message:    `L'expert a signé le contrat. Veuillez signer à votre tour pour valider l'accord.`,
+      contractId: contract._id,
+    });
+
+    const updated = await Contract.findById(id)
+      .populate('artisanId', 'firstName lastName email profilePhoto')
+      .populate('expertId',  'firstName lastName email profilePhoto')
+      .populate('proposalId');
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error('signExpertContract error:', error);
+    return res.status(500).json({ message: 'Server error while signing contract (expert)' });
+  }
+};
+
+// ─── @desc    Signer électroniquement le contrat (artisan — 2ème signataire)
+// ─── @route   PUT /api/contracts/:id/sign
+// ─── @access  Private (artisan)
+const signContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { signatureData } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid contract ID' });
+    }
+
+    if (
+      !signatureData ||
+      typeof signatureData !== 'string' ||
+      !signatureData.startsWith('data:image/')
+    ) {
+      return res.status(400).json({ message: 'signatureData must be a valid base64 image data URL' });
+    }
+
+    if (signatureData.length > 700000) {
+      return res.status(400).json({ message: 'Signature image is too large (max 500 KB)' });
+    }
+
+    const contract = await Contract.findById(id);
+    if (!contract) {
+      return res.status(404).json({ message: 'Contract not found' });
+    }
+
+    // Seul l'artisan du contrat peut signer
+    if (contract.artisanId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the artisan can sign this contract' });
+    }
+
+    // Le contrat doit être en attente de la signature de l'artisan (l'expert a déjà signé)
+    if (contract.status !== 'pending_artisan_signature') {
+      return res.status(400).json({
+        message: `Cannot sign: contract status is "${contract.status}" (expected "pending_artisan_signature")`,
+      });
+    }
+
+    // Double sécurité : vérifier que l'expert a bien signé avant l'artisan
+    if (!contract.signedByExpertAt || !contract.signatureDataExpert) {
+      return res.status(400).json({
+        message: 'The expert must sign the contract before the artisan can sign.',
+      });
+    }
+
+    contract.signatureData     = signatureData;
+    contract.signedByArtisanAt = new Date();
+    contract.status            = 'signed';
+    await contract.save();
+
+    // Passer la proposition en statut "signed"
+    await ProjectProposal.findByIdAndUpdate(contract.proposalId, { status: 'signed' });
+
+    // Notifier l'expert que l'artisan a signé → contrat pleinement validé
+    await createContractNotification({
+      recipient:  contract.expertId,
+      type:       'contract_fully_signed',
+      title:      'Contrat signé par les deux parties',
+      message:    `L'artisan a signé le contrat. Le contrat est maintenant pleinement validé et le projet sera créé automatiquement.`,
+      contractId: contract._id,
+    });
+
+    // Notifier aussi l'artisan (confirmation)
+    await createContractNotification({
+      recipient:  contract.artisanId,
+      type:       'contract_fully_signed',
+      title:      'Contrat signé — projet en création',
+      message:    `Les deux parties ont signé le contrat. Votre projet collaboratif sera créé automatiquement.`,
+      contractId: contract._id,
+    });
+
+    const updated = await Contract.findById(id)
+      .populate('artisanId', 'firstName lastName email profilePhoto')
+      .populate('expertId',  'firstName lastName email profilePhoto')
+      .populate('proposalId');
+
+    // ── Auto-création du projet collaboratif ──────────────────────────────────
+    setImmediate(async () => {
+      try {
+        const existingProject = await Project.findOne({ contractId: id });
+        if (existingProject) return;
+
+        const proposal = await ProjectProposal.findById(contract.proposalId)
+          .populate('artisanId', 'firstName lastName')
+          .populate('expertId',  'firstName lastName');
+
+        if (!proposal) return;
+
+        const finalPrice = proposal.negotiatedPrice ?? proposal.proposedPrice;
+        const startDate  = new Date(proposal.startDate);
+        const endDate    = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 30);
+
+        const expertName = `${proposal.expertId.firstName} ${proposal.expertId.lastName}`;
+        const shortDesc  = proposal.description.length > 60
+          ? proposal.description.slice(0, 60) + '…'
+          : proposal.description;
+
+        const project = await Project.create({
+          title:           `Projet avec ${expertName} - ${shortDesc}`,
+          description:     proposal.description,
+          location:        proposal.localisation,
+          budget:          finalPrice,
+          startDate,
+          endDate,
+          status:          'active',
+          artisan:         proposal.artisanId._id,
+          expertId:        proposal.expertId._id,
+          contractId:      contract._id,
+          proposalId:      proposal._id,
+          isCollaborative: true,
+        });
+
+        await Contract.findByIdAndUpdate(id, { projectId: project._id });
+
+        try {
+          await CalendarEvent.create({
+            artisanId:   proposal.artisanId._id,
+            title:       project.title,
+            type:        'projet',
+            startDate:   project.startDate,
+            endDate:     project.endDate,
+            description: project.description,
+            location:    project.location,
+            projectId:   project._id,
+            isPublic:    true,
+          });
+        } catch (calErr) {
+          console.error('Calendar sync error on collaborative project:', calErr);
+        }
+      } catch (projErr) {
+        console.error('Auto collaborative project creation error:', projErr);
+      }
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error('signContract error:', error);
+    return res.status(500).json({ message: 'Server error while signing contract' });
   }
 };
 
@@ -215,7 +475,7 @@ const getMyContracts = async (req, res) => {
   }
 };
 
-// ─── @desc    Récupérer le template actif (admin ou consultation)
+// ─── @desc    Récupérer le template actif
 // ─── @route   GET /api/contracts/template
 // ─── @access  Private
 const getContractTemplate = async (req, res) => {
@@ -258,138 +518,13 @@ const updateContractTemplate = async (req, res) => {
   }
 };
 
-// ─── @desc    Signer électroniquement un contrat (artisan uniquement)
-// ─── @route   PUT /api/contracts/:id/sign
-// ─── @access  Private (artisan)
-const signContract = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { signatureData } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid contract ID' });
-    }
-
-    // Validation de la signature (base64 data URL)
-    if (
-      !signatureData ||
-      typeof signatureData !== 'string' ||
-      !signatureData.startsWith('data:image/')
-    ) {
-      return res.status(400).json({ message: 'signatureData must be a valid base64 image data URL' });
-    }
-
-    // Vérification de la taille (max ~500 KB encodé)
-    if (signatureData.length > 700000) {
-      return res.status(400).json({ message: 'Signature image is too large (max 500 KB)' });
-    }
-
-    const contract = await Contract.findById(id);
-    if (!contract) {
-      return res.status(404).json({ message: 'Contract not found' });
-    }
-
-    // Seul l'artisan du contrat peut signer
-    if (contract.artisanId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Only the artisan can sign this contract' });
-    }
-
-    // Vérifier que le contrat est bien en attente de signature
-    if (contract.status !== 'pending_artisan_signature') {
-      return res.status(400).json({
-        message: `Cannot sign a contract with status "${contract.status}"`,
-      });
-    }
-
-    contract.signatureData    = signatureData;
-    contract.signedByArtisanAt = new Date();
-    contract.status           = 'signed';
-    await contract.save();
-
-    // Passer la proposition en statut "signed"
-    await ProjectProposal.findByIdAndUpdate(contract.proposalId, { status: 'signed' });
-
-    const updated = await Contract.findById(id)
-      .populate('artisanId', 'firstName lastName email profilePhoto')
-      .populate('expertId',  'firstName lastName email profilePhoto')
-      .populate('proposalId');
-
-    // ── Auto-création du projet collaboratif ──────────────────────────────────
-    setImmediate(async () => {
-      try {
-        // Éviter la double-création
-        const existingProject = await Project.findOne({ contractId: id });
-        if (existingProject) return;
-
-        const proposal = await ProjectProposal.findById(contract.proposalId)
-          .populate('artisanId', 'firstName lastName')
-          .populate('expertId',  'firstName lastName');
-
-        if (!proposal) return;
-
-        const finalPrice  = proposal.negotiatedPrice ?? proposal.proposedPrice;
-        const startDate   = new Date(proposal.startDate);
-        const endDate     = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 30);
-
-        const expertName  = `${proposal.expertId.firstName} ${proposal.expertId.lastName}`;
-        const shortDesc   = proposal.description.length > 60
-          ? proposal.description.slice(0, 60) + '…'
-          : proposal.description;
-
-        const project = await Project.create({
-          title:           `Projet avec ${expertName} - ${shortDesc}`,
-          description:     proposal.description,
-          location:        proposal.localisation,
-          budget:          finalPrice,
-          startDate,
-          endDate,
-          status:          'active',
-          artisan:         proposal.artisanId._id,
-          expertId:        proposal.expertId._id,
-          contractId:      contract._id,
-          proposalId:      proposal._id,
-          isCollaborative: true,
-        });
-
-        // Lier le projet au contrat
-        await Contract.findByIdAndUpdate(id, { projectId: project._id });
-
-        // Sync calendrier artisan
-        try {
-          await CalendarEvent.create({
-            artisanId:   proposal.artisanId._id,
-            title:       project.title,
-            type:        'projet',
-            startDate:   project.startDate,
-            endDate:     project.endDate,
-            description: project.description,
-            location:    project.location,
-            projectId:   project._id,
-            isPublic:    true,
-          });
-        } catch (calErr) {
-          console.error('Calendar sync error on collaborative project:', calErr);
-        }
-      } catch (projErr) {
-        console.error('Auto collaborative project creation error:', projErr);
-      }
-    });
-    // ─────────────────────────────────────────────────────────────────────────
-
-    return res.status(200).json(updated);
-  } catch (error) {
-    console.error('signContract error:', error);
-    return res.status(500).json({ message: 'Server error while signing contract' });
-  }
-};
-
 module.exports = {
   generateContract,
+  signExpertContract,
+  signContract,
   getContractById,
   getContractByProposal,
   getMyContracts,
   getContractTemplate,
   updateContractTemplate,
-  signContract,
 };

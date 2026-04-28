@@ -83,13 +83,13 @@ function PartyAvatar({ party }: { party: Party }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-interface ArtisanContractSignProps {
+interface ExpertContractSignProps {
   contractId: string;
   onBack: () => void;
   onSigned: () => void;
 }
 
-export default function ArtisanContractSign({ contractId, onBack, onSigned }: ArtisanContractSignProps) {
+export default function ExpertContractSign({ contractId, onBack, onSigned }: ExpertContractSignProps) {
   const { language } = useLanguage();
   const tr = (en: string, fr: string, ar: string = en) =>
     language === 'ar' ? ar : language === 'fr' ? fr : en;
@@ -114,7 +114,8 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
       try {
         const res = await axios.get(`${API_URL}/contracts/${contractId}`, { headers: authHeaders() });
         setContract(res.data);
-        if (res.data.status === 'signed') {
+        // Already signed by expert
+        if (res.data.signedByExpertAt) {
           setSigned(true);
           setSignedContract(res.data);
         }
@@ -141,8 +142,8 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
     setSubmitting(true);
     try {
       const signatureData = sigCanvasRef.current.toDataURL('image/png');
-      const res = await axios.put(
-        `${API_URL}/contracts/${contractId}/sign`,
+      const res = await axios.post(
+        `${API_URL}/contracts/${contractId}/sign-expert`,
         { signatureData },
         { headers: authHeaders() }
       );
@@ -186,7 +187,7 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
 
   if (!contract) return null;
 
-  // ── Already signed ──
+  // ── Already signed by expert ──
   if (signed) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
@@ -199,21 +200,21 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {tr(
-              'Your electronic signature has been recorded.',
-              'Votre signature électronique a été enregistrée.',
-              'تم تسجيل توقيعك الإلكتروني.'
+              'Your electronic signature has been recorded. The artisan will be notified to sign.',
+              'Votre signature électronique a été enregistrée. L\'artisan sera notifié pour signer.',
+              'تم تسجيل توقيعك الإلكتروني. سيتم إخطار الحرفي للتوقيع.'
             )}
           </p>
-          {signedContract?.signedByArtisanAt && (
+          {signedContract?.signedByExpertAt && (
             <p className="text-xs text-muted-foreground mt-1">
-              {new Date(signedContract.signedByArtisanAt).toLocaleString()}
+              {new Date(signedContract.signedByExpertAt).toLocaleString()}
             </p>
           )}
         </div>
-        {signedContract?.signatureData && (
+        {signedContract?.signatureDataExpert && (
           <div className="border border-border rounded-xl p-3 bg-white dark:bg-slate-900">
             <img
-              src={signedContract.signatureData}
+              src={signedContract.signatureDataExpert}
               alt="signature"
               className="max-h-24 object-contain mx-auto"
             />
@@ -239,7 +240,12 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
     );
   }
 
-  const canSign = contract.status === 'pending_artisan_signature';
+  // L'expert peut signer s'il n'a pas encore signé, peu importe le statut exact
+  // (corrige les anciens contrats créés avec pending_artisan_signature directement)
+  const canSign = !contract.signedByExpertAt && (
+    contract.status === 'pending_expert_signature' ||
+    contract.status === 'pending_artisan_signature'
+  );
   const canSubmit = !isEmpty && agreed && !submitting;
 
   return (
@@ -260,6 +266,20 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
             {tr('Created on', 'Créé le', 'أُنشئ في')} {new Date(contract.createdAt).toLocaleDateString()}
           </p>
         </div>
+      </div>
+
+      {/* ── Your role notice ── */}
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <Pen size={15} className="text-primary" />
+        </div>
+        <p className="text-sm text-foreground">
+          {tr(
+            'You are signing this contract as the Expert (first signatory). The artisan will sign after you.',
+            'Vous signez ce contrat en tant qu\'Expert (premier signataire). L\'artisan signera après vous.',
+            'أنت توقّع هذا العقد بصفتك الخبير (أول موقّع). سيوقّع الحرفي بعدك.'
+          )}
+        </p>
       </div>
 
       {/* ── Parties ── */}
@@ -302,49 +322,20 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
         )}
       </Card>
 
-      {contract.status === 'pending_expert_signature' && (
-        <Card className="p-6 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-          <div className="flex items-start gap-4">
-            <div className="w-11 h-11 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
-              <Clock size={22} className="text-amber-500" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
-                {tr(
-                  'Waiting for the expert\'s signature',
-                  'En attente de la signature de l\'expert',
-                  'في انتظار توقيع الخبير'
-                )}
-              </p>
-              <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                {tr(
-                  'The expert must sign the contract first. You will be notified once they have signed.',
-                  'L\'expert doit signer le contrat en premier. Vous serez notifié dès qu\'il aura signé.',
-                  'يجب على الخبير توقيع العقد أولاً. ستتلقى إشعاراً بمجرد توقيعه.'
-                )}
-              </p>
-              {contract.expertId && (
-                <div className="flex items-center gap-2 mt-3">
-                  <PartyAvatar party={contract.expertId} />
-                  <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                    {contract.expertId.firstName} {contract.expertId.lastName}
-                  </span>
-                </div>
-              )}
-            </div>
+      {!canSign ? (
+        <Card className="p-5 rounded-2xl border border-border">
+          <div className="flex items-start gap-3">
+            <Clock size={18} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-muted-foreground">
+              {contract.signedByExpertAt
+                ? contract.signedByArtisanAt
+                  ? tr('This contract has been fully signed by both parties.', 'Ce contrat a été signé par les deux parties.', 'تم توقيع هذا العقد من قبل الطرفين.')
+                  : tr('You have already signed. Waiting for the artisan\'s signature.', 'Vous avez déjà signé. En attente de la signature de l\'artisan.', 'لقد وقّعت بالفعل. في انتظار توقيع الحرفي.')
+                : tr('This contract cannot be signed at this time.', 'Ce contrat ne peut pas être signé pour l\'instant.', 'لا يمكن توقيع هذا العقد في الوقت الحالي.')}
+            </p>
           </div>
         </Card>
-      )}
-
-      {!canSign && contract.status !== 'pending_expert_signature' ? (
-        <Card className="p-5 rounded-2xl border border-border text-center">
-          <p className="text-sm text-muted-foreground">
-            {contract.status === 'signed'
-              ? tr('This contract is already signed.', 'Ce contrat est déjà signé.', 'تم توقيع هذا العقد بالفعل.')
-              : tr('This contract cannot be signed at this time.', 'Ce contrat ne peut pas être signé pour l\'instant.', 'لا يمكن توقيع هذا العقد في الوقت الحالي.')}
-          </p>
-        </Card>
-      ) : canSign ? (
+      ) : (
         <>
           {/* ── Signature pad ── */}
           <Card className="p-5 rounded-2xl border border-border space-y-3">
@@ -401,9 +392,9 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
             />
             <p className="text-sm text-foreground">
               {tr(
-                'I have read and understood the contract and I agree to sign it electronically. I acknowledge that this electronic signature has the same legal value as a handwritten signature.',
-                'J\'ai lu et compris le contrat et j\'accepte de le signer électroniquement. Je reconnais que cette signature électronique a la même valeur légale qu\'une signature manuscrite.',
-                'لقد قرأت وفهمت العقد وأوافق على توقيعه إلكترونياً. أُقرّ بأن هذا التوقيع الإلكتروني له نفس القيمة القانونية للتوقيع بخط اليد.'
+                'I have read and understood the contract and I agree to sign it electronically as the expert. I acknowledge that this electronic signature has the same legal value as a handwritten signature.',
+                'J\'ai lu et compris le contrat et j\'accepte de le signer électroniquement en tant qu\'expert. Je reconnais que cette signature électronique a la même valeur légale qu\'une signature manuscrite.',
+                'لقد قرأت وفهمت العقد وأوافق على توقيعه إلكترونياً بصفتي خبيراً. أُقرّ بأن هذا التوقيع الإلكتروني له نفس القيمة القانونية للتوقيع بخط اليد.'
               )}
             </p>
           </label>
@@ -434,7 +425,7 @@ export default function ArtisanContractSign({ contractId, onBack, onSigned }: Ar
             </Button>
           </div>
         </>
-      ) : null}
+      )}
     </div>
   );
 }

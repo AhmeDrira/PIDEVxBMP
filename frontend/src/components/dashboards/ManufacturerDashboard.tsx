@@ -8,6 +8,7 @@ import ManufacturerOrders from '../manufacturer/ManufacturerOrders';
 import ManufacturerProfile from '../manufacturer/ManufacturerProfile';
 import NotificationBell from '../common/NotificationBell';
 import MyReports from '../common/MyReports';
+import PersonalisationSettings from '../common/PersonalisationSettings';
 import axios from 'axios';
 
 interface ManufacturerDashboardProps {
@@ -116,6 +117,8 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
         return <MyReports role="manufacturer" userId={String(currentUser?._id || currentUser?.id || 'manufacturer')} />;
       case 'profile':
         return <ManufacturerProfile />;
+      case 'personalisation':
+        return <PersonalisationSettings />;
       default:
         return <ManufacturerHome onNavigate={setActiveView} />;
     }
@@ -131,6 +134,7 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
         onLogout={onLogout}
         onViewProfile={() => setActiveView('profile')}
         onEditProfile={() => setActiveView('profile')}
+        onPersonalisation={() => setActiveView('personalisation')}
         userRole={role}
         userName={displayName}
         profilePhoto={profilePhoto}

@@ -34,6 +34,7 @@ interface DashboardLayoutProps {
   editProfileLabel?: string;
   onUpdatePassword?: () => void;
   onViewReviews?: () => void;
+  onPersonalisation?: () => void;
   /** Optional custom notification bell component (e.g. for admin) */
   bellComponent?: React.ReactNode;
 }
@@ -53,6 +54,7 @@ export default function DashboardLayout({
   editProfileLabel,
   onUpdatePassword,
   onViewReviews,
+  onPersonalisation,
   bellComponent,
 }: DashboardLayoutProps) {
   const { t, language } = useLanguage();
@@ -354,6 +356,7 @@ export default function DashboardLayout({
               editProfileLabel={editProfileLabel}
               onUpdatePassword={onUpdatePassword}
               onViewReviews={onViewReviews}
+              onPersonalisation={onPersonalisation}
               onLogout={onLogout}
             />
           </div>

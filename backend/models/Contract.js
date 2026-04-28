@@ -22,17 +22,34 @@ const contractSchema = new mongoose.Schema(
       required: [true, 'Contract content is required'],
       trim: true,
     },
+    // ── Expert signature ──────────────────────────────────────────────────────
+    signedByExpertAt: {
+      type: Date,
+      default: null,
+    },
+    signatureDataExpert: {
+      type: String,   // Base64 data URL de la signature de l'expert
+      default: null,
+    },
+    // ── Artisan signature ─────────────────────────────────────────────────────
     signedByArtisanAt: {
       type: Date,
       default: null,
     },
     signatureData: {
-      type: String,   // Base64 ou données SVG de la signature électronique
+      type: String,   // Base64 data URL de la signature de l'artisan (rétrocompatibilité)
       default: null,
     },
+    // ── Status ────────────────────────────────────────────────────────────────
     status: {
       type: String,
-      enum: ['draft', 'pending_artisan_signature', 'signed', 'completed'],
+      enum: [
+        'draft',
+        'pending_expert_signature',   // en attente de la signature de l'expert (1er signataire)
+        'pending_artisan_signature',  // expert a signé, en attente de l'artisan (2ème signataire)
+        'signed',                     // les deux ont signé ✅
+        'completed',
+      ],
       default: 'draft',
     },
     projectId: {
@@ -46,5 +63,6 @@ const contractSchema = new mongoose.Schema(
 
 contractSchema.index({ proposalId: 1 });
 contractSchema.index({ artisanId: 1, status: 1 });
+contractSchema.index({ expertId: 1, status: 1 });
 
 module.exports = mongoose.model('Contract', contractSchema);

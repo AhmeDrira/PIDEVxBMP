@@ -52,7 +52,6 @@ interface Contract {
   createdAt: string;
 }
 
-// ContractDocument expects this shape for proposalId
 type ContractForDoc = Omit<Contract, 'proposalId'> & {
   proposalId?: {
     description?: string;
@@ -85,15 +84,15 @@ type ContractStatus = Contract['status'];
 const STATUS_STYLES: Record<ContractStatus, string> = {
   draft:                      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   pending_expert_signature:   'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  pending_artisan_signature:  'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  pending_artisan_signature:  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   signed:                     'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
   completed:                  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
 };
 
 const STATUS_ICONS: Record<ContractStatus, React.ReactNode> = {
   draft:                     <Clock size={13} />,
-  pending_expert_signature:  <Clock size={13} />,
-  pending_artisan_signature: <Pen size={13} />,
+  pending_expert_signature:  <Pen size={13} />,
+  pending_artisan_signature: <Clock size={13} />,
   signed:                    <CheckCircle size={13} />,
   completed:                 <CheckCircle size={13} />,
 };
@@ -104,8 +103,8 @@ function StatusBadge({ status, tr }: {
 }) {
   const labels: Record<ContractStatus, string> = {
     draft:                     tr('Draft',                  'Brouillon',                        'مسودة'),
-    pending_expert_signature:  tr('Awaiting expert',        'En attente de l\'expert',          'بانتظار الخبير'),
-    pending_artisan_signature: tr('Awaiting your signature','En attente de votre signature',    'بانتظار توقيعك'),
+    pending_expert_signature:  tr('Awaiting your signature','En attente de votre signature',    'بانتظار توقيعك'),
+    pending_artisan_signature: tr('Awaiting artisan',       'En attente de l\'artisan',         'بانتظار الحرفي'),
     signed:                    tr('Signed',                 'Signé',                            'موقع'),
     completed:                 tr('Completed',              'Terminé',                          'مكتمل'),
   };
@@ -146,21 +145,27 @@ function ContractCard({
   contract,
   tr,
   onViewDetails,
+  onSign,
 }: {
   contract: Contract;
   tr: (en: string, fr: string, ar?: string) => string;
   onViewDetails: (c: Contract) => void;
+  onSign: (contractId: string) => void;
 }) {
   const proposal   = contract.proposalId;
   const finalPrice = proposal?.negotiatedPrice ?? proposal?.proposedPrice;
+  const needsMySignature = !contract.signedByExpertAt && (contract.status === 'pending_expert_signature' || contract.status === 'pending_artisan_signature');
 
   return (
-    <Card className="p-5 bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+    <Card
+      className="p-5 bg-card rounded-2xl border shadow-sm hover:shadow-md transition-shadow"
+      style={{ borderColor: needsMySignature ? '#fcd34d' : undefined }}
+    >
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <FileText size={18} className="text-primary" />
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${needsMySignature ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10'}`}>
+            <FileText size={18} className={needsMySignature ? 'text-amber-600' : 'text-primary'} />
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">
@@ -221,25 +226,27 @@ function ContractCard({
         </div>
       )}
 
-      {/* ── Signature info ── */}
-      {contract.status === 'signed' && contract.signedByArtisanAt && (
-        <div className="flex items-center gap-2 text-xs text-green-600 mb-3">
-          <CheckCircle size={12} />
-          <span>
-            {tr('Signed on', 'Signé le', 'وُقِّع في')} {new Date(contract.signedByArtisanAt).toLocaleDateString()}
-          </span>
-        </div>
-      )}
-
-      {/* ── Action ── */}
-      <Button
-        onClick={() => onViewDetails(contract)}
-        variant="outline"
-        className="w-full h-9 text-sm rounded-xl flex items-center justify-center gap-2"
-      >
-        <FileText size={14} />
-        {tr('View contract', 'Voir le contrat', 'عرض العقد')}
-      </Button>
+      {/* ── Actions ── */}
+      <div className="flex gap-2">
+        <Button
+          onClick={() => onViewDetails(contract)}
+          variant="outline"
+          className="flex-1 h-9 text-sm rounded-xl flex items-center justify-center gap-2"
+        >
+          <FileText size={14} />
+          {tr('View', 'Voir', 'عرض')}
+        </Button>
+        {needsMySignature && (
+          <button
+            onClick={() => onSign(contract._id)}
+            className="flex-1 h-9 text-sm rounded-xl flex items-center justify-center gap-2 font-semibold transition-opacity hover:opacity-90"
+            style={{ backgroundColor: '#f59e0b', color: '#fff' }}
+          >
+            <Pen size={14} />
+            {tr('Sign', 'Signer', 'توقيع')}
+          </button>
+        )}
+      </div>
     </Card>
   );
 }
@@ -258,7 +265,10 @@ function ContractDetailModal({
   tr: (en: string, fr: string, ar?: string) => string;
 }) {
   const { language } = useLanguage();
-  const canSign = contract.status === 'pending_artisan_signature';
+  const needsMySignature = !contract.signedByExpertAt && (
+    contract.status === 'pending_expert_signature' ||
+    contract.status === 'pending_artisan_signature'
+  );
 
   return (
     <div
@@ -284,11 +294,11 @@ function ContractDetailModal({
               <Download size={13} />
               {tr('PDF', 'PDF', 'PDF')}
             </button>
-            {canSign && (
+            {needsMySignature && (
               <button
                 onClick={() => { onClose(); onNavigateSign(contract._id); }}
-                className="rounded-xl h-8 text-xs px-4 flex items-center gap-1.5 font-semibold"
-                style={{ backgroundColor: '#6366f1', color: '#fff' }}
+                className="rounded-xl h-8 text-xs px-4 flex items-center gap-1.5 font-semibold transition-opacity hover:opacity-90"
+                style={{ backgroundColor: '#f59e0b', color: '#fff' }}
               >
                 <Pen size={13} />
                 {tr('Sign', 'Signer', 'توقيع')}
@@ -312,11 +322,11 @@ function ContractDetailModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-interface ArtisanContractViewProps {
+interface ExpertContractViewProps {
   onNavigate?: (view: string, params?: Record<string, string>) => void;
 }
 
-export default function ArtisanContractView({ onNavigate }: ArtisanContractViewProps) {
+export default function ExpertContractView({ onNavigate }: ExpertContractViewProps) {
   const { language } = useLanguage();
   const tr = (en: string, fr: string, ar: string = en) =>
     language === 'ar' ? ar : language === 'fr' ? fr : en;
@@ -350,7 +360,7 @@ export default function ArtisanContractView({ onNavigate }: ArtisanContractViewP
     return acc;
   }, {});
 
-  const pendingSignature = contracts.filter(c => c.status === 'pending_artisan_signature').length;
+  const pendingMySignature = contracts.filter(c => c.status === 'pending_expert_signature').length;
 
   return (
     <div className="space-y-6">
@@ -381,13 +391,21 @@ export default function ArtisanContractView({ onNavigate }: ArtisanContractViewP
       </div>
 
       {/* ── Pending signature banner ── */}
-      {pendingSignature > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-          <Pen size={20} className="text-orange-500 flex-shrink-0" />
-          <p className="text-sm text-orange-700 dark:text-orange-300 font-medium">
-            {pendingSignature === 1
-              ? tr('1 contract is awaiting your signature.', '1 contrat attend votre signature.', 'عقد واحد بانتظار توقيعك.')
-              : tr(`${pendingSignature} contracts are awaiting your signature.`, `${pendingSignature} contrats attendent votre signature.`, `${pendingSignature} عقود بانتظار توقيعك.`)}
+      {pendingMySignature > 0 && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+          <Pen size={20} className="text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+            {pendingMySignature === 1
+              ? tr(
+                  '1 contract is awaiting your expert signature.',
+                  '1 contrat attend votre signature en tant qu\'expert.',
+                  'عقد واحد بانتظار توقيعك كخبير.'
+                )
+              : tr(
+                  `${pendingMySignature} contracts are awaiting your expert signature.`,
+                  `${pendingMySignature} contrats attendent votre signature en tant qu'expert.`,
+                  `${pendingMySignature} عقود بانتظار توقيعك كخبير.`
+                )}
           </p>
         </div>
       )}
@@ -401,11 +419,11 @@ export default function ArtisanContractView({ onNavigate }: ArtisanContractViewP
               {STATUS_ICONS[status]}
               <span>{count}</span>
               <span>{({
-                draft:                     tr('draft',          'brouillon',        'مسودة'),
-                pending_expert_signature:  tr('awaiting expert','expert attendu',   'ينتظر الخبير'),
-                pending_artisan_signature: tr('to sign',        'à signer',         'للتوقيع'),
-                signed:                    tr('signed',         'signé(s)',         'موقع'),
-                completed:                 tr('completed',      'terminé(s)',       'مكتمل'),
+                draft:                     tr('draft',           'brouillon',        'مسودة'),
+                pending_expert_signature:  tr('to sign',         'à signer',         'للتوقيع'),
+                pending_artisan_signature: tr('artisan signing', 'artisan signe',    'يوقّع الحرفي'),
+                signed:                    tr('signed',          'signé(s)',         'موقع'),
+                completed:                 tr('completed',       'terminé(s)',       'مكتمل'),
               } as Record<ContractStatus, string>)[status]}</span>
             </div>
           ))}
@@ -447,9 +465,9 @@ export default function ArtisanContractView({ onNavigate }: ArtisanContractViewP
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               {tr(
-                'Contracts are automatically generated when you accept a project proposal.',
-                'Les contrats sont générés automatiquement lorsque vous acceptez une demande.',
-                'تُولَّد العقود تلقائياً عند قبولك لطلب مشروع.'
+                'Contracts appear here when an artisan accepts your project proposal.',
+                'Les contrats apparaissent ici lorsqu\'un artisan accepte votre demande de projet.',
+                'تظهر العقود هنا عندما يقبل حرفي طلب مشروعك.'
               )}
             </p>
           </div>
@@ -465,6 +483,7 @@ export default function ArtisanContractView({ onNavigate }: ArtisanContractViewP
               contract={c}
               tr={tr}
               onViewDetails={setSelectedContract}
+              onSign={contractId => onNavigate?.('sign-contract', { contractId })}
             />
           ))}
         </div>

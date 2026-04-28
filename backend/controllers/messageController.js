@@ -1,11 +1,28 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const ProjectProposal = require('../models/ProjectProposal');
+const Contract = require('../models/Contract');
+const ContractTemplate = require('../models/ContractTemplate');
+const Notification = require('../models/Notification');
 const { getIo } = require('../socket');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
+
+// ─── Contract helpers (shared with proposalController) ────────────────────────
+
+function _fillTemplate(template, vars) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
+    vars[key] !== undefined ? String(vars[key]) : `{{${key}}}`
+  );
+}
+
+async function _getActiveTemplate() {
+  let tpl = await ContractTemplate.findOne({ isActive: true }).sort({ updatedAt: -1 });
+  if (!tpl) tpl = await ContractTemplate.create({});
+  return tpl;
+}
 
 function extractGeminiText(responseData) {
   const candidates = Array.isArray(responseData?.candidates) ? responseData.candidates : [];
@@ -615,8 +632,8 @@ exports.acceptProposalFromChat = async (req, res) => {
     const userId = req.user._id;
 
     const proposal = await ProjectProposal.findById(proposalId)
-      .populate('artisanId', 'firstName lastName')
-      .populate('expertId', 'firstName lastName');
+      .populate('artisanId', 'firstName lastName email')
+      .populate('expertId',  'firstName lastName email');
     if (!proposal) return res.status(404).json({ message: 'Proposal not found' });
 
     const isArtisan = proposal.artisanId._id.toString() === userId.toString();
@@ -639,8 +656,9 @@ exports.acceptProposalFromChat = async (req, res) => {
       : `${proposal.expertId.firstName} ${proposal.expertId.lastName}`;
     const recipientId = isArtisan ? proposal.expertId._id : proposal.artisanId._id;
 
-    // Create accepted message
+    // ── Non-blocking: accepted message + contract generation ─────────────────
     setImmediate(async () => {
+      // 1. Accepted message
       try {
         await createProposalMessage({
           senderId:      userId,
@@ -651,7 +669,46 @@ exports.acceptProposalFromChat = async (req, res) => {
           content:       `✅ ${acceptorName} a accepté la proposition au prix de ${finalPrice.toLocaleString('fr-TN')} TND.`,
         });
       } catch (e) { console.error('accepted message error:', e); }
+
+      // 2. Auto-generate contract (expert signs first)
+      try {
+        const existing = await Contract.findOne({ proposalId: proposal._id });
+        if (!existing) {
+          const artisan  = proposal.artisanId;
+          const expert   = proposal.expertId;
+          const template = await _getActiveTemplate();
+          const vars = {
+            artisanName:  `${artisan.firstName} ${artisan.lastName}`,
+            expertName:   `${expert.firstName} ${expert.lastName}`,
+            description:  proposal.description  || '',
+            localisation: proposal.localisation || '',
+            finalPrice:   (finalPrice ?? 0).toLocaleString('fr-TN'),
+            startDate:    proposal.startDate
+              ? new Date(proposal.startDate).toLocaleDateString('fr-TN', { day: '2-digit', month: 'long', year: 'numeric' })
+              : '',
+            createdAt:    new Date().toLocaleDateString('fr-TN', { day: '2-digit', month: 'long', year: 'numeric' }),
+          };
+          await Contract.create({
+            proposalId: proposal._id,
+            artisanId:  artisan._id,
+            expertId:   expert._id,
+            content:    _fillTemplate(template.content, vars),
+            status:     'pending_expert_signature',   // expert signs first
+          });
+
+          // Notify expert
+          await Notification.create({
+            userId:       expert._id,
+            type:         'contract_generated',
+            message:      `Un contrat a été généré suite à l'acceptation de la proposition. Veuillez le signer.`,
+            relatedModel: 'Contract',
+          });
+        }
+      } catch (contractErr) {
+        console.error('Auto-contract generation error (chat):', contractErr);
+      }
     });
+    // ─────────────────────────────────────────────────────────────────────────
 
     return res.status(200).json({ message: 'Proposal accepted', proposal });
   } catch (err) {
