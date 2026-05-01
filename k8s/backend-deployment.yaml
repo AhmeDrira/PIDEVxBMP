@@ -28,9 +28,16 @@ spec:
           ports:
             - containerPort: 5000
               name: http
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "5000"
+            - name: APP_URL
+              value: http://app.pidev.local
+            - name: CORS_ORIGINS
+              value: http://app.pidev.local,https://app.pidev.local
           envFrom:
-            - configMapRef:
-                name: backend-config
             - secretRef:
                 name: backend-secrets
           volumeMounts:

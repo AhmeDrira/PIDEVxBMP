@@ -5,8 +5,6 @@ Ce dossier contient les manifests Kubernetes sans aucun secret versionne.
 ## Fichiers
 
 - `namespace.yaml` : namespace `pidev-prod`
-- `configmap.yaml` : configuration backend non sensible
-- `frontend-config.yaml` : configuration frontend non sensible
 - `storage.yaml` : PV/PVC NFS pour les uploads
 - `backend-deployment.yaml` : deployment backend
 - `backend-service.yaml` : service backend
@@ -24,8 +22,6 @@ Exemples :
 ```bash
 kubectl create namespace pidev-prod
 kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/frontend-config.yaml
 kubectl apply -f k8s/storage.yaml
 kubectl apply -f k8s/backend-deployment.yaml
 kubectl apply -f k8s/backend-service.yaml
