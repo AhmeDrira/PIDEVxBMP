@@ -10,7 +10,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
   nfs:
-    server: 192.168.216.128
+    server: 192.168.100.60
     path: /var/lib/pidev/uploads
 ---
 apiVersion: v1
