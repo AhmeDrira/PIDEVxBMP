@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: pidev-prod
+data:
+  VITE_API_URL: http://app.pidev.local/api
+  VITE_SERVER_URL: http://app.pidev.local
+  VITE_GOOGLE_CLIENT_ID: 913345195656-1ah0o5p6lk7lg2uvh8qob5mfcmdlap2c.apps.googleusercontent.com
