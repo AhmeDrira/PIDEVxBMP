@@ -1,0 +1,251 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'BACKEND_TAG', defaultValue: 'latest', description: 'Tag de l\'image backend à déployer')
+        string(name: 'FRONTEND_TAG', defaultValue: 'latest', description: 'Tag de l\'image frontend à déployer')
+        choice(name: 'ACTION', choices: ['deploy', 'restart'], description: 'Action à effectuer')
+    }
+
+    environment {
+        K8S_NAMESPACE = 'pidev-prod'
+        K8S_NODE_IP = '192.168.216.128'
+    }
+
+    stages {
+        stage('Vérification Cluster') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-pidev', variable: 'KCFG')]) {
+                    sh '''
+                        export KUBECONFIG="$KCFG"
+                        echo "=== Vérification de l'accès au cluster ==="
+                        kubectl cluster-info
+                        echo ""
+                        echo "=== Nodes du cluster ==="
+                        kubectl get nodes -o wide
+                        echo ""
+                        echo "=== Namespace pidev-prod ==="
+                        kubectl get namespace ${K8S_NAMESPACE} 2>/dev/null || echo "Namespace n'existe pas encore"
+                    '''
+                }
+            }
+        }
+
+        stage('Déploiement complet') {
+            when {
+                expression { params.ACTION == 'deploy' }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-pidev', variable: 'KCFG')]) {
+                    sh '''
+                        export KUBECONFIG="$KCFG"
+                        
+                        echo "========================================="
+                        echo "1/11 - Création du Namespace"
+                        echo "========================================="
+                        kubectl apply -f k8s/namespace.yaml
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "2/11 - Création du Secret Docker Registry"
+                        echo "========================================="
+                        # ⚠️ À configurer dans Jenkins: credentials avec docker username/password
+                        kubectl -n ${K8S_NAMESPACE} create secret docker-registry dockerhub-creds \
+                          --docker-server=docker.io \
+                          --docker-username=${DOCKER_USERNAME} \
+                          --docker-password=${DOCKER_PASSWORD} \
+                          --docker-email=${DOCKER_EMAIL} \
+                          --dry-run=client -o yaml | kubectl apply -f -
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "3/11 - Création du Secret Backend (données sensibles)"
+                        echo "========================================="
+                        kubectl apply -f k8s/backend-secrets.yaml
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "4/11 - Vérification des Secrets créés"
+                        echo "========================================="
+                        kubectl -n ${K8S_NAMESPACE} get secrets
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "5/11 - Création du ConfigMap Backend (données non-sensibles)"
+                        echo "========================================="
+                        kubectl apply -f k8s/configmap.yaml
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "6/11 - Création du ConfigMap Frontend"
+                        echo "========================================="
+                        kubectl apply -f k8s/frontend-config.yaml
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "7/11 - Création du Stockage Persistant (NFS)"
+                        echo "========================================="
+                        kubectl apply -f k8s/storage.yaml
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "8/11 - Déploiement du BACKEND"
+                        echo "========================================="
+                        echo "Image: saif4584851/pidevxbm-backend:${BACKEND_TAG}"
+                        sed "s|saif4584851/pidevxbm-backend:latest|saif4584851/pidevxbm-backend:${BACKEND_TAG}|g" k8s/backend-deployment.yaml | kubectl apply -f -
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "9/11 - Création du Service BACKEND"
+                        echo "========================================="
+                        kubectl apply -f k8s/backend-service.yaml
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "10/11 - Déploiement du FRONTEND"
+                        echo "========================================="
+                        echo "Image: ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}"
+                        sed "s|ahmedrira/pidevxbmp-frontend:latest|ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}|g" k8s/frontend-deployment.yaml | kubectl apply -f -
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "11/11 - Création du Service FRONTEND & Ingress"
+                        echo "========================================="
+                        kubectl apply -f k8s/frontend-service.yaml
+                        kubectl apply -f k8s/ingress.yaml
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "Attente du déploiement du BACKEND"
+                        echo "========================================="
+                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-backend --timeout=300s || {
+                            echo "❌ Backend ne s'est pas déployé correctement"
+                            kubectl -n ${K8S_NAMESPACE} describe pod -l app=pidev-backend | head -50
+                            exit 1
+                        }
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "Attente du déploiement du FRONTEND"
+                        echo "========================================="
+                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-frontend --timeout=300s || {
+                            echo "❌ Frontend ne s'est pas déployé correctement"
+                            kubectl -n ${K8S_NAMESPACE} describe pod -l app=pidev-frontend | head -50
+                            exit 1
+                        }
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "RÉSUMÉ DES RESSOURCES DÉPLOYÉES"
+                        echo "========================================="
+                        echo "--- Pods ---"
+                        kubectl -n ${K8S_NAMESPACE} get pods -o wide
+                        echo ""
+                        echo "--- Services ---"
+                        kubectl -n ${K8S_NAMESPACE} get svc
+                        echo ""
+                        echo "--- Ingress ---"
+                        kubectl -n ${K8S_NAMESPACE} get ingress
+                        echo ""
+                        echo "--- PersistentVolumeClaim ---"
+                        kubectl -n ${K8S_NAMESPACE} get pvc
+                        echo ""
+                        echo "--- ConfigMaps ---"
+                        kubectl -n ${K8S_NAMESPACE} get configmap
+                        echo ""
+                        echo "--- Secrets ---"
+                        kubectl -n ${K8S_NAMESPACE} get secrets
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "ACCÈS À L'APPLICATION"
+                        echo "========================================="
+                        NODEPORT=$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}' 2>/dev/null || echo "N/A")
+                        
+                        if [ "$NODEPORT" != "N/A" ]; then
+                            echo "✅ DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
+                            echo ""
+                            echo "🌐 Application accessible sur :"
+                            echo "   http://${K8S_NODE_IP}:${NODEPORT}"
+                        else
+                            echo "⚠️ Impossible de récupérer le NODEPORT"
+                            echo "Assurez-vous que NGINX Ingress Controller est installé"
+                            echo "kubectl get pods -n ingress-nginx"
+                        fi
+                        
+                        echo ""
+                        echo "🔍 Pour voir les logs :"
+                        echo "   kubectl logs -n pidev-prod -l app=pidev-backend"
+                        echo "   kubectl logs -n pidev-prod -l app=pidev-frontend"
+                        echo "========================================="
+                    '''
+                }
+            }
+        }
+        
+        stage('Redémarrage des déploiements') {
+            when {
+                expression { params.ACTION == 'restart' }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-pidev', variable: 'KCFG')]) {
+                    sh '''
+                        export KUBECONFIG="$KCFG"
+                        
+                        echo "========================================="
+                        echo "REDÉMARRAGE DES DÉPLOIEMENTS"
+                        echo "========================================="
+                        
+                        echo "Redémarrage du backend..."
+                        kubectl -n ${K8S_NAMESPACE} rollout restart deployment/pidev-backend
+                        
+                        echo "Redémarrage du frontend..."
+                        kubectl -n ${K8S_NAMESPACE} rollout restart deployment/pidev-frontend
+                        
+                        echo ""
+                        echo "Attente du redémarrage du backend..."
+                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-backend --timeout=300s || {
+                            echo "❌ Backend ne s'est pas redémarré correctement"
+                            exit 1
+                        }
+                        
+                        echo "Attente du redémarrage du frontend..."
+                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-frontend --timeout=300s || {
+                            echo "❌ Frontend ne s'est pas redémarré correctement"
+                            exit 1
+                        }
+                        
+                        echo ""
+                        echo "✅ REDÉMARRAGE EFFECTUÉ AVEC SUCCÈS"
+                        echo ""
+                        echo "--- Pods après redémarrage ---"
+                        kubectl -n ${K8S_NAMESPACE} get pods -o wide
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo ""
+            echo "🎉🎉🎉 PIPELINE CD TERMINÉ AVEC SUCCÈS ! 🎉🎉🎉"
+            echo "Backend tag: ${BACKEND_TAG}"
+            echo "Frontend tag: ${FRONTEND_TAG}"
+            echo "Action: ${ACTION}"
+        }
+        failure {
+            echo ""
+            echo "❌❌❌ ÉCHEC DU PIPELINE CD ❌❌❌"
+            echo ""
+            echo "Diagnostique :"
+            echo "1. Vérifier les pods: kubectl get pods -n pidev-prod"
+            echo "2. Voir les événements: kubectl get events -n pidev-prod"
+            echo "3. Logs backend: kubectl logs -n pidev-prod -l app=pidev-backend --tail=50"
+            echo "4. Logs frontend: kubectl logs -n pidev-prod -l app=pidev-frontend --tail=50"
+            echo "5. Décrire un pod: kubectl describe pod -n pidev-prod <nom-pod>"
+            echo "6. Vérifier secrets: kubectl get secrets -n pidev-prod"
+            echo "7. Vérifier configmaps: kubectl get configmap -n pidev-prod"
+        }
+    }
+}
