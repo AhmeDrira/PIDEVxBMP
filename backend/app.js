@@ -33,18 +33,7 @@ const allowedOrigins = new Set([
 ]);
 
 const corsOptions = {
-  origin(origin, callback) {
-    if (
-      !origin ||
-      allowedOrigins.has(origin) ||
-      localOriginPatterns.some((pattern) => pattern.test(origin))
-    ) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error(`Origin ${origin} not allowed by CORS`));
-  },
+  origin: '*',  // ← Accepter TOUTES les origines
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
