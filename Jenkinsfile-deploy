@@ -53,13 +53,19 @@ pipeline {
                         
                         echo ""
                         echo "========================================="
-                        echo "3/7 - Création du Stockage Persistant (NFS)"
+                        echo "3/8 - Création du Stockage Persistant (NFS)"
                         echo "========================================="
                         kubectl apply -f k8s/storage.yaml
                         
                         echo ""
                         echo "========================================="
-                        echo "4/7 - Déploiement du BACKEND"
+                        echo "4/8 - Déploiement de MongoDB (PVC + Deployment + Service)"
+                        echo "========================================="
+                        kubectl apply -f k8s/mongodb.yaml
+
+                        echo ""
+                        echo "========================================="
+                        echo "5/8 - Déploiement du BACKEND"
                         echo "========================================="
                         echo "Image: saif4584851/pidevxbm-backend:${BACKEND_TAG}"
                         sed "s|saif4584851/pidevxbm-backend:latest|saif4584851/pidevxbm-backend:${BACKEND_TAG}|g" k8s/backend-deployment.yaml | kubectl apply -f -
@@ -67,7 +73,7 @@ pipeline {
                         
                         echo ""
                         echo "========================================="
-                        echo "5/7 - Déploiement du FRONTEND"
+                        echo "6/8 - Déploiement du FRONTEND"
                         echo "========================================="
                         echo "Image: ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}"
                         sed "s|ahmedrira/pidevxbmp-frontend:latest|ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}|g" k8s/frontend-deployment.yaml | kubectl apply -f -
@@ -75,13 +81,13 @@ pipeline {
                         
                         echo ""
                         echo "========================================="
-                        echo "6/7 - Configuration de l'Ingress"
+                        echo "7/8 - Configuration de l'Ingress"
                         echo "========================================="
                         kubectl apply -f k8s/ingress.yaml
                         
                         echo ""
                         echo "========================================="
-                        echo "7/7 - Attente du déploiement"
+                        echo "8/8 - Attente du déploiement"
                         echo "========================================="
                         kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-backend --timeout=300s
                         kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-frontend --timeout=300s
