@@ -1,15 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Home, Package, ShoppingBag, ClipboardList } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import ManufacturerHome from '../manufacturer/ManufacturerHome';
-import ManufacturerProducts from '../manufacturer/ManufacturerProducts';
-import ManufacturerOrders from '../manufacturer/ManufacturerOrders';
-import ManufacturerProfile from '../manufacturer/ManufacturerProfile';
 import NotificationBell from '../common/NotificationBell';
-import MyReports from '../common/MyReports';
-import PersonalisationSettings from '../common/PersonalisationSettings';
 import axios from 'axios';
+
+// ── Lazy-loaded views ────────────────────────────────────────────────────
+const ManufacturerProducts    = lazy(() => import('../manufacturer/ManufacturerProducts'));
+const ManufacturerOrders      = lazy(() => import('../manufacturer/ManufacturerOrders'));
+const ManufacturerProfile     = lazy(() => import('../manufacturer/ManufacturerProfile'));
+const MyReports               = lazy(() => import('../common/MyReports'));
+const PersonalisationSettings = lazy(() => import('../common/PersonalisationSettings'));
+
+const ViewFallback = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+    <div style={{
+      width: 32, height: 32,
+      border: '3px solid #e5e7eb',
+      borderTopColor: '#1e40af',
+      borderRadius: '50%',
+      animation: 'spin 0.8s linear infinite',
+    }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 interface ManufacturerDashboardProps {
   onLogout: () => void;
@@ -140,7 +155,7 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
         profilePhoto={profilePhoto}
         bellComponent={<NotificationBell />}
       >
-        {renderContent()}
+        <Suspense fallback={<ViewFallback />}>{renderContent()}</Suspense>
       </DashboardLayout>
     </>
   );

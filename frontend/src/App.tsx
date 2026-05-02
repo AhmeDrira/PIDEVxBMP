@@ -1,23 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import LoginPage from './components/auth/LoginPage';
-import AdminLoginPage from './components/auth/AdminLoginPage';
-import SubAdminLoginPage from './components/auth/SubAdminLoginPage';
-import SubAdminForgotPasswordPage from './components/auth/SubAdminForgotPasswordPage';
-import RegisterPage from './components/auth/RegisterPage';
-import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
-import ResetPasswordPage from './components/auth/ResetPasswordPage';
-import VerifyEmailPage from './components/auth/VerifyEmailPage';
-import EmailSentPage from './components/auth/EmailSentPage';
-import ManufacturerWaitingPage from './components/auth/ManufacturerWaitingPage';
-import ArtisanDashboard from './components/dashboards/ArtisanDashboard';
-import ExpertDashboard from './components/dashboards/ExpertDashboard';
-import ManufacturerDashboard from './components/dashboards/ManufacturerDashboard';
-import AdminDashboard from './components/dashboards/AdminDashboard';
 import authService from './services/authService';
 import { Toaster, toast } from 'sonner';
 import RoleGuard from './components/common/RoleGuard';
-import PortfolioGalleryPage from './components/artisan/PortfolioGalleryPage';
 import axios from 'axios';
+
+// ── Lazy-loaded routes (split into separate chunks) ─────────────────────────
+const AdminLoginPage              = lazy(() => import('./components/auth/AdminLoginPage'));
+const SubAdminLoginPage           = lazy(() => import('./components/auth/SubAdminLoginPage'));
+const SubAdminForgotPasswordPage  = lazy(() => import('./components/auth/SubAdminForgotPasswordPage'));
+const RegisterPage                = lazy(() => import('./components/auth/RegisterPage'));
+const ForgotPasswordPage          = lazy(() => import('./components/auth/ForgotPasswordPage'));
+const ResetPasswordPage           = lazy(() => import('./components/auth/ResetPasswordPage'));
+const VerifyEmailPage             = lazy(() => import('./components/auth/VerifyEmailPage'));
+const EmailSentPage               = lazy(() => import('./components/auth/EmailSentPage'));
+const ManufacturerWaitingPage     = lazy(() => import('./components/auth/ManufacturerWaitingPage'));
+const ArtisanDashboard            = lazy(() => import('./components/dashboards/ArtisanDashboard'));
+const ExpertDashboard             = lazy(() => import('./components/dashboards/ExpertDashboard'));
+const ManufacturerDashboard       = lazy(() => import('./components/dashboards/ManufacturerDashboard'));
+const AdminDashboard              = lazy(() => import('./components/dashboards/AdminDashboard'));
+const PortfolioGalleryPage        = lazy(() => import('./components/artisan/PortfolioGalleryPage'));
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin' | null;
 type AuthView =
@@ -31,6 +33,29 @@ type AuthView =
   | 'admin-login'
   | 'sub-admin-login'
   | 'sub-admin-forgot';
+
+// Lightweight loading fallback — no heavy deps, just CSS
+function RouteFallback() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'var(--background, #f3f4f6)',
+    }}>
+      <div style={{
+        width: 40,
+        height: 40,
+        border: '3px solid #e5e7eb',
+        borderTopColor: '#1e40af',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserRole>(null);
@@ -48,14 +73,14 @@ export default function App() {
     }
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
-    
+
     if (window.location.pathname === '/verify-email' || (token && !window.location.pathname.includes('reset-password'))) {
       setAuthView('verify-email');
     } else if (token) {
       setResetToken(token);
       setAuthView('reset-password');
     }
-    
+
     // Check for /admin path or setup=admin
     const path = window.location.pathname;
     if (path === '/admin/sub-admin') {
@@ -69,7 +94,7 @@ export default function App() {
     // Handle Checkout Success
     const checkoutStatus = params.get('checkout');
     const sessionId = params.get('session_id');
-    
+
     if (checkoutStatus === 'success' && sessionId) {
       const verifyCheckout = async () => {
         try {
@@ -81,7 +106,7 @@ export default function App() {
           await axios.get(`${API_URL}/payments/checkout/verify?sessionId=${sessionId}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          
+
           toast.success("Payment successful! Your order has been placed.");
           // Clean up URL and redirect to payments view if possible
           const redirectUrl = user?.role === 'expert' || user?.role === 'artisan' ? '/?view=payments' : '/';
@@ -178,7 +203,7 @@ export default function App() {
       <Toaster position="top-center" richColors />
       {/* Main Content */}
       {!currentUser ? (
-        <>
+        <Suspense fallback={<RouteFallback />}>
           {authView === 'login' && (
             <LoginPage
               onLogin={handleLogin}
@@ -236,9 +261,9 @@ export default function App() {
               onBackToLogin={() => setAuthView('login')}
             />
           )}
-        </>
+        </Suspense>
       ) : (
-        <>
+        <Suspense fallback={<RouteFallback />}>
           <RoleGuard allow={['artisan']}>
             {currentUser === 'artisan' && (() => {
               const itemId = getPortfolioGalleryItemId();
@@ -256,7 +281,7 @@ export default function App() {
           <RoleGuard allow={['admin']}>
             {currentUser === 'admin' && <AdminDashboard onLogout={handleLogout} />}
           </RoleGuard>
-        </>
+        </Suspense>
       )}
     </>
   );

@@ -18,19 +18,22 @@ export default function Logo({ variant = 'dark', size = 'md', className = '' }: 
       container: 'gap-2',
       logoHeight: 'h-8',
       title: 'text-xl',
-      subtitle: 'text-xs'
+      subtitle: 'text-xs',
+      px: 32,
     },
     md: {
       container: 'gap-3',
       logoHeight: 'h-10',
       title: 'text-2xl',
-      subtitle: 'text-sm'
+      subtitle: 'text-sm',
+      px: 40,
     },
     lg: {
       container: 'gap-3',
       logoHeight: 'h-12',
       title: 'text-3xl',
-      subtitle: 'text-base'
+      subtitle: 'text-base',
+      px: 48,
     }
   };
 
@@ -41,10 +44,15 @@ export default function Logo({ variant = 'dark', size = 'md', className = '' }: 
       {/* Logo Image from File */}
       <div
         className={`${sizeConfig.logoHeight} aspect-square flex items-center justify-center rounded-xl overflow-hidden`}
+        style={{ width: sizeConfig.px, height: sizeConfig.px }}
       >
-        <img 
-          src="/logo.png" 
-          alt="BMP.tn Logo" 
+        <img
+          src="/logo.png"
+          alt="BMP.tn Logo"
+          width={sizeConfig.px}
+          height={sizeConfig.px}
+          decoding="async"
+          fetchPriority="high"
           className="w-full h-full object-contain"
         />
       </div>

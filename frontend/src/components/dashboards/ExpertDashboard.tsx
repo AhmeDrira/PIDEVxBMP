@@ -1,22 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
-import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList, Handshake, Send, FileText } from 'lucide-react';
+import { Home, BookOpen, Users, MessageSquare, ShoppingCart, ClipboardList, Handshake, Send, FileText, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import ExpertHome from '../expert/ExpertHome';
-import ExpertKnowledgeLibrary from '../expert/ExpertKnowledgeLibrary';
-import ExpertArtisanDirectory from '../expert/ExpertArtisanDirectory';
-import ExpertMessages from '../expert/ExpertMessages';
-import ExpertMarketplace from '../expert/ExpertMarketplace';
-import ExpertProfile from '../expert/ExpertProfile';
-import MyOrders from '../common/MyOrders';
 import NotificationBell from '../common/NotificationBell';
-import { ShoppingBag } from 'lucide-react';
-import MyReports from '../common/MyReports';
-import ExpertCollaborativeProjects from '../expert/ExpertCollaborativeProjects';
-import ExpertProposals from '../expert/ExpertProposals';
-import ExpertContractView from '../expert/ExpertContractView';
-import ExpertContractSign from '../expert/ExpertContractSign';
-import PersonalisationSettings from '../common/PersonalisationSettings';
+
+// ── Lazy-loaded views (separate chunks) ─────────────────────────────────
+const ExpertKnowledgeLibrary    = lazy(() => import('../expert/ExpertKnowledgeLibrary'));
+const ExpertArtisanDirectory    = lazy(() => import('../expert/ExpertArtisanDirectory'));
+const ExpertMessages            = lazy(() => import('../expert/ExpertMessages'));
+const ExpertMarketplace         = lazy(() => import('../expert/ExpertMarketplace'));
+const ExpertProfile             = lazy(() => import('../expert/ExpertProfile'));
+const MyOrders                  = lazy(() => import('../common/MyOrders'));
+const MyReports                 = lazy(() => import('../common/MyReports'));
+const ExpertCollaborativeProjects = lazy(() => import('../expert/ExpertCollaborativeProjects'));
+const ExpertProposals           = lazy(() => import('../expert/ExpertProposals'));
+const ExpertContractView        = lazy(() => import('../expert/ExpertContractView'));
+const ExpertContractSign        = lazy(() => import('../expert/ExpertContractSign'));
+const PersonalisationSettings   = lazy(() => import('../common/PersonalisationSettings'));
+
+const ViewFallback = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+    <div style={{
+      width: 32, height: 32,
+      border: '3px solid #e5e7eb',
+      borderTopColor: '#1e40af',
+      borderRadius: '50%',
+      animation: 'spin 0.8s linear infinite',
+    }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 interface ExpertDashboardProps {
   onLogout: () => void;
@@ -241,7 +255,7 @@ export default function ExpertDashboard({ onLogout }: ExpertDashboardProps) {
         profilePhoto={profilePhoto}
         bellComponent={headerActions}
       >
-        {renderContent()}
+        <Suspense fallback={<ViewFallback />}>{renderContent()}</Suspense>
       </DashboardLayout>
     </>
   );

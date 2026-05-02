@@ -54,6 +54,26 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'build',
     chunkSizeWarningLimit: 3000,
+    cssCodeSplit: true,
+    minify: 'esbuild',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Split ONLY heavy, fully independent third-party libs into their own
+        // chunks. Splitting React/Radix/icons separately causes circular
+        // initialization at runtime ("Cannot access 'X' before initialization"),
+        // so we leave React and everything that depends on it in the default
+        // vendor chunk and let Rollup tree-shake naturally.
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('face-api.js')) return 'vendor-faceapi';
+          if (id.includes('react-quill') || id.includes('/quill/') || id.includes('\\quill\\')) return 'vendor-quill';
+          if (id.includes('recharts') || id.includes('d3-')) return 'vendor-recharts';
+          if (id.includes('socket.io-client') || id.includes('engine.io-client')) return 'vendor-socketio';
+          return undefined; // everything else stays in the default chunks
+        },
+      },
+    },
   },
   server: {
     port: 3000,

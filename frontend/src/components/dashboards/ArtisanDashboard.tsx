@@ -1,29 +1,45 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Home, FolderKanban, ShoppingCart, FileText, Receipt, MessageSquare, CreditCard, ShoppingBag, ClipboardList, Keyboard, Search, CalendarDays, Inbox } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import ArtisanHome from '../artisan/ArtisanHome';
-import ArtisanProjects from '../artisan/ArtisanProjects';
-import ArtisanMarketplace from '../artisan/ArtisanMarketplace';
-import ArtisanQuotes from '../artisan/ArtisanQuotes';
-import ArtisanInvoices from '../artisan/ArtisanInvoices';
-import ArtisanMessages from '../artisan/ArtisanMessages';
-import ArtisanSubscription from '../artisan/ArtisanSubscription';
-import ArtisanProfile from '../artisan/ArtisanProfile';
-import ArtisanPortfolio from '../artisan/ArtisanPortfolio';
-import PortfolioGalleryPage from '../artisan/PortfolioGalleryPage';
-import MyOrders from '../common/MyOrders';
-import ArtisanCalendar from '../artisan/ArtisanCalendar';
-import ArtisanProposals from '../artisan/ArtisanProposals';
-import ArtisanContractView from '../artisan/ArtisanContractView';
-import ArtisanContractSign from '../artisan/ArtisanContractSign';
 import ArtisanNotificationBell from '../artisan/ArtisanNotificationBell';
-import ArtisanProfileReviews from '../artisan/ArtisanProfileReviews';
-import MyReports from '../common/MyReports';
-import PersonalisationSettings from '../common/PersonalisationSettings';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
+
+// ── Lazy-loaded views (separate chunks, loaded on demand) ─────────────────
+const ArtisanProjects        = lazy(() => import('../artisan/ArtisanProjects'));
+const ArtisanMarketplace     = lazy(() => import('../artisan/ArtisanMarketplace'));
+const ArtisanQuotes          = lazy(() => import('../artisan/ArtisanQuotes'));
+const ArtisanInvoices        = lazy(() => import('../artisan/ArtisanInvoices'));
+const ArtisanMessages        = lazy(() => import('../artisan/ArtisanMessages'));
+const ArtisanSubscription    = lazy(() => import('../artisan/ArtisanSubscription'));
+const ArtisanProfile         = lazy(() => import('../artisan/ArtisanProfile'));
+const ArtisanPortfolio       = lazy(() => import('../artisan/ArtisanPortfolio'));
+const PortfolioGalleryPage   = lazy(() => import('../artisan/PortfolioGalleryPage'));
+const MyOrders               = lazy(() => import('../common/MyOrders'));
+const ArtisanCalendar        = lazy(() => import('../artisan/ArtisanCalendar'));
+const ArtisanProposals       = lazy(() => import('../artisan/ArtisanProposals'));
+const ArtisanContractView    = lazy(() => import('../artisan/ArtisanContractView'));
+const ArtisanContractSign    = lazy(() => import('../artisan/ArtisanContractSign'));
+const ArtisanProfileReviews  = lazy(() => import('../artisan/ArtisanProfileReviews'));
+const MyReports              = lazy(() => import('../common/MyReports'));
+const PersonalisationSettings = lazy(() => import('../common/PersonalisationSettings'));
+
+// Lightweight inline fallback for view transitions
+const ViewFallback = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+    <div style={{
+      width: 32, height: 32,
+      border: '3px solid #e5e7eb',
+      borderTopColor: '#1e40af',
+      borderRadius: '50%',
+      animation: 'spin 0.8s linear infinite',
+    }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 interface ArtisanDashboardProps {
   onLogout: () => void;
@@ -590,7 +606,9 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
         profilePhoto={profilePhoto}
         bellComponent={headerActions}
       >
-        <div data-artisan-view={activeView}>{renderContent()}</div>
+        <div data-artisan-view={activeView}>
+          <Suspense fallback={<ViewFallback />}>{renderContent()}</Suspense>
+        </div>
       </DashboardLayout>
 
       <Dialog open={isShortcutHelpOpen} onOpenChange={setIsShortcutHelpOpen}>
