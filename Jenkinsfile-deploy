@@ -9,25 +9,23 @@ pipeline {
 
     environment {
         K8S_NAMESPACE = 'pidev-prod'
-        K8S_NODE_IP = '192.168.100.60'
+        K8S_NODE_IP = '192.168.1.60'
+        KUBECONFIG = '/var/lib/jenkins/kubeconfig-pidev'
     }
 
     stages {
         stage('Vérification Cluster') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-pidev', variable: 'KCFG')]) {
-                    sh '''
-                        export KUBECONFIG="$KCFG"
-                        echo "=== Vérification de l'accès au cluster ==="
-                        kubectl cluster-info
-                        echo ""
-                        echo "=== Nodes du cluster ==="
-                        kubectl get nodes -o wide
-                        echo ""
-                        echo "=== Namespace pidev-prod ==="
-                        kubectl get namespace ${K8S_NAMESPACE} 2>/dev/null || echo "Namespace n'existe pas encore"
-                    '''
-                }
+                sh '''
+                    echo "=== Vérification de l'accès au cluster ==="
+                    kubectl cluster-info
+                    echo ""
+                    echo "=== Nodes du cluster ==="
+                    kubectl get nodes -o wide
+                    echo ""
+                    echo "=== Namespace pidev-prod ==="
+                    kubectl get namespace ${K8S_NAMESPACE} 2>/dev/null || echo "Namespace n'existe pas encore"
+                '''
             }
         }
 
@@ -36,93 +34,89 @@ pipeline {
                 expression { params.ACTION == 'deploy' }
             }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-pidev', variable: 'KCFG')]) {
-                    sh '''
-                        export KUBECONFIG="$KCFG"
-                        
-                        echo "========================================="
-                        echo "1/7 - Création du Namespace"
-                        echo "========================================="
-                        kubectl apply -f k8s/namespace.yaml
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "2/7 - Création du ConfigMap"
-                        echo "========================================="
-                        kubectl apply -f k8s/configmap.yaml
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "3/8 - Création du Stockage Persistant (NFS)"
-                        echo "========================================="
-                        kubectl apply -f k8s/storage.yaml
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "4/8 - Déploiement de MongoDB (PVC + Deployment + Service)"
-                        echo "========================================="
-                        kubectl apply -f k8s/mongodb.yaml
+                sh '''
+                    echo "========================================="
+                    echo "1/8 - Création du Namespace"
+                    echo "========================================="
+                    kubectl apply -f k8s/namespace.yaml
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "2/8 - Création du ConfigMap"
+                    echo "========================================="
+                    kubectl apply -f k8s/configmap.yaml
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "3/8 - Création du Stockage Persistant (NFS)"
+                    echo "========================================="
+                    kubectl apply -f k8s/storage.yaml
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "4/8 - Déploiement de MongoDB (PVC + Deployment + Service)"
+                    echo "========================================="
+                    kubectl apply -f k8s/mongodb.yaml
 
+                    echo ""
+                    echo "========================================="
+                    echo "5/8 - Déploiement du BACKEND"
+                    echo "========================================="
+                    echo "Image: saif4584851/pidevxbm-backend:${BACKEND_TAG}"
+                    sed "s|saif4584851/pidevxbm-backend:latest|saif4584851/pidevxbm-backend:${BACKEND_TAG}|g" k8s/backend-deployment.yaml | kubectl apply -f -
+                    kubectl apply -f k8s/backend-service.yaml
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "6/8 - Déploiement du FRONTEND"
+                    echo "========================================="
+                    echo "Image: ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}"
+                    sed "s|ahmedrira/pidevxbmp-frontend:latest|ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}|g" k8s/frontend-deployment.yaml | kubectl apply -f -
+                    kubectl apply -f k8s/frontend-service.yaml
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "7/8 - Configuration de l'Ingress"
+                    echo "========================================="
+                    kubectl apply -f k8s/ingress.yaml
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "8/8 - Attente du déploiement"
+                    echo "========================================="
+                    kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-backend --timeout=300s
+                    kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-frontend --timeout=300s
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "RÉSUMÉ DES RESSOURCES DÉPLOYÉES"
+                    echo "========================================="
+                    echo "--- Pods ---"
+                    kubectl -n ${K8S_NAMESPACE} get pods -o wide
+                    echo ""
+                    echo "--- Services ---"
+                    kubectl -n ${K8S_NAMESPACE} get svc
+                    echo ""
+                    echo "--- Ingress ---"
+                    kubectl -n ${K8S_NAMESPACE} get ingress
+                    echo ""
+                    echo "--- Secrets (doivent exister sur le cluster) ---"
+                    kubectl -n ${K8S_NAMESPACE} get secrets
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "ACCÈS À L'APPLICATION"
+                    echo "========================================="
+                    NODEPORT=$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}' 2>/dev/null || echo "")
+                    if [ -n "$NODEPORT" ]; then
+                        echo "✅ DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
                         echo ""
-                        echo "========================================="
-                        echo "5/8 - Déploiement du BACKEND"
-                        echo "========================================="
-                        echo "Image: saif4584851/pidevxbm-backend:${BACKEND_TAG}"
-                        sed "s|saif4584851/pidevxbm-backend:latest|saif4584851/pidevxbm-backend:${BACKEND_TAG}|g" k8s/backend-deployment.yaml | kubectl apply -f -
-                        kubectl apply -f k8s/backend-service.yaml
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "6/8 - Déploiement du FRONTEND"
-                        echo "========================================="
-                        echo "Image: ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}"
-                        sed "s|ahmedrira/pidevxbmp-frontend:latest|ahmedrira/pidevxbmp-frontend:${FRONTEND_TAG}|g" k8s/frontend-deployment.yaml | kubectl apply -f -
-                        kubectl apply -f k8s/frontend-service.yaml
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "7/8 - Configuration de l'Ingress"
-                        echo "========================================="
-                        kubectl apply -f k8s/ingress.yaml
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "8/8 - Attente du déploiement"
-                        echo "========================================="
-                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-backend --timeout=300s
-                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-frontend --timeout=300s
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "RÉSUMÉ DES RESSOURCES DÉPLOYÉES"
-                        echo "========================================="
-                        echo "--- Pods ---"
-                        kubectl -n ${K8S_NAMESPACE} get pods -o wide
-                        echo ""
-                        echo "--- Services ---"
-                        kubectl -n ${K8S_NAMESPACE} get svc
-                        echo ""
-                        echo "--- Ingress ---"
-                        kubectl -n ${K8S_NAMESPACE} get ingress
-                        echo ""
-                        echo "--- Secrets (doivent exister sur le cluster) ---"
-                        kubectl -n ${K8S_NAMESPACE} get secrets
-                        
-                        echo ""
-                        echo "========================================="
-                        echo "ACCÈS À L'APPLICATION"
-                        echo "========================================="
-                        NODEPORT=\$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}' 2>/dev/null || echo "")
-                        if [ -n "\$NODEPORT" ]; then
-                            echo "✅ DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
-                            echo ""
-                            echo "🌐 Application accessible sur :"
-                            echo "   http://${K8S_NODE_IP}:\${NODEPORT}"
-                        else
-                            echo "Vérifiez que ingress-nginx est installé"
-                        fi
-                    '''
-                }
+                        echo "🌐 Application accessible sur :"
+                        echo "   http://${K8S_NODE_IP}:${NODEPORT}"
+                    else
+                        echo "Vérifiez que ingress-nginx est installé"
+                    fi
+                '''
             }
         }
         
@@ -131,16 +125,13 @@ pipeline {
                 expression { params.ACTION == 'restart' }
             }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-pidev', variable: 'KCFG')]) {
-                    sh '''
-                        export KUBECONFIG="$KCFG"
-                        kubectl -n ${K8S_NAMESPACE} rollout restart deployment/pidev-backend
-                        kubectl -n ${K8S_NAMESPACE} rollout restart deployment/pidev-frontend
-                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-backend --timeout=300s
-                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-frontend --timeout=300s
-                        echo "✅ Redémarrage effectué"
-                    '''
-                }
+                sh '''
+                    kubectl -n ${K8S_NAMESPACE} rollout restart deployment/pidev-backend
+                    kubectl -n ${K8S_NAMESPACE} rollout restart deployment/pidev-frontend
+                    kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-backend --timeout=300s
+                    kubectl -n ${K8S_NAMESPACE} rollout status deployment/pidev-frontend --timeout=300s
+                    echo "✅ Redémarrage effectué"
+                '''
             }
         }
     }
