@@ -112,6 +112,11 @@ pipeline {
         success {
             echo 'CI terminee avec succes pour PIDEVxBMP Frontend'
             echo "Image Docker: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            build job: 'cd-frontend',
+                  parameters: [
+                      string(name: 'IMAGE_TAG', value: "${DOCKER_TAG}")
+                  ],
+                  wait: false
         }
         failure {
             echo 'CI echouee, verifier les logs'
