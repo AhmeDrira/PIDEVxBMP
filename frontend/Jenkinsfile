@@ -1,0 +1,128 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        APP_DIR = 'frontend'
+        DOCKER_IMAGE = 'saif4584851/pidevxbmp-frontend'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'contrat', url: 'https://github.com/AhmeDrira/PIDEVxBMP.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh 'npm ci'
+                }
+            }
+        }
+
+        stage('Run Unit Tests') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh '''
+                        if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.test ? 0 : 1)"; then
+                          npm run test
+                        else
+                          echo "No frontend unit tests configured yet - skipping this stage"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Generate Coverage Report') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh '''
+                        if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['test:coverage'] ? 0 : 1)"; then
+                          npm run test:coverage
+                        else
+                          echo "No frontend coverage script configured yet - skipping coverage generation"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir("${APP_DIR}") {
+                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                        sh '''
+                            LCOV_ARG=""
+                            if [ -f coverage/lcov.info ] && [ -s coverage/lcov.info ]; then
+                              LCOV_ARG="-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info"
+                            else
+                              echo "No coverage/lcov.info found, Sonar will run without coverage report"
+                            fi
+
+                            sonar-scanner \\
+                              -Dsonar.projectKey=pidevxbmp-frontend \\
+                              -Dsonar.projectName="PIDEVxBMP Frontend" \\
+                              -Dsonar.sources=src \\
+                              -Dsonar.exclusions=node_modules/**,build/**,dist/** \\
+                              -Dsonar.host.url=http://localhost:9000 \\
+                              -Dsonar.login=$SONAR_TOKEN \\
+                              $LCOV_ARG
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh '''
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                dir("${APP_DIR}") {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh '''
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                            docker push ${DOCKER_IMAGE}:latest
+                            docker logout
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'CI terminee avec succes pour PIDEVxBMP Frontend'
+            echo "Image Docker: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            build job: 'cd-frontend',
+                  parameters: [
+                      string(name: 'IMAGE_TAG', value: "${DOCKER_TAG}")
+                  ],
+                  wait: false
+        }
+        failure {
+            echo 'CI echouee, verifier les logs'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pidev-prod
+  labels:
+    app.kubernetes.io/name: pidev
+    app.kubernetes.io/part-of: pidevxbmp

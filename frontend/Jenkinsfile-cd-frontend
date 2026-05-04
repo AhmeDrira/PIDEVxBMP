@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Tag image frontend a deployer')
+    }
+
+    environment {
+        K8S_NAMESPACE = 'pidev-prod'
+        DOCKER_IMAGE = 'saif4584851/pidevxbmp-frontend'
+        DEPLOYMENT_NAME = 'pidev-frontend'
+        CONTAINER_NAME = 'frontend'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'contrat', url: 'https://github.com/AhmeDrira/PIDEVxBMP.git'
+            }
+        }
+
+        stage('Verifier le cluster') {
+            steps {
+                withCredentials([file(credentialsId: 'KCFG', variable: 'KCFG')]) {
+                    sh '''
+                        export KUBECONFIG="$KCFG"
+                        kubectl cluster-info
+                        kubectl -n ${K8S_NAMESPACE} get pods -l app=pidev-frontend
+                    '''
+                }
+            }
+        }
+
+        stage('Appliquer les manifests frontend') {
+            steps {
+                withCredentials([file(credentialsId: 'KCFG', variable: 'KCFG')]) {
+                    sh '''
+                        export KUBECONFIG="$KCFG"
+                        kubectl apply -f k8s/frontend-service.yaml
+                        kubectl apply -f k8s/frontend-deployment.yaml
+                    '''
+                }
+            }
+        }
+
+        stage('Mise a jour image frontend') {
+            steps {
+                withCredentials([file(credentialsId: 'KCFG', variable: 'KCFG')]) {
+                    sh '''
+                        export KUBECONFIG="$KCFG"
+                        echo "Mise a jour vers: ${DOCKER_IMAGE}:${IMAGE_TAG}"
+                        kubectl -n ${K8S_NAMESPACE} set image deployment/${DEPLOYMENT_NAME} ${CONTAINER_NAME}=${DOCKER_IMAGE}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+
+        stage('Verifier rollout') {
+            steps {
+                withCredentials([file(credentialsId: 'KCFG', variable: 'KCFG')]) {
+                    sh '''
+                        export KUBECONFIG="$KCFG"
+                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/${DEPLOYMENT_NAME} --timeout=300s
+                        kubectl -n ${K8S_NAMESPACE} get pods -l app=pidev-frontend -o wide
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "CD Frontend reussi - Image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
+        }
+        failure {
+            echo "CD Frontend echoue - Rollback"
+            withCredentials([file(credentialsId: 'KCFG', variable: 'KCFG')]) {
+                sh '''
+                    export KUBECONFIG="$KCFG"
+                    kubectl -n ${K8S_NAMESPACE} rollout undo deployment/${DEPLOYMENT_NAME}
+                '''
+            }
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pidev-backend
+  namespace: pidev-prod
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: pidev-backend
+  template:
+    metadata:
+      labels:
+        app: pidev-backend
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-creds
+      containers:
+        - name: backend
+          image: saif4584851/pidevxbm-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+              name: http
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "5000"
+            - name: APP_URL
+              value: http://app.pidev.local
+            - name: CORS_ORIGINS
+              value: http://app.pidev.local,https://app.pidev.local
+          envFrom:
+            - secretRef:
+                name: backend-secrets
+          volumeMounts:
+            - name: uploads-storage
+              mountPath: /app/uploads
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: uploads-storage
+          persistentVolumeClaim:
+            claimName: pidev-uploads-pvc
