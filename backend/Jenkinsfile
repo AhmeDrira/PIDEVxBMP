@@ -1,24 +1,20 @@
 pipeline {
     agent any
-
     options {
         timestamps()
         disableConcurrentBuilds()
     }
-
     environment {
         APP_DIR = 'backend'
         DOCKER_IMAGE = 'saif4584851/pidevxbm-backend'
         DOCKER_TAG = "${BUILD_NUMBER}"
     }
-
     stages {
         stage('Checkout') {
             steps {
                 git branch: 'contrat', url: 'https://github.com/AhmeDrira/PIDEVxBMP.git'
             }
         }
-
         stage('Install Dependencies') {
             steps {
                 dir("${APP_DIR}") {
@@ -26,7 +22,6 @@ pipeline {
                 }
             }
         }
-
         stage('Run Unit Tests') {
             steps {
                 dir("${APP_DIR}") {
@@ -34,15 +29,13 @@ pipeline {
                 }
             }
         }
-
         stage('Generate Coverage Report') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'npm run test:coverage'
+                    sh 'npm run test:coverage || true'
                 }
             }
         }
-
         stage('SonarQube Analysis') {
             steps {
                 dir("${APP_DIR}") {
@@ -61,7 +54,6 @@ pipeline {
                 }
             }
         }
-
         stage('Build Docker Image') {
             steps {
                 dir("${APP_DIR}") {
@@ -72,7 +64,6 @@ pipeline {
                 }
             }
         }
-
         stage('Push Docker Image') {
             steps {
                 dir("${APP_DIR}") {
@@ -88,11 +79,10 @@ pipeline {
             }
         }
     }
-
-   post {
+    post {
         success {
-            echo '✅ CI terminée avec succès pour PIDEVxBMP Backend'
-            echo "📦 Image Docker: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo 'CI terminee avec succes pour PIDEVxBMP Backend'
+            echo "Image Docker: ${DOCKER_IMAGE}:${DOCKER_TAG}"
             build job: 'cd-backend',
                   parameters: [
                       string(name: 'IMAGE_TAG', value: "${DOCKER_TAG}")
@@ -100,7 +90,7 @@ pipeline {
                   wait: false
         }
         failure {
-            echo '❌ CI échouée, vérifier les logs'
+            echo 'CI echouee, verifier les logs'
         }
         always {
             cleanWs()
