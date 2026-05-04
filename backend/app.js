@@ -33,7 +33,7 @@ const allowedOrigins = new Set([
 ]);
 
 const corsOptions = {
-  origin: '*',  // ← Accepter TOUTES les origines
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -43,36 +43,26 @@ const corsOptions = {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors(corsOptions));
-app.use(
-  '/uploads',
-  express.static(path.join(__dirname, 'uploads'), {
-    etag: true,
-    maxAge: '7d',
-    setHeaders(res, filePath) {
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
-
-      if (/\.(png|jpe?g|gif|webp|svg|avif)$/i.test(filePath)) {
-        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
-      }
-    },
-  })
-);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  etag: true,
+  maxAge: '7d',
+  setHeaders(res, filePath) {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+    if (/\.(png|jpe?g|gif|webp|svg|avif)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    }
+  },
+}));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
 app.use('/api/invoices', require('./routes/invoiceRoutes'));
 app.use('/api/quotes', require('./routes/quoteRoutes'));
-
-const artisanRoutes = require('./routes/artisanRoutes');
-app.use('/api/artisans', artisanRoutes);
-const expertRoutes = require('./routes/expertRoutes');
-app.use('/api/experts', expertRoutes);
-const conversationRoutes = require('./routes/conversations');
-app.use('/api/conversations', conversationRoutes);
-const messageRoutes = require('./routes/messages');
-app.use('/api/messages', messageRoutes);
-
+app.use('/api/artisans', require('./routes/artisanRoutes'));
+app.use('/api/experts', require('./routes/expertRoutes'));
+app.use('/api/conversations', require('./routes/conversations'));
+app.use('/api/messages', require('./routes/messages'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
@@ -80,7 +70,7 @@ app.use('/api/knowledge', require('./routes/knowledgeRoutes'));
 app.use('/api/logs', require('./routes/actionLogRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
-app.use('/api/ai',      require('./routes/aiRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/recommendations', require('./routes/recommendationRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 

@@ -9,9 +9,9 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
-  nfs:
-    server: 192.168.100.60
-    path: /var/lib/pidev/uploads
+  hostPath:
+    path: /mnt/data/uploads
+    type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

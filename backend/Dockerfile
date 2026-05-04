@@ -1,13 +1,7 @@
-FROM node:20-alpine
-
+FROM node:18-alpine
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm ci --omit=dev
-
+RUN npm install --no-audit --no-fund --loglevel=error
 COPY . .
-
-ENV NODE_ENV=production
 EXPOSE 5000
-
 CMD ["npm", "start"]
