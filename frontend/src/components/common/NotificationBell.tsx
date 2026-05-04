@@ -136,11 +136,13 @@ export default function NotificationBell() {
       <button
         onClick={() => setOpen(!open)}
         className={`p-2.5 w-11 h-11 rounded-xl relative overflow-visible transition-all duration-300 flex items-center justify-center ${
-          open 
-            ? 'bg-primary/10 text-primary' 
+          open
+            ? 'bg-primary/10 text-primary'
             : 'hover:bg-muted text-muted-foreground hover:text-primary'
         }`}
-        aria-label="Notifications"
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <Bell 
           size={24} 
@@ -185,8 +187,9 @@ export default function NotificationBell() {
                   onClick={clearAll}
                   className="p-2 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   title="Clear all notifications"
+                  aria-label="Clear all notifications"
                 >
-                  <X size={16} />
+                  <X size={16} aria-hidden="true" />
                 </button>
               )}
             </div>

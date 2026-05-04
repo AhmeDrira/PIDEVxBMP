@@ -1533,7 +1533,13 @@ export default function Messages() {
                           return (
                             <div key={att.filename} className="rounded-2xl border border-border bg-card shadow-sm p-3">
                               {isImage ? (
-                                <a href={url} target="_blank" rel="noreferrer" className="block">
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block"
+                                  aria-label={`Open image ${att.originalName} in a new tab`}
+                                >
                                   <img
                                     src={url}
                                     alt={att.originalName}
@@ -1542,15 +1548,23 @@ export default function Messages() {
                                 </a>
                               ) : null}
                               <div className="flex items-center gap-3 mt-2">
-                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center" aria-hidden="true">
                                   {isImage ? <ImageIcon size={18} className="text-muted-foreground" /> : <FileText size={18} className="text-muted-foreground" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-foreground truncate">{att.originalName}</p>
                                   <p className="text-xs text-muted-foreground">{formatFileSize(att.size)}</p>
                                 </div>
-                                <a href={url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary">
-                                  <Download size={16} />
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  download={att.originalName}
+                                  className="text-muted-foreground hover:text-primary"
+                                  aria-label={`Download ${att.originalName}`}
+                                  title={`Download ${att.originalName}`}
+                                >
+                                  <Download size={16} aria-hidden="true" />
                                 </a>
                               </div>
                             </div>

@@ -1951,21 +1951,23 @@ export default function ArtisanProjects() {
                         <div className="flex items-center gap-1 rounded-xl border-2 border-border overflow-hidden">
                           <button
                             type="button"
+                            aria-label="Decrease quantity"
                             className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors disabled:opacity-40"
                             disabled={(localQuantities[materialId] ?? quantity) <= 1}
                             onClick={() => handleAdjustLocalQuantity(materialId, -1)}
                           >
-                            −
+                            <span aria-hidden="true">−</span>
                           </button>
-                          <div className="min-w-[32px] text-center font-bold text-sm">
+                          <div className="min-w-[32px] text-center font-bold text-sm" aria-live="polite">
                             {localQuantities[materialId] ?? quantity}
                           </div>
                           <button
                             type="button"
+                            aria-label="Increase quantity"
                             className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors"
                             onClick={() => handleAdjustLocalQuantity(materialId, 1)}
                           >
-                            +
+                            <span aria-hidden="true">+</span>
                           </button>
                         </div>
                       </div>
@@ -2035,19 +2037,21 @@ export default function ArtisanProjects() {
                           <div className="flex items-center gap-1 rounded-xl border-2 border-border overflow-hidden">
                             <button
                               type="button"
+                              aria-label="Decrease quantity"
                               className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors disabled:opacity-40"
                               disabled={draftQty <= 1}
                               onClick={() => handleAdjustPersonalLocalQuantity(materialId, -1)}
                             >
-                              −
+                              <span aria-hidden="true">−</span>
                             </button>
-                            <div className="min-w-[32px] text-center font-bold text-sm">{draftQty}</div>
+                            <div className="min-w-[32px] text-center font-bold text-sm" aria-live="polite">{draftQty}</div>
                             <button
                               type="button"
+                              aria-label="Increase quantity"
                               className="h-8 w-8 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors"
                               onClick={() => handleAdjustPersonalLocalQuantity(materialId, 1)}
                             >
-                              +
+                              <span aria-hidden="true">+</span>
                             </button>
                           </div>
                         </div>
@@ -2319,13 +2323,14 @@ export default function ArtisanProjects() {
                 </div>
                 <button
                   type="button"
+                  aria-label={tr('Close', 'Fermer', 'إغلاق')}
                   className="h-9 w-9 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center justify-center"
                   onClick={() => {
                     setShowAddMaterialOptions(false);
                     setMaterialProjectContext(null);
                   }}
                 >
-                  <X size={16} />
+                  <X size={16} aria-hidden="true" />
                 </button>
               </div>
 

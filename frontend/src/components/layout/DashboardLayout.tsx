@@ -34,7 +34,6 @@ interface DashboardLayoutProps {
   editProfileLabel?: string;
   onUpdatePassword?: () => void;
   onViewReviews?: () => void;
-  onPersonalisation?: () => void;
   /** Optional custom notification bell component (e.g. for admin) */
   bellComponent?: React.ReactNode;
 }
@@ -54,7 +53,6 @@ export default function DashboardLayout({
   editProfileLabel,
   onUpdatePassword,
   onViewReviews,
-  onPersonalisation,
   bellComponent,
 }: DashboardLayoutProps) {
   const { t, language } = useLanguage();
@@ -322,7 +320,7 @@ export default function DashboardLayout({
         <header className="hidden lg:flex items-center justify-between h-20 px-8 bg-card border-b border-border shadow-sm">
           <div>
             <h2 className="text-2xl font-bold text-foreground">
-              {menuItems.find((item) => item.id === activeItem)?.label || t('dashboard')}
+              {menuItems.find((item) => item.id === activeItem)?.label || t('nav.dashboard')}
             </h2>
           </div>
           <div className="flex items-center gap-2">
@@ -356,7 +354,6 @@ export default function DashboardLayout({
               editProfileLabel={editProfileLabel}
               onUpdatePassword={onUpdatePassword}
               onViewReviews={onViewReviews}
-              onPersonalisation={onPersonalisation}
               onLogout={onLogout}
             />
           </div>

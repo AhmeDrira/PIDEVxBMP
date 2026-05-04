@@ -792,9 +792,13 @@ export default function ArtisanMarketplace() {
               <div className="flex flex-col gap-2 mb-6 p-4 bg-muted/50 rounded-xl">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold text-foreground">{displayedAverage.toFixed(1)}</span>
-                  <div className="flex text-secondary">
+                  <div
+                    className="flex text-amber-600"
+                    role="img"
+                    aria-label={`Rating: ${displayedAverage.toFixed(1)} out of ${maxStars} stars`}
+                  >
                     {Array.from({ length: maxStars }, (_, i) => i + 1).map((star) => (
-                      <Star key={star} size={20} fill={star <= displayedAverage ? "currentColor" : "none"} className="text-yellow-400" />
+                      <Star key={star} size={20} fill={star <= displayedAverage ? "currentColor" : "none"} className="text-amber-600" aria-hidden="true" />
                     ))}
                   </div>
                   <span className="text-muted-foreground">({displayedReviews} {tr('reviews', 'avis', 'تقييمات')})</span>
@@ -1199,11 +1203,23 @@ export default function ArtisanMarketplace() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-auto">
-                      <Button variant="outline" className="h-11 rounded-xl border-2 hover:bg-muted/50 hover:text-primary transition-colors" onClick={() => { setSelectedProduct(product); setView('detail'); }}>
-                        <Eye size={16} className="mr-1" /> {tr('View', 'Voir', 'عرض')}
+                      <Button
+                        variant="outline"
+                        className="h-11 rounded-xl border-2 hover:bg-muted/50 hover:text-primary transition-colors"
+                        onClick={() => { setSelectedProduct(product); setView('detail'); }}
+                        aria-label={tr(`View details of ${product.name}`, `Voir les détails de ${product.name}`, `عرض تفاصيل ${product.name}`)}
+                      >
+                        <Eye size={16} className="mr-1" aria-hidden="true" /> {tr('View', 'Voir', 'عرض')}
                       </Button>
-                      <Button disabled={product.stock === 0} className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors" onClick={() => guard(() => addToCart(product))}>
-                        <ShoppingCart size={16} className="mr-1" /> {projectId ? tr('Add to Project', 'Ajouter au projet', 'إضافة إلى المشروع') : tr('Add', 'Ajouter', 'إضافة')}
+                      <Button
+                        disabled={product.stock === 0}
+                        className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors"
+                        onClick={() => guard(() => addToCart(product))}
+                        aria-label={projectId
+                          ? tr(`Add ${product.name} to project`, `Ajouter ${product.name} au projet`, `إضافة ${product.name} إلى المشروع`)
+                          : tr(`Add ${product.name} to cart`, `Ajouter ${product.name} au panier`, `إضافة ${product.name} إلى السلة`)}
+                      >
+                        <ShoppingCart size={16} className="mr-1" aria-hidden="true" /> {projectId ? tr('Add to Project', 'Ajouter au projet', 'إضافة إلى المشروع') : tr('Add', 'Ajouter', 'إضافة')}
                       </Button>
                     </div>
                   </div>
@@ -1213,19 +1229,27 @@ export default function ArtisanMarketplace() {
           )}
 
           {!isLoading && filteredProducts.length > 0 && (
-            <div className="mt-8 flex items-center justify-center gap-4">
+            <nav
+              className="mt-8 flex items-center justify-center gap-4"
+              aria-label={tr('Pagination', 'Pagination', 'التصفح')}
+            >
               <Button
                 type="button"
                 variant="outline"
                 className="h-11 w-11 rounded-2xl border-2 border-border bg-card p-0 hover:bg-muted/50 disabled:opacity-50"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={safeCurrentPage === 1}
-                aria-label="Previous page"
+                aria-label={tr('Previous page', 'Page précédente', 'الصفحة السابقة')}
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={18} aria-hidden="true" />
               </Button>
 
-              <div className="text-xl font-semibold text-foreground">
+              <div
+                className="text-xl font-semibold text-foreground"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 <span className="text-muted-foreground">{tr('Page', 'Page', 'الصفحة')} </span>
                 <span>{safeCurrentPage}</span>
                 <span className="text-muted-foreground"> {tr('of', 'sur', 'من')} </span>
@@ -1238,11 +1262,11 @@ export default function ArtisanMarketplace() {
                 className="h-11 w-11 rounded-2xl border-2 border-border bg-card p-0 hover:bg-muted/50 disabled:opacity-50"
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={safeCurrentPage === totalPages}
-                aria-label="Next page"
+                aria-label={tr('Next page', 'Page suivante', 'الصفحة التالية')}
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={18} aria-hidden="true" />
               </Button>
-            </div>
+            </nav>
           )}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '../ui/button';
@@ -13,10 +13,8 @@ import authService from '../../services/authService';
 import { toast } from 'sonner';
 import { loginSchema, LoginFormValues } from '../../lib/validations';
 import { GoogleLoginButton } from './GoogleLoginButton';
+import FaceCaptureWidget from './FaceCaptureWidget';
 import { useLanguage } from '../../context/LanguageContext';
-
-// face-api.js is ~1MB — only load when the user explicitly switches to Face mode
-const FaceCaptureWidget = lazy(() => import('./FaceCaptureWidget'));
 
 type UserRole = 'artisan' | 'expert' | 'manufacturer' | 'admin';
 type LoginMode = 'classic' | 'face';
@@ -38,32 +36,16 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
   const [siteStats, setSiteStats] = useState({ activeUsers: 0, projects: 0, satisfaction: 0 });
 
   useEffect(() => {
-    // Defer non-critical /api/stats call until the browser is idle
-    // (purely cosmetic counters in the hero — should not block FCP/LCP)
-    const idle = (cb: () => void) => {
-      const ric = (window as any).requestIdleCallback;
-      if (typeof ric === 'function') return ric(cb, { timeout: 3000 });
-      return setTimeout(cb, 1500);
-    };
-
-    const handle = idle(() => {
-      fetch('/api/stats')
-        .then((r) => r.json())
-        .then((data) => {
-          setSiteStats({
-            activeUsers: Number(data?.activeUsers) || 0,
-            projects: Number(data?.projects ?? data?.totalProjects ?? data?.activeProjects) || 0,
-            satisfaction: Number(data?.satisfaction) || 0,
-          });
-        })
-        .catch(() => {});
-    });
-
-    return () => {
-      const cic = (window as any).cancelIdleCallback;
-      if (typeof cic === 'function') cic(handle);
-      else clearTimeout(handle as any);
-    };
+    fetch('/api/stats')
+      .then((r) => r.json())
+      .then((data) => {
+        setSiteStats({
+          activeUsers: Number(data?.activeUsers) || 0,
+          projects: Number(data?.projects ?? data?.totalProjects ?? data?.activeProjects) || 0,
+          satisfaction: Number(data?.satisfaction) || 0,
+        });
+      })
+      .catch(() => {});
   }, []);
 
   const formatCount = (n: number) => {
@@ -147,11 +129,9 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
       <div className="lg:w-1/2 relative overflow-hidden bg-[#1e40af]">
         <div className="absolute inset-0">
           <ImageWithFallback
-            src="https://images.unsplash.com/photo-1693679758394-6d56a1e5c1a0?crop=entropy&cs=tinysrgb&fit=max&fm=webp&q=70&w=720"
+            src="https://images.unsplash.com/photo-1693679758394-6d56a1e5c1a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjBzaXRlJTIwbW9kZXJuJTIwYnVpbGRpbmd8ZW58MXx8fHwxNzcwNTc2NzAyfDA&ixlib=rb-4.1.0&q=80&w=1080"
             alt="Construction"
             className="w-full h-full object-cover"
-            loading="eager"
-            fetchPriority="low"
           />
           <div className="absolute inset-0 bg-gradient-to-br from-[#1e40af]/95 via-[#1e3a8a]/90 to-[#1e40af]/95" />
         </div>
@@ -360,17 +340,11 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Log
                     <p className="text-slate-600 font-medium">{tr('Verifying your face…', 'Vérification du visage…')}</p>
                   </div>
                 ) : (
-                  <Suspense fallback={
-                    <div className="flex items-center justify-center py-10">
-                      <Loader2 className="animate-spin text-blue-500" size={32} />
-                    </div>
-                  }>
-                    <FaceCaptureWidget
-                      mode="login"
-                      onCapture={onFaceCapture}
-                      onCancel={() => setLoginMode('classic')}
-                    />
-                  </Suspense>
+                  <FaceCaptureWidget
+                    mode="login"
+                    onCapture={onFaceCapture}
+                    onCancel={() => setLoginMode('classic')}
+                  />
                 )}
 
                 {/* Error / no-face message */}

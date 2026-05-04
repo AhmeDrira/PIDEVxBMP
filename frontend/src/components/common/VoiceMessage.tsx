@@ -81,12 +81,13 @@ export default function VoiceMessage({ url, duration, isSelf, messageId }: Voice
         type="button"
         variant="ghost"
         size="icon"
+        aria-label={isPlaying ? 'Pause voice message' : 'Play voice message'}
         className={`h-8 w-8 rounded-full flex-shrink-0 ${isSelf ? 'hover:bg-blue-800 text-white' : 'hover:bg-muted text-foreground'}`}
         onClick={togglePlay}
       >
-        {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+        {isPlaying ? <Pause size={16} fill="currentColor" aria-hidden="true" /> : <Play size={16} fill="currentColor" aria-hidden="true" />}
       </Button>
-      
+
       <div className="flex flex-col flex-1 w-32 md:w-48">
         <input
           type="range"
@@ -94,6 +95,11 @@ export default function VoiceMessage({ url, duration, isSelf, messageId }: Voice
           max={duration || 100}
           value={currentTime}
           onChange={handleSeek}
+          aria-label="Voice message progress"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration || 0)}
+          aria-valuenow={Math.round(currentTime)}
+          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
           className={`h-1.5 w-full rounded-lg appearance-none cursor-pointer ${isSelf ? 'bg-blue-400 accent-white' : 'bg-gray-200 accent-blue-600'}`}
           style={{ WebkitAppearance: 'none' }}
         />

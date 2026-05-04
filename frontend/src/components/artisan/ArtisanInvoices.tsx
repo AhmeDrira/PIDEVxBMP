@@ -593,12 +593,12 @@ export default function ArtisanInvoices() {
     }
   };
 
-  // --- UTILITAIRES DE DESIGN ---
+  // --- UTILITAIRES DE DESIGN (WCAG AA contrast) ---
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid': return 'bg-green-100 text-green-700 border-green-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'overdue': return 'bg-red-100 text-red-700 border-red-200';
+      case 'paid': return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200';
+      case 'overdue': return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-200';
       default: return 'bg-muted text-foreground border-border';
     }
   };
@@ -1243,9 +1243,14 @@ export default function ArtisanInvoices() {
           <div className="flex flex-col sm:flex-row gap-3 lg:w-auto">
             <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center gap-2 min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
               <Filter className="text-muted-foreground shrink-0" size={16} />
+              <label htmlFor="invoice-status-filter" className="sr-only">
+                {tr('Filter by status', 'Filtrer par statut', 'تصفية حسب الحالة')}
+              </label>
               <select
+                id="invoice-status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as 'all' | 'paid' | 'pending' | 'overdue')}
+                aria-label={tr('Filter invoices by status', 'Filtrer les factures par statut', 'تصفية الفواتير حسب الحالة')}
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >
@@ -1256,9 +1261,14 @@ export default function ArtisanInvoices() {
               </select>
             </div>
             <div className="h-12 rounded-xl border-2 border-border bg-card px-3 flex items-center min-w-[170px] overflow-hidden focus-within:border-border transition-colors">
+              <label htmlFor="invoice-due-filter" className="sr-only">
+                {tr('Filter by due date', "Filtrer par date d'échéance", 'تصفية حسب تاريخ الاستحقاق')}
+              </label>
               <select
+                id="invoice-due-filter"
                 value={dueFilter}
                 onChange={(e) => setDueFilter(e.target.value as 'all' | 'overdue' | 'upcoming')}
+                aria-label={tr('Filter invoices by due date', "Filtrer les factures par date d'échéance", 'تصفية الفواتير حسب تاريخ الاستحقاق')}
                 className="h-full w-full border-none bg-transparent text-sm focus:outline-none focus:ring-0 outline-none cursor-pointer"
                 style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
               >

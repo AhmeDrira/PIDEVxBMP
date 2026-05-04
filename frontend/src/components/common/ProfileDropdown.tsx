@@ -25,10 +25,11 @@ export default function ProfileDropdown({ userName, userRole, profilePhoto, onVi
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'artisan': return 'bg-secondary/10 text-secondary';
-      case 'expert': return 'bg-accent/10 text-accent';
-      case 'manufacturer': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-      case 'admin': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+      // High-contrast (WCAG AA) badge colors — text on bg ratio ≥ 4.5:1
+      case 'artisan': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+      case 'expert': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
+      case 'manufacturer': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200';
+      case 'admin': return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200';
       default: return 'bg-muted text-foreground';
     }
   };
