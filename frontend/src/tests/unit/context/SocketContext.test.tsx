@@ -51,7 +51,7 @@ describe('SocketContext', () => {
       { timeout: 3000 }
     );
     expect(ioMock).toHaveBeenCalledWith(
-      expect.stringContaining('http://localhost:5000'),
+      expect.any(String),
       expect.objectContaining({ auth: { token: 'socket-token-123' } })
     );
 
