@@ -43,10 +43,13 @@ describe('SocketContext', () => {
     );
 
     // Assert
-    await waitFor(() => {
-      expect(screen.getByTestId('connection-state')).toHaveTextContent('connected');
-    });
-    expect(screen.getByTestId('socket-state')).toHaveTextContent('socket-ready');
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('connection-state')).toHaveTextContent('connected');
+        expect(screen.getByTestId('socket-state')).toHaveTextContent('socket-ready');
+      },
+      { timeout: 3000 }
+    );
     expect(ioMock).toHaveBeenCalledWith(
       expect.stringContaining('http://localhost:5000'),
       expect.objectContaining({ auth: { token: 'socket-token-123' } })

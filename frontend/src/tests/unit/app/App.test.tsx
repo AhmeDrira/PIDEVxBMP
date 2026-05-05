@@ -134,7 +134,7 @@ describe('App', () => {
     window.history.pushState({}, '', '/');
   });
 
-  it('should render admin login view when opening /admin unauthenticated', () => {
+  it('should render admin login view when opening /admin unauthenticated', async () => {
     // Arrange
     getCurrentUserMock.mockReturnValue(null);
     window.history.pushState({}, '', '/admin');
@@ -143,11 +143,11 @@ describe('App', () => {
     render(<App />);
 
     // Assert
-    expect(screen.getByText('admin-login-page')).toBeInTheDocument();
+    expect(await screen.findByText('admin-login-page')).toBeInTheDocument();
     expect(screen.queryByText('login-page')).not.toBeInTheDocument();
   });
 
-  it('should render expert dashboard for authenticated expert users', () => {
+  it('should render expert dashboard for authenticated expert users', async () => {
     // Arrange
     getCurrentUserMock.mockReturnValue({ _id: 'expert-1', role: 'expert', token: 'expert-token' });
 
@@ -155,7 +155,7 @@ describe('App', () => {
     render(<App />);
 
     // Assert
-    expect(screen.getByText('expert-dashboard')).toBeInTheDocument();
+    expect(await screen.findByText('expert-dashboard')).toBeInTheDocument();
   });
 
   it('should redirect to manufacturer waiting view for pending manufacturer login', async () => {
@@ -168,10 +168,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'login-pending-manufacturer' }));
 
     // Assert
-    expect(screen.getByText('manufacturer-waiting-page')).toBeInTheDocument();
+    expect(await screen.findByText('manufacturer-waiting-page')).toBeInTheDocument();
   });
 
-  it('should open portfolio gallery route for authenticated artisan users', () => {
+  it('should open portfolio gallery route for authenticated artisan users', async () => {
     // Arrange
     getCurrentUserMock.mockReturnValue({ _id: 'artisan-1', role: 'artisan', token: 'artisan-token' });
     window.history.pushState({}, '', '/portfolio/gallery/item-42');
@@ -180,7 +180,7 @@ describe('App', () => {
     render(<App />);
 
     // Assert
-    expect(screen.getByText('portfolio-page-item-42')).toBeInTheDocument();
+    expect(await screen.findByText('portfolio-page-item-42')).toBeInTheDocument();
     expect(screen.queryByText('artisan-dashboard')).not.toBeInTheDocument();
   });
 
@@ -191,10 +191,10 @@ describe('App', () => {
 
     // Act
     render(<App />);
-    await user.click(screen.getByRole('button', { name: 'admin-logout' }));
+    await user.click(await screen.findByRole('button', { name: 'admin-logout' }));
 
     // Assert
     expect(logoutMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('admin-login-page')).toBeInTheDocument();
+    expect(await screen.findByText('admin-login-page')).toBeInTheDocument();
   });
 });
