@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pidev-frontend
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app: pidev-frontend
+spec:
+  namespaceSelector:
+    matchNames:
+      - pidev-prod
+  selector:
+    matchLabels:
+      app: pidev-frontend
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

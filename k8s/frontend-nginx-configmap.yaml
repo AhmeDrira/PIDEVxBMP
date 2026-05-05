@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx-config
+  namespace: pidev-prod
+data:
+  default.conf: |
+    # Server principal (sert le frontend React)
+    server {
+      listen 80;
+      server_name _;
+      root /usr/share/nginx/html;
+      index index.html;
+
+      location / {
+        try_files $uri $uri/ /index.html;
+      }
+    }
+
+    # Server interne pour stub_status (lu par le sidecar exporter)
+    server {
+      listen 8080;
+      server_name _;
+      
+      location /stub_status {
+        stub_status on;
+        access_log off;
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+      }
+      
+      location / {
+        return 404;
+      }
+    }
