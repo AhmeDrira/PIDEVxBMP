@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');
+const { metricsMiddleware, metricsHandler } = require('./middleware/metrics');
 
 dotenv.config();
 connectDB();
@@ -71,6 +72,10 @@ app.use(
     },
   })
 );
+// === Prometheus monitoring ===
+app.use(metricsMiddleware);
+app.get('/metrics', metricsHandler);
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
 app.use('/api/invoices', require('./routes/invoiceRoutes'));
