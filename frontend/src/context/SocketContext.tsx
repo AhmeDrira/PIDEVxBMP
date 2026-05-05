@@ -13,7 +13,7 @@ const SocketContext = createContext<SocketContextProps>({
 
 export const useSocket = () => useContext(SocketContext);
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
 
 const getStoredToken = (): string | null => {
   let t = localStorage.getItem('token');
