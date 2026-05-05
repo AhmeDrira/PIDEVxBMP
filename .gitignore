@@ -1,4 +1,21 @@
-node_modules/
-.env
-dist/
+
+# Backups
+*.bak
+*.bak2
+*.bak3
 build/
+build/# Node modules
+# Build outputs
+dist/
+.DS_Store
+.env
+# Environment
+.env.local
+FETCH_HEAD
+# IDE
+.idea/
+node_modules/
+# OS
+*.swp
+Thumbs.db
+.vscode/
