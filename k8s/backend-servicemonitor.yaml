@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pidev-backend
+  namespace: monitoring
+  labels:
+    release: monitoring          # ← Doit matcher serviceMonitorSelector
+    app: pidev-backend
+spec:
+  namespaceSelector:
+    matchNames:
+      - pidev-prod              # ← Cherche le service dans ce namespace
+  selector:
+    matchLabels:
+      app: pidev-backend         # ← Match le service pidev-backend
+  endpoints:
+    - port: http                 # ← Port name du service (pas le numéro)
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s

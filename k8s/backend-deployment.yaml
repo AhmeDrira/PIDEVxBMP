@@ -4,7 +4,7 @@ metadata:
   name: pidev-backend
   namespace: pidev-prod
 spec:
-  replicas: 2
+  replicas: 1
   revisionHistoryLimit: 5
   strategy:
     type: RollingUpdate
@@ -36,7 +36,7 @@ spec:
             - name: APP_URL
               value: http://app.pidev.local
             - name: CORS_ORIGINS
-              value: http://app.pidev.local,https://app.pidev.local
+              value: http://app.pidev.local,https://app.pidev.local,http://app.pidev.local:9090,https://app.pidev.local:9090,http://192.168.1.99:9090,http://192.168.100.50:9090,http://localhost:9090
           envFrom:
             - secretRef:
                 name: backend-secrets
