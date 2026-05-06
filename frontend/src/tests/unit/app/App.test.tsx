@@ -168,7 +168,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'login-pending-manufacturer' }));
 
     // Assert
-    expect(await screen.findByText('manufacturer-waiting-page')).toBeInTheDocument();
+    expect(screen.getByText('manufacturer-waiting-page')).toBeInTheDocument();
   });
 
   it('should open portfolio gallery route for authenticated artisan users', async () => {
@@ -191,7 +191,8 @@ describe('App', () => {
 
     // Act
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'admin-logout' }));
+    const logoutButton = await screen.findByRole('button', { name: 'admin-logout' });
+    await user.click(logoutButton);
 
     // Assert
     expect(logoutMock).toHaveBeenCalledTimes(1);

@@ -1,19 +1,17 @@
 /**
- * Unit tests — RecommendationEngine (pure scoring functions)
+ * Unit tests — RecommendationEngine (pure scoring functions, v4 API)
  * Run: npx jest tests/recommendationEngine.test.js
  */
 
 const {
-  scoreBesoin,
+  tokenise,
+  scoreCompatibiliteSurface,
   scoreBudget,
-  scoreDispoDelai,
+  scoreContrainteTechnique,
   scoreFiabilite,
   scorePdf,
+  scoreSemanticProjectMatch,
   computeScore,
-  renormaliseWeights,
-  DEFAULT_WEIGHTS,
-  tokenise,
-  estimateDeliveryDays,
 } = require('../services/RecommendationEngine');
 
 // ── tokenise ─────────────────────────────────────────────────────────────────
@@ -24,139 +22,114 @@ describe('tokenise', () => {
     expect(tokens).toContain('arme');
     expect(tokens).toContain('resistant');
   });
-  test('filters short words', () => {
+  test('filters short words (< 3 chars)', () => {
     const tokens = tokenise('de la à béton');
     expect(tokens).toContain('beton');
     expect(tokens).not.toContain('de');
     expect(tokens).not.toContain('la');
   });
-  test('empty string returns []', () => {
+  test('empty/null input returns []', () => {
     expect(tokenise('')).toEqual([]);
     expect(tokenise(null)).toEqual([]);
   });
 });
 
-// ── estimateDeliveryDays ──────────────────────────────────────────────────────
-describe('estimateDeliveryDays', () => {
-  test('sufficient stock → 3 days', () => {
-    expect(estimateDeliveryDays(10, 10)).toBe(3);
-    expect(estimateDeliveryDays(20, 5)).toBe(3);
-  });
-  test('insufficient stock adds 2 days per missing unit', () => {
-    expect(estimateDeliveryDays(0, 5)).toBe(3 + 5 * 2); // 13
-    expect(estimateDeliveryDays(3, 5)).toBe(3 + 2 * 2); // 7
+// ── scoreCompatibiliteSurface ────────────────────────────────────────────────
+describe('scoreCompatibiliteSurface', () => {
+  test('returns the fixed 25 points compatibility score (v1 behaviour)', () => {
+    expect(scoreCompatibiliteSurface()).toEqual({ total: 25 });
   });
 });
 
-// ── scoreBesoin ───────────────────────────────────────────────────────────────
-describe('scoreBesoin', () => {
+// ── scoreBudget ──────────────────────────────────────────────────────────────
+describe('scoreBudget', () => {
+  test('within budget → max 25 pts', () => {
+    const r = scoreBudget(100, 5, 1000); // 500 ≤ 1000
+    expect(r.score).toBe(25);
+    expect(r.withinBudget).toBe(true);
+    expect(r.totalCost).toBe(500);
+  });
+  test('exactly on budget → 25 pts', () => {
+    const r = scoreBudget(100, 10, 1000); // 1000 = 1000
+    expect(r.score).toBe(25);
+    expect(r.withinBudget).toBe(true);
+  });
+  test('slightly over budget (<=12.5%) yields partial points', () => {
+    const r = scoreBudget(100, 11, 1000); // 1100 → 10% over
+    expect(r.score).toBeGreaterThan(0);
+    expect(r.score).toBeLessThan(25);
+    expect(r.withinBudget).toBe(false);
+  });
+  test('over 12.5% → 0 pts', () => {
+    const r = scoreBudget(100, 20, 1000); // 2000 → 100% over
+    expect(r.score).toBe(0);
+    expect(r.withinBudget).toBe(false);
+  });
+  test('no budget → neutral 12 pts', () => {
+    expect(scoreBudget(100, 10, 0).score).toBe(12);
+    expect(scoreBudget(100, 10, null).score).toBe(12);
+  });
+  test('zero price or quantity → 0 pts', () => {
+    expect(scoreBudget(0, 10, 500).score).toBe(0);
+    expect(scoreBudget(100, 0, 500).score).toBe(0);
+  });
+});
+
+// ── scoreContrainteTechnique ─────────────────────────────────────────────────
+describe('scoreContrainteTechnique', () => {
   const product = { name: 'Béton C25', category: 'Béton', description: 'Résistant aux intempéries' };
 
-  test('exact category match boosts score', () => {
-    const score = scoreBesoin(product, 'béton fondation', []);
-    expect(score).toBeGreaterThan(0.5);
+  test('no constraint → 0 pts neutral', () => {
+    expect(scoreContrainteTechnique(product, '')).toEqual({ score: 0, matchCount: 0 });
+    expect(scoreContrainteTechnique(product, '   ')).toEqual({ score: 0, matchCount: 0 });
   });
-  test('no match returns low score', () => {
-    const score = scoreBesoin(product, 'peinture mur', []);
-    expect(score).toBeLessThan(0.3);
+  test('full match yields high score', () => {
+    const r = scoreContrainteTechnique(product, 'résistant intempéries');
+    expect(r.matchCount).toBeGreaterThan(0);
+    expect(r.score).toBeGreaterThan(0);
+    expect(r.score).toBeLessThanOrEqual(20);
   });
-  test('empty nature returns neutral 0.5', () => {
-    expect(scoreBesoin(product, '', [])).toBe(0.5);
+  test('no match → 0 pts', () => {
+    const r = scoreContrainteTechnique(product, 'peinture mur');
+    expect(r.score).toBe(0);
+    expect(r.matchCount).toBe(0);
   });
-  test('constraints contribute to score', () => {
-    const score = scoreBesoin(product, 'béton', ['résistant', 'intempéries']);
-    expect(score).toBeGreaterThan(0.5);
-  });
-  test('score is between 0 and 1', () => {
-    const s = scoreBesoin(product, 'béton résistant fondation', ['NF EN', 'sol']);
-    expect(s).toBeGreaterThanOrEqual(0);
-    expect(s).toBeLessThanOrEqual(1);
-  });
-});
-
-// ── scoreBudget ───────────────────────────────────────────────────────────────
-describe('scoreBudget', () => {
-  test('within budget → 1.0', () => {
-    expect(scoreBudget(100, 5, 1000)).toBe(1.0); // 500 ≤ 1000
-  });
-  test('exactly on budget → 1.0', () => {
-    expect(scoreBudget(100, 10, 1000)).toBe(1.0); // 1000 = 1000
-  });
-  test('slightly over budget → partial score', () => {
-    const s = scoreBudget(100, 12, 1000); // 1200 vs 1000 → 20% over
-    expect(s).toBeGreaterThan(0.6);
-    expect(s).toBeLessThan(1);
-  });
-  test('2× budget → ~0.37 (exp(-1))', () => {
-    const s = scoreBudget(100, 20, 1000); // 2000 vs 1000 → 100% over
-    expect(s).toBeCloseTo(Math.exp(-1), 1);
-  });
-  test('no budget → neutral 0.5', () => {
-    expect(scoreBudget(100, 10, 0)).toBe(0.5);
-    expect(scoreBudget(100, 10, null)).toBe(0.5);
-  });
-  test('zero price or quantity → 0', () => {
-    expect(scoreBudget(0, 10, 500)).toBe(0);
-    expect(scoreBudget(100, 0, 500)).toBe(0);
+  test('score is in [0, 20]', () => {
+    const r = scoreContrainteTechnique(product, 'béton résistant');
+    expect(r.score).toBeGreaterThanOrEqual(0);
+    expect(r.score).toBeLessThanOrEqual(20);
   });
 });
 
-// ── scoreDispoDelai ───────────────────────────────────────────────────────────
-describe('scoreDispoDelai', () => {
-  test('full stock within deadline → ≈1.0', () => {
-    const s = scoreDispoDelai(20, 'active', 10, 30);
-    expect(s).toBeCloseTo(1.0, 1);
-  });
-  test('out-of-stock → 0', () => {
-    expect(scoreDispoDelai(0, 'out-of-stock', 10, 30)).toBe(0);
-    expect(scoreDispoDelai(5, 'out-of-stock', 10, 30)).toBe(0);
-  });
-  test('low-stock applies penalty', () => {
-    const active   = scoreDispoDelai(15, 'active', 10, 30);
-    const lowStock = scoreDispoDelai(15, 'low-stock', 10, 30);
-    expect(lowStock).toBeLessThan(active);
-  });
-  test('insufficient stock with tight deadline → lower score', () => {
-    const loose = scoreDispoDelai(2, 'active', 10, 60);
-    const tight  = scoreDispoDelai(2, 'active', 10, 5);
-    expect(tight).toBeLessThan(loose);
-  });
-  test('score is in [0, 1]', () => {
-    const s = scoreDispoDelai(3, 'active', 20, 7);
-    expect(s).toBeGreaterThanOrEqual(0);
-    expect(s).toBeLessThanOrEqual(1);
-  });
-});
-
-// ── scoreFiabilite ────────────────────────────────────────────────────────────
+// ── scoreFiabilite ───────────────────────────────────────────────────────────
 describe('scoreFiabilite', () => {
-  test('perfect rating + many reviews + loyal → close to 1', () => {
-    const s = scoreFiabilite(5, 100, true);
-    expect(s).toBeGreaterThan(0.9);
+  test('perfect rating + loyal manufacturer → 15 pts', () => {
+    const product = { rating: 5, manufacturer: 'm1' };
+    const r = scoreFiabilite(product, new Set(['m1']));
+    expect(r.reliability).toBe(10);
+    expect(r.loyaltyBonus).toBe(5);
+    expect(r.total).toBe(15);
   });
-  test('zero rating + no reviews + no history → 0', () => {
-    expect(scoreFiabilite(0, 0, false)).toBe(0);
+  test('zero rating + no history → 0 pts', () => {
+    const product = { rating: 0, manufacturer: 'm1' };
+    const r = scoreFiabilite(product, new Set());
+    expect(r.total).toBe(0);
   });
   test('loyalty bonus increases score', () => {
-    const without = scoreFiabilite(3, 20, false);
-    const with_   = scoreFiabilite(3, 20, true);
-    expect(with_).toBeGreaterThan(without);
+    const product = { rating: 3, manufacturer: 'm1' };
+    const without = scoreFiabilite(product, new Set());
+    const with_   = scoreFiabilite(product, new Set(['m1']));
+    expect(with_.total).toBeGreaterThan(without.total);
   });
-  test('rating and review volume both contribute', () => {
-    const highRating = scoreFiabilite(5, 5, false);
-    const manyReviews = scoreFiabilite(2, 50, false);
-    // Both should be non-zero but different
-    expect(highRating).toBeGreaterThan(0);
-    expect(manyReviews).toBeGreaterThan(0);
-  });
-  test('score is in [0, 1]', () => {
-    const s = scoreFiabilite(4.3, 27, false);
-    expect(s).toBeGreaterThanOrEqual(0);
-    expect(s).toBeLessThanOrEqual(1);
+  test('total <= 15', () => {
+    const product = { rating: 4.3, manufacturer: 'm1' };
+    const r = scoreFiabilite(product, new Set(['m1']));
+    expect(r.total).toBeGreaterThanOrEqual(0);
+    expect(r.total).toBeLessThanOrEqual(15);
   });
 });
 
-// ── scorePdf ──────────────────────────────────────────────────────────────────
+// ── scorePdf ─────────────────────────────────────────────────────────────────
 describe('scorePdf', () => {
   const richProfile = {
     norms:          ['NF EN 206', 'ISO 9001'],
@@ -169,51 +142,51 @@ describe('scorePdf', () => {
     keywords:       ['fondation', 'dalle'],
   };
 
-  test('no PDF → 0.20 penalty score', () => {
-    expect(scorePdf(null, 0, false, [])).toBe(0.20);
-    expect(scorePdf(richProfile, 0, false, [])).toBe(0.20);
+  test('no PDF → 0 pts', () => {
+    expect(scorePdf(null, false, '').score).toBe(0);
+    expect(scorePdf(richProfile, false, '').score).toBe(0);
   });
-  test('PDF present with rich profile → high score', () => {
-    const s = scorePdf(richProfile, 0.9, true, ['béton', 'fondation']);
-    expect(s).toBeGreaterThan(0.6);
+  test('PDF present with rich profile and no constraint → high score', () => {
+    const r = scorePdf(richProfile, true, '');
+    expect(r.score).toBeGreaterThan(0);
+    expect(r.score).toBeLessThanOrEqual(15);
+    expect(Array.isArray(r.badges)).toBe(true);
+    expect(r.badges.length).toBeGreaterThan(0);
   });
-  test('PDF present but confidence = 0 → near-zero', () => {
-    expect(scorePdf(richProfile, 0, true, [])).toBeCloseTo(0.15, 1);
+  test('constraint covered by profile yields full score', () => {
+    const matched = scorePdf(richProfile, true, 'extérieur humide béton');
+    const unmatched = scorePdf(richProfile, true, 'isolation acoustique');
+    expect(matched.score).toBeGreaterThanOrEqual(unmatched.score);
   });
-  test('constraints covered in profile boost score', () => {
-    const withConstraints    = scorePdf(richProfile, 0.8, true, ['béton', 'humide', 'fondation']);
-    const withoutConstraints = scorePdf(richProfile, 0.8, true, []);
-    expect(withConstraints).toBeGreaterThanOrEqual(withoutConstraints);
-  });
-  test('score is in [0, 1]', () => {
-    const s = scorePdf(richProfile, 0.75, true, ['résistant', 'extérieur']);
-    expect(s).toBeGreaterThanOrEqual(0);
-    expect(s).toBeLessThanOrEqual(1);
-  });
-});
-
-// ── renormaliseWeights ────────────────────────────────────────────────────────
-describe('renormaliseWeights', () => {
-  test('all criteria available → sum = 1', () => {
-    const available = new Set(['besoin', 'budget', 'dispoDelai', 'fiabilite', 'pdf']);
-    const w = renormaliseWeights(DEFAULT_WEIGHTS, available);
-    const sum = Object.values(w).reduce((a, b) => a + b, 0);
-    expect(sum).toBeCloseTo(1, 5);
-  });
-  test('budget removed → remaining sum = 1', () => {
-    const available = new Set(['besoin', 'dispoDelai', 'fiabilite', 'pdf']);
-    const w = renormaliseWeights(DEFAULT_WEIGHTS, available);
-    const sum = Object.values(w).reduce((a, b) => a + b, 0);
-    expect(sum).toBeCloseTo(1, 5);
-    expect(w.budget).toBeUndefined();
-  });
-  test('only one criterion → weight = 1', () => {
-    const w = renormaliseWeights(DEFAULT_WEIGHTS, new Set(['besoin']));
-    expect(w.besoin).toBeCloseTo(1, 5);
+  test('score is in [0, 15]', () => {
+    const r = scorePdf(richProfile, true, 'résistant extérieur');
+    expect(r.score).toBeGreaterThanOrEqual(0);
+    expect(r.score).toBeLessThanOrEqual(15);
   });
 });
 
-// ── computeScore (integration) ────────────────────────────────────────────────
+// ── scoreSemanticProjectMatch ────────────────────────────────────────────────
+describe('scoreSemanticProjectMatch', () => {
+  test('empty input → all zeros', () => {
+    const r = scoreSemanticProjectMatch();
+    expect(r.bonus).toBe(0);
+    expect(r.penalty).toBe(0);
+    expect(r.net).toBe(0);
+  });
+  test('positive bonus and penalty → net = bonus - penalty', () => {
+    const r = scoreSemanticProjectMatch({ bonus: 8, penalty: 2, matchStrength: 'strong', matchCount: 3 });
+    expect(r.net).toBe(6);
+    expect(r.matchStrength).toBe('strong');
+    expect(r.matchCount).toBe(3);
+  });
+  test('clamps negative bonus/penalty to 0', () => {
+    const r = scoreSemanticProjectMatch({ bonus: -5, penalty: -3 });
+    expect(r.bonus).toBe(0);
+    expect(r.penalty).toBe(0);
+  });
+});
+
+// ── computeScore (integration) ───────────────────────────────────────────────
 describe('computeScore', () => {
   const mockProduct = {
     _id: 'prod1',
@@ -225,78 +198,78 @@ describe('computeScore', () => {
     status: 'active',
     rating: 4.2,
     numReviews: 35,
+    manufacturer: 'manuf1',
   };
   const richProfile = {
     norms: ['NF EN 206'], certifications: ['CE'], resistance: ['25 MPa'],
     dimensions: [], environment: ['extérieur'], safety: ['A2'], materials: ['béton'], keywords: ['fondation'],
   };
 
-  test('returns totalScore in [0, 1]', () => {
-    const { totalScore } = computeScore({
-      product: mockProduct,
-      nature: 'béton fondation',
-      quantity: 10,
-      budget: 600,
-      constraints: ['résistant'],
-      deadlineDays: 14,
-      artisanBoughtBefore: false,
-      techProfile: richProfile,
-      techConfidence: 0.8,
-      pdfPresent: true,
-    });
-    expect(totalScore).toBeGreaterThanOrEqual(0);
-    expect(totalScore).toBeLessThanOrEqual(1);
+  const baseParams = {
+    product: mockProduct,
+    category: 'Béton',
+    unit: 'm²',
+    constraint: 'résistant',
+    quantity: 10,
+    budget: 600,
+    purchasedManufIds: new Set(),
+    techProfile: richProfile,
+    pdfPresent: true,
+    isNonStandard: false,
+    semanticAnalysis: { bonus: 0, penalty: 0, matchStrength: 'none', matchCount: 0 },
+  };
+
+  test('returns score breakdown with the 5 expected criteria', () => {
+    const { scores } = computeScore(baseParams);
+    expect(scores).toHaveProperty('compatibilite');
+    expect(scores).toHaveProperty('budget');
+    expect(scores).toHaveProperty('contrainte');
+    expect(scores).toHaveProperty('fiabilite');
+    expect(scores).toHaveProperty('pdf');
+    expect(scores).toHaveProperty('total');
+    expect(scores).toHaveProperty('rankingTotal');
   });
 
-  test('breakdown has all 5 keys', () => {
-    const { breakdown } = computeScore({
-      product: mockProduct,
-      nature: 'béton',
-      quantity: 5,
-      budget: 500,
-      constraints: [],
-      deadlineDays: 30,
-      artisanBoughtBefore: false,
-      techProfile: null,
-      techConfidence: 0,
-      pdfPresent: false,
-    });
-    expect(breakdown).toHaveProperty('besoin');
-    expect(breakdown).toHaveProperty('budget');
-    expect(breakdown).toHaveProperty('dispoDelai');
-    expect(breakdown).toHaveProperty('fiabilite');
-    expect(breakdown).toHaveProperty('pdf');
+  test('total is in [0, 100]', () => {
+    const { scores } = computeScore(baseParams);
+    expect(scores.total).toBeGreaterThanOrEqual(0);
+    expect(scores.total).toBeLessThanOrEqual(100);
   });
 
-  test('product with PDF scores higher than identical without PDF', () => {
-    const base = { product: mockProduct, nature: 'béton', quantity: 5, budget: 400, constraints: [], deadlineDays: 20, artisanBoughtBefore: false };
-    const withPdf    = computeScore({ ...base, techProfile: richProfile, techConfidence: 0.9, pdfPresent: true });
-    const withoutPdf = computeScore({ ...base, techProfile: null, techConfidence: 0, pdfPresent: false });
-    expect(withPdf.totalScore).toBeGreaterThan(withoutPdf.totalScore);
+  test('product with PDF scores higher than identical product without PDF', () => {
+    const withPdf    = computeScore({ ...baseParams, techProfile: richProfile, pdfPresent: true });
+    const withoutPdf = computeScore({ ...baseParams, techProfile: null,        pdfPresent: false });
+    expect(withPdf.scores.total).toBeGreaterThan(withoutPdf.scores.total);
   });
 
-  test('reasons array is non-empty', () => {
-    const { reasons } = computeScore({
-      product: mockProduct,
-      nature: 'béton',
-      quantity: 10,
-      budget: 200,
-      constraints: [],
-      deadlineDays: 7,
-      artisanBoughtBefore: true,
-      techProfile: richProfile,
-      techConfidence: 0.7,
-      pdfPresent: true,
-    });
-    expect(Array.isArray(reasons)).toBe(true);
-    expect(reasons.length).toBeGreaterThan(0);
+  test('justification is a non-empty string', () => {
+    const { justification } = computeScore(baseParams);
+    expect(typeof justification).toBe('string');
+    expect(justification.length).toBeGreaterThan(0);
   });
 
-  test('out-of-budget product gets lower score', () => {
-    const expensive = { ...mockProduct, price: 500 }; // 500 × 10 = 5000 vs budget 400
-    const cheap     = { ...mockProduct, price: 30 };   // 30  × 10 = 300  vs budget 400
-    const sExpensive = computeScore({ product: expensive, nature: 'béton', quantity: 10, budget: 400, constraints: [], deadlineDays: 30, artisanBoughtBefore: false, techProfile: null, techConfidence: 0, pdfPresent: false });
-    const sCheap     = computeScore({ product: cheap,     nature: 'béton', quantity: 10, budget: 400, constraints: [], deadlineDays: 30, artisanBoughtBefore: false, techProfile: null, techConfidence: 0, pdfPresent: false });
-    expect(sCheap.totalScore).toBeGreaterThan(sExpensive.totalScore);
+  test('totalCost = price × quantity', () => {
+    const { totalCost } = computeScore(baseParams);
+    expect(totalCost).toBe(mockProduct.price * baseParams.quantity);
+  });
+
+  test('out-of-budget product gets a lower total than affordable one', () => {
+    const expensive = { ...mockProduct, price: 500 };  // 500 × 10 = 5000 vs budget 400
+    const cheap     = { ...mockProduct, price: 30 };   //  30 × 10 =  300 vs budget 400
+    const sExpensive = computeScore({ ...baseParams, product: expensive, budget: 400, techProfile: null, pdfPresent: false });
+    const sCheap     = computeScore({ ...baseParams, product: cheap,     budget: 400, techProfile: null, pdfPresent: false });
+    expect(sCheap.scores.total).toBeGreaterThan(sExpensive.scores.total);
+  });
+
+  test('semantic bonus increases rankingTotal', () => {
+    const without = computeScore({ ...baseParams, semanticAnalysis: { bonus: 0, penalty: 0 } });
+    const with_   = computeScore({ ...baseParams, semanticAnalysis: { bonus: 8, penalty: 0, matchStrength: 'strong', matchCount: 4 } });
+    expect(with_.scores.rankingTotal).toBeGreaterThan(without.scores.rankingTotal);
+  });
+
+  test('loyal manufacturer earns the loyalty bonus through fiabilite', () => {
+    const loyal   = computeScore({ ...baseParams, purchasedManufIds: new Set(['manuf1']) });
+    const new_    = computeScore({ ...baseParams, purchasedManufIds: new Set() });
+    expect(loyal.scores.fiabilite).toBeGreaterThan(new_.scores.fiabilite);
   });
 });

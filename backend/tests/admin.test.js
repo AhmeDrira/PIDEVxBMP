@@ -1,6 +1,7 @@
 const request = require('supertest');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 
 let app;
 let mongod;
@@ -13,18 +14,12 @@ beforeAll(async () => {
   process.env.APP_URL = 'http://localhost:3000';
   global.fetch = async () => ({ ok: true, text: async () => 'ok' });
   app = require('../app');
-  await request(app).post('/api/auth/admin/create').send({
-    firstName: 'Admin',
-    lastName: 'User',
-    email: 'admin@example.com',
-    phone: '11111111',
-    password: 'password123',
-  });
-  const login = await request(app).post('/api/auth/login').send({
-    email: 'admin@example.com',
-    password: 'password123',
-  });
-  adminToken = login.body.token;
+
+  // The current code base does not expose a public admin-creation route.
+  // The middleware `protect` shortcuts on a JWT with role='admin' to build
+  // a synthetic super-admin user (see middleware/authMiddleware.js).
+  // We sign such a token directly to authenticate as super admin.
+  adminToken = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1h' });
 });
 
 afterAll(async () => {

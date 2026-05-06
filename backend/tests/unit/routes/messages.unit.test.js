@@ -11,6 +11,9 @@ jest.mock('../../../controllers/messageController', () => ({
   uploadVoice: jest.fn(),
   sendVoiceMessage: jest.fn(),
   generateAIDraftMessage: jest.fn(),
+  sendPriceProposalFromChat: jest.fn(),
+  acceptProposalFromChat: jest.fn(),
+  rejectProposalFromChat: jest.fn(),
 }));
 
 const { protect } = require('../../../middleware/authMiddleware');

@@ -10,6 +10,7 @@ beforeAll(async () => {
   process.env.MONGO_URI = mongod.getUri();
   process.env.JWT_SECRET = 'testsecret';
   process.env.APP_URL = 'http://localhost:3000';
+  process.env.ADMIN_SECRET_KEY = 'test-admin-secret-key';
   global.fetch = async () => ({ ok: true, text: async () => 'ok' });
   app = require('../app');
 });
@@ -18,6 +19,12 @@ afterAll(async () => {
   await mongoose.connection.close();
   await mongod.stop();
 });
+
+// Helper: registration sets isVerified=false; manually flip it so login can succeed.
+async function verifyEmailDirect(email) {
+  const { User } = require('../models/User');
+  await User.findOneAndUpdate({ email }, { isVerified: true });
+}
 
 test('register artisan and login', async () => {
   const reg = await request(app).post('/api/auth/register').send({
@@ -31,6 +38,10 @@ test('register artisan and login', async () => {
     domain: 'Plumbing',
   });
   expect(reg.status).toBe(201);
+
+  // Email verification is required before login (controller returns 403 otherwise)
+  await verifyEmailDirect('a@example.com');
+
   const login = await request(app).post('/api/auth/login').send({
     email: 'a@example.com',
     password: 'password123',
@@ -39,8 +50,10 @@ test('register artisan and login', async () => {
   expect(login.body.token).toBeTruthy();
 });
 
-test('create admin and access me', async () => {
-  const reg = await request(app).post('/api/auth/admin/create').send({
+test('create sub-admin and access me', async () => {
+  // Sub-admin creation requires the shared admin secret key
+  const reg = await request(app).post('/api/auth/admin/subadmins').send({
+    secretKey: process.env.ADMIN_SECRET_KEY,
     firstName: 'Admin',
     lastName: 'User',
     email: 'admin@example.com',
@@ -48,10 +61,14 @@ test('create admin and access me', async () => {
     password: 'password123',
   });
   expect(reg.status).toBe(201);
+
+  await verifyEmailDirect('admin@example.com');
+
   const login = await request(app).post('/api/auth/login').send({
     email: 'admin@example.com',
     password: 'password123',
   });
+  expect(login.status).toBe(200);
   const token = login.body.token;
   const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
   expect(me.status).toBe(200);
@@ -68,6 +85,8 @@ test('forgot and reset password', async () => {
     role: 'expert',
     domain: 'Structural',
   });
+  await verifyEmailDirect('user@example.com');
+
   const forgot = await request(app).post('/api/auth/forgot').send({ email: 'user@example.com' });
   expect(forgot.status).toBe(200);
   const { User } = require('../models/User');

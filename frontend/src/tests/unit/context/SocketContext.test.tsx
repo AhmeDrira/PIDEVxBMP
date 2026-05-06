@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { io } from 'socket.io-client';
 import { SocketProvider, useSocket } from '@/context/SocketContext';
 
@@ -15,6 +15,10 @@ function SocketProbe() {
 }
 
 describe('SocketContext', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('should connect through provider and expose socket state when token exists', async () => {
     // Arrange
     const ioMock = vi.mocked(io);
@@ -34,6 +38,19 @@ describe('SocketContext', () => {
 
     ioMock.mockReturnValue(socketMock as any);
     localStorage.setItem('token', 'socket-token-123');
+    Object.defineProperty(window, 'requestIdleCallback', {
+      configurable: true,
+      writable: true,
+      value: (callback: IdleRequestCallback) => {
+        callback({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline);
+        return 1;
+      },
+    });
+    Object.defineProperty(window, 'cancelIdleCallback', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
 
     // Act
     const view = render(
@@ -43,15 +60,12 @@ describe('SocketContext', () => {
     );
 
     // Assert
-    await waitFor(
-      () => {
-        expect(screen.getByTestId('connection-state')).toHaveTextContent('connected');
-        expect(screen.getByTestId('socket-state')).toHaveTextContent('socket-ready');
-      },
-      { timeout: 3000 }
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('connection-state')).toHaveTextContent('connected');
+    });
+    expect(screen.getByTestId('socket-state')).toHaveTextContent('socket-ready');
     expect(ioMock).toHaveBeenCalledWith(
-      expect.any(String),
+      expect.stringContaining('http://localhost:3000'),
       expect.objectContaining({ auth: { token: 'socket-token-123' } })
     );
 

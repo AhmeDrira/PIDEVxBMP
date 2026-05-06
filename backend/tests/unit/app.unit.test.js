@@ -1,5 +1,9 @@
 const mockUse = jest.fn();
+const mockSet = jest.fn();
+const mockGet = jest.fn();
 const mockExpressApp = { use: mockUse };
+mockExpressApp.set = mockSet;
+mockExpressApp.get = mockGet;
 const mockJson = jest.fn(() => 'json-middleware');
 const mockUrlencoded = jest.fn(() => 'urlencoded-middleware');
 const mockStatic = jest.fn(() => 'static-middleware');

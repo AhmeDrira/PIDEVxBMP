@@ -1,16 +1,23 @@
 /**
  * Integration tests — Recommendation API
  * Run: npx jest tests/recommendationApi.test.js
+ *
+ * Endpoint contract (current):
+ *   POST /api/projects/:projectId/material-recommendations
+ *   Body: { surface, unit, category, budget, ...optional }
+ *   Response: { projectId, recommendations: [{ productId, scores: {...}, pdfInsights, pricingSummary, stockSummary, ... }] }
  */
 
 const request  = require('supertest');
 const mongoose = require('mongoose');
+const jwt      = require('jsonwebtoken');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let app;
 let mongod;
 let artisanToken;
 let otherToken;
+let artisanId;
 let projectId;
 let productId;
 
@@ -30,20 +37,24 @@ afterAll(async () => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function registerAndLogin(email, role = 'artisan') {
-  await request(app)
-    .post('/api/auth/register')
-    .send({ firstName: 'Test', lastName: 'User', email, password: 'Password1!', role });
-
-  // Manually verify the user in DB
-  const { User } = require('../models/User');
-  await User.findOneAndUpdate({ email }, { isVerified: true });
-
-  const res = await request(app)
-    .post('/api/auth/login')
-    .send({ email, password: 'Password1!' });
-
-  return res.body.token;
+// Bypass /api/auth/register + /api/auth/login (the latter is rate-limited at
+// 10 req / 15 min per IP — beforeEach would burn that quota by test #5).
+// We create the user directly and sign a JWT that matches what the real
+// loginUser controller would have produced.
+async function createArtisanAndSignToken(email) {
+  const { Artisan } = require('../models/User');
+  const user = await Artisan.create({
+    firstName: 'Test',
+    lastName: 'User',
+    email,
+    password: 'Password1!',
+    role: 'artisan',
+    isVerified: true,
+    location: '',
+    domain: '',
+  });
+  const token = jwt.sign({ id: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  return { user, token };
 }
 
 async function createProject(token) {
@@ -61,10 +72,8 @@ async function createProject(token) {
   return res.body._id;
 }
 
-async function createProduct() {
+async function createProduct(manufacturerId) {
   const Product = require('../models/Product');
-  const { User } = require('../models/User');
-  const mfr = await User.findOne({ role: 'artisan' }); // reuse artisan as manufacturer stub
   const product = await Product.create({
     name: 'Béton C25 sac 35kg',
     category: 'Béton',
@@ -72,28 +81,40 @@ async function createProduct() {
     price: 28,
     stock: 100,
     status: 'active',
-    manufacturer: mfr._id,
+    manufacturer: manufacturerId,
     rating: 4.1,
     numReviews: 20,
   });
   return product._id;
 }
 
+// Default valid body for the new contract
+const validBody = (overrides = {}) => ({
+  surface: 10,
+  unit: 'm²',
+  category: 'Béton',
+  budget: 5000,
+  ...overrides,
+});
+
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
   // Clear collections
-  const { User }   = require('../models/User');
-  const Product    = require('../models/Product');
-  const Project    = require('../models/Project');
+  const { User } = require('../models/User');
+  const Product  = require('../models/Product');
+  const Project  = require('../models/Project');
   await User.deleteMany({});
   await Product.deleteMany({});
   await Project.deleteMany({});
 
-  artisanToken = await registerAndLogin('artisan@test.com', 'artisan');
-  otherToken   = await registerAndLogin('other@test.com',   'artisan');
+  const artisan = await createArtisanAndSignToken('artisan@test.com');
+  const other   = await createArtisanAndSignToken('other@test.com');
+  artisanToken = artisan.token;
+  otherToken   = other.token;
+  artisanId    = artisan.user._id;
   projectId    = await createProject(artisanToken);
-  productId    = await createProduct();
+  productId    = await createProduct(artisanId);
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -103,7 +124,7 @@ describe('POST /api/projects/:projectId/material-recommendations', () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
       .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ nature: 'béton fondation', quantity: 10, budget: 1000, deadlineDays: 30 });
+      .send(validBody());
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('recommendations');
@@ -111,13 +132,15 @@ describe('POST /api/projects/:projectId/material-recommendations', () => {
     expect(res.body.projectId).toBe(projectId);
   });
 
-  test('recommendations are sorted descending by totalScore', async () => {
+  test('recommendations are sorted descending by ranking score', async () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
       .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ nature: 'béton', quantity: 5, budget: 500 });
+      .send(validBody({ surface: 5, budget: 500 }));
 
-    const scores = res.body.recommendations.map((r) => r.totalScore);
+    expect(res.status).toBe(200);
+    const recs = res.body.recommendations || [];
+    const scores = recs.map((r) => (r.scores?.rankingTotal ?? r.scores?.total));
     for (let i = 1; i < scores.length; i++) {
       expect(scores[i]).toBeLessThanOrEqual(scores[i - 1]);
     }
@@ -127,29 +150,30 @@ describe('POST /api/projects/:projectId/material-recommendations', () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
       .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ nature: 'béton', quantity: 5, budget: 500 });
+      .send(validBody({ surface: 5, budget: 500 }));
 
-    const rec = res.body.recommendations[0];
+    expect(res.status).toBe(200);
+    const rec = (res.body.recommendations || [])[0];
     if (rec) {
       expect(rec).toHaveProperty('productId');
-      expect(rec).toHaveProperty('totalScore');
-      expect(rec).toHaveProperty('scoreBreakdown');
-      expect(rec).toHaveProperty('reasons');
+      expect(rec).toHaveProperty('scores');
       expect(rec).toHaveProperty('pdfInsights');
       expect(rec).toHaveProperty('pricingSummary');
       expect(rec).toHaveProperty('stockSummary');
-      expect(rec.scoreBreakdown).toHaveProperty('besoin');
-      expect(rec.scoreBreakdown).toHaveProperty('budget');
-      expect(rec.scoreBreakdown).toHaveProperty('dispoDelai');
-      expect(rec.scoreBreakdown).toHaveProperty('fiabilite');
-      expect(rec.scoreBreakdown).toHaveProperty('pdf');
+      expect(rec).toHaveProperty('explainableAI');
+      expect(rec.scores).toHaveProperty('total');
+      expect(rec.scores).toHaveProperty('compatibilite');
+      expect(rec.scores).toHaveProperty('budget');
+      expect(rec.scores).toHaveProperty('contrainte');
+      expect(rec.scores).toHaveProperty('fiabilite');
+      expect(rec.scores).toHaveProperty('pdf');
     }
   });
 
   test('401 without authentication', async () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
-      .send({ nature: 'béton', quantity: 5 });
+      .send(validBody());
 
     expect(res.status).toBe(401);
   });
@@ -158,7 +182,7 @@ describe('POST /api/projects/:projectId/material-recommendations', () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
       .set('Authorization', `Bearer ${otherToken}`)
-      .send({ nature: 'béton', quantity: 5 });
+      .send(validBody());
 
     expect(res.status).toBe(403);
   });
@@ -168,25 +192,25 @@ describe('POST /api/projects/:projectId/material-recommendations', () => {
     const res = await request(app)
       .post(`/api/projects/${fakeId}/material-recommendations`)
       .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ nature: 'béton', quantity: 5 });
+      .send(validBody());
 
     expect(res.status).toBe(404);
   });
 
-  test('400 if nature is missing', async () => {
+  test('400 if category is missing', async () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
       .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ quantity: 5 });
+      .send(validBody({ category: undefined }));
 
     expect(res.status).toBe(400);
   });
 
-  test('400 if quantity is zero or missing', async () => {
+  test('400 if surface is zero or missing', async () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
       .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ nature: 'béton', quantity: 0 });
+      .send(validBody({ surface: 0 }));
 
     expect(res.status).toBe(400);
   });
@@ -195,7 +219,7 @@ describe('POST /api/projects/:projectId/material-recommendations', () => {
     const res = await request(app)
       .post(`/api/projects/${projectId}/material-recommendations`)
       .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ nature: 'béton', quantity: 5, maxResults: 2 });
+      .send(validBody({ maxResults: 2 }));
 
     expect(res.status).toBe(200);
     expect(res.body.recommendations.length).toBeLessThanOrEqual(2);
