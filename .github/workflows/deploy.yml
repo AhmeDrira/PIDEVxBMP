@@ -25,7 +25,7 @@ jobs:
       - name: Build and push frontend
         run: |
           docker build \
-            --build-arg VITE_API_URL="https://app.bmp.tn" \
+            --build-arg VITE_API_URL="https://app.bmp.tn/api" \
             --build-arg VITE_GOOGLE_CLIENT_ID="913345195656-1ah0o5p6lk7lg2uvh8qob5mfcmdlap2c.apps.googleusercontent.com" \
             -t saif4584851/pidevxbmp-frontend:latest ./frontend
           docker push saif4584851/pidevxbmp-frontend:latest

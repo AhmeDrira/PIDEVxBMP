@@ -67,7 +67,10 @@ export default function ArtisanSubscription() {
       const response = await axios.get(`${API_URL}/payments/subscription/history`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setPaymentHistory(response.data);
+      // Garde defensive : si l'API renvoie autre chose qu'un tableau (typiquement
+      // l'index.html du SPA quand /api n'est pas proxifie), `.map()` plus bas
+      // faisait planter la page entiere en ecran blanc.
+      setPaymentHistory(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching payment history:', error);
     } finally {
