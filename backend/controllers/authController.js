@@ -9,6 +9,7 @@ const { OAuth2Client } = require('google-auth-library');
 const { User, Artisan, Expert, Manufacturer, Admin } = require('../models/User');
 const Notification = require('../models/Notification');
 const { logAction } = require('../utils/actionLogger');
+const DomainService = require('../services/DomainService');
 
 // Force IPv4 for all DNS lookups and outbound HTTP(S) connections.
 // Node.js 20+ / 22 uses "happy eyeballs" which tries IPv4 + IPv6 in parallel;
@@ -83,6 +84,18 @@ const ensureAdminPermission = (req, res, permissionKey) => {
   return false;
 };
 
+// Cree le mini site de l'artisan (slug + ArtisanDomain).
+// Volontairement NON BLOQUANT : un souci sur le mini site ne doit jamais faire
+// echouer une inscription. Le slug pourra etre rattrape plus tard (idempotent).
+const ensureArtisanMiniSite = async (artisan) => {
+  try {
+    return await DomainService.ensureDomainForArtisan(artisan);
+  } catch (error) {
+    console.error('Mini site slug creation failed for artisan', artisan?._id, error);
+    return null;
+  }
+};
+
 // Normalize phone for duplicate check (digits only, optional leading +)
 const normalizePhoneForLookup = (phone) => {
   if (!phone || typeof phone !== 'string') return null;
@@ -141,6 +154,7 @@ const registerUser = async (req, res) => {
     const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
 
     let user;
+    let artisanDomain = null;
 
     // faceDescriptor may arrive as an array (JSON body) or as a JSON string (multipart FormData)
     let parsedDescriptor = faceDescriptor;
@@ -168,6 +182,8 @@ const registerUser = async (req, res) => {
     switch (role) {
       case 'artisan':
         user = await Artisan.create({ ...userData, location: '', domain: '' });
+        // Mini site public disponible immediatement, sans action de l'artisan
+        artisanDomain = await ensureArtisanMiniSite(user);
         // Notify the new artisan that a subscription is required
         await Notification.create({
           type: 'subscription_required',
@@ -222,6 +238,7 @@ const registerUser = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        ...(artisanDomain ? { slug: artisanDomain.slug } : {}),
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -303,14 +320,17 @@ async function createOAuthUser(baseData, role) {
   const validRoles = ['artisan', 'expert', 'manufacturer'];
   const newRole = (role && validRoles.includes(role)) ? role : 'artisan';
   switch (newRole) {
-    case 'artisan':
-      return Artisan.create({ ...baseData, location: '', domain: '' });
     case 'expert':
       return Expert.create({ ...baseData, domain: '' });
     case 'manufacturer':
       return Manufacturer.create({ ...baseData, companyName: '' });
-    default:
-      return Artisan.create({ ...baseData, location: '', domain: '' });
+    case 'artisan':
+    default: {
+      // Meme regle que l'inscription classique : le mini site existe des la creation.
+      const artisan = await Artisan.create({ ...baseData, location: '', domain: '' });
+      await ensureArtisanMiniSite(artisan);
+      return artisan;
+    }
   }
 }
 

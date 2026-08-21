@@ -63,9 +63,52 @@
     -   Headers: `Authorization: Bearer <token>`
     -   Response: Current user details
 
+### Artisan mini site
+
+-   **GET /api/check-slug?slug=...**
+    -   Public, rate limited to 60 requests/minute per IP
+    -   Always answers `200`, even for an invalid slug (called on every keystroke)
+    -   Response: `{ available, slug, reason?, message?, suggestion? }`
+
+-   **GET /api/public/artisan/:slug**
+    -   Public, no authentication
+    -   Response: public profile only (name, trade, area, bio, phone, WhatsApp
+        link, portfolio, reviews)
+    -   `404` if the slug does not exist or the artisan is suspended
+
+-   **GET /site/:slug**
+    -   Public, server-rendered mini site (EJS)
+    -   Also served on `[slug].bmp.tn` by `middleware/miniSiteMiddleware.js`
+
+-   **GET /site/:slug/share.png**
+    -   Public, 1200x630 PNG used as `og:image` for social sharing
+
+-   **GET /site/:slug/avatar.svg**
+    -   Public, initials avatar used as favicon
+
 ## Environment Variables (.env)
 
 -   `PORT`: Server port (default 5000)
 -   `MONGO_URI`: MongoDB connection string
 -   `JWT_SECRET`: Secret for signing JWT tokens
 -   `ADMIN_CREATION_SECRET`: Secret key for creating admin accounts
+-   `MINI_SITE_BASE_DOMAIN`: **Required in production.** Root domain serving the
+    artisan mini sites, e.g. `bmp.tn`. Each artisan is then reachable at
+    `[slug].bmp.tn`.
+
+    -   **Set:** only single-label subdomains of that exact domain resolve to a
+        mini site (`hamza.bmp.tn` yes, `hamza.other.tn` and `a.hamza.bmp.tn` no),
+        and public URLs are built as `https://[slug].bmp.tn`.
+    -   **Unset (local dev):** falls back to a generic
+        `subdomain.domain.tld` heuristic and builds URLs as
+        `http://[slug].localhost:PORT`. `*.localhost` keeps working either way —
+        browsers resolve it without touching the `hosts` file.
+
+    Leaving it unset in production is a real risk: an unexpected `Host` header
+    could be interpreted as a mini site request. Reserved slugs (`www`, `api`,
+    `app`, `staging`, ...) already guard the common cases, but the variable is
+    what makes the match exact.
+
+    Deployment also needs a wildcard DNS record `*.bmp.tn`, a wildcard TLS
+    certificate, and Nginx forwarding the original host
+    (`proxy_set_header Host $host;`) — the whole subdomain routing depends on it.

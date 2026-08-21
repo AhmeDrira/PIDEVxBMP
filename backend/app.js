@@ -2,14 +2,17 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
-const connectDB = require('./config/db');
+const mongoose = require('mongoose');
 const { metricsMiddleware, metricsHandler } = require('./middleware/metrics');
 
 dotenv.config();
-connectDB();
 
 const app = express();
 app.set('trust proxy', 1); // Render uses a proxy
+
+// Moteur de template du mini site artisan (rendu côté serveur)
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 const configuredOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -56,6 +59,18 @@ const corsOptions = {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors(corsOptions));
+
+app.use('/api', (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({
+      message: 'Database unavailable. Start MongoDB and restart the backend.',
+    });
+    return;
+  }
+
+  next();
+});
+
 app.use(
   '/uploads',
   express.static(path.join(__dirname, 'uploads'), {
@@ -75,6 +90,11 @@ app.use(
 // === Prometheus monitoring ===
 app.use(metricsMiddleware);
 app.get('/metrics', metricsHandler);
+
+// Routage par sous-domaine du mini site artisan.
+// DOIT rester avant les routes /api : sur `slug.bmp.tn`, c'est le mini site qui
+// répond, pas l'application. Les Host non concernés appellent next() aussitôt.
+app.use(require('./middleware/miniSiteMiddleware'));
 
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
@@ -100,6 +120,10 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/ai',      require('./routes/aiRoutes'));
 app.use('/api/recommendations', require('./routes/recommendationRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+// Mini site artisan (slug & sous-domaine) — ne déclare que /api/check-slug pour l'instant
+app.use('/api', require('./routes/domainRoutes'));
+app.use('/site', require('./routes/miniSiteRoutes'));
+
 app.use('/api/calendar', require('./routes/calendarRoutes'));
 app.use('/api/contracts', require('./routes/contractRoutes'));
 app.use('/api/proposals', require('./routes/proposalRoutes'));

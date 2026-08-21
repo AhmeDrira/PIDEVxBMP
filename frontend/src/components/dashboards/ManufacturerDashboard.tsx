@@ -54,7 +54,8 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
       });
       
       // Filtrer les notifications non lues de type 'new_order'
-      const unreadOrders = res.data.filter((n: any) => !n.read && n.type === 'new_order');
+      const notifications = Array.isArray(res.data) ? res.data : [];
+      const unreadOrders = notifications.filter((n: any) => !n.read && n.type === 'new_order');
       setUnreadOrdersCount(unreadOrders.length);
     } catch (err) {
       console.error("Error fetching unread orders count:", err);
@@ -104,7 +105,8 @@ export default function ManufacturerDashboard({ onLogout }: ManufacturerDashboar
         });
 
         // On filtre celles qui sont de type 'new_order' et non lues
-        const unreadOrders = res.data.filter((n: any) => !n.read && n.type === 'new_order');
+        const notifications = Array.isArray(res.data) ? res.data : [];
+        const unreadOrders = notifications.filter((n: any) => !n.read && n.type === 'new_order');
         
         // On les marque comme lues
         for (const n of unreadOrders) {

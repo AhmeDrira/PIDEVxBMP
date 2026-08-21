@@ -49,6 +49,9 @@ jest.mock('../../routes/analyticsRoutes', () => ({ __route: 'analytics' }));
 jest.mock('../../routes/calendarRoutes', () => ({ __route: 'calendar' }));
 jest.mock('../../routes/contractRoutes', () => ({ __route: 'contracts' }));
 jest.mock('../../routes/proposalRoutes', () => ({ __route: 'proposals' }));
+jest.mock('../../routes/domainRoutes', () => ({ __route: 'domain' }));
+jest.mock('../../routes/miniSiteRoutes', () => ({ __route: 'miniSite' }));
+jest.mock('../../middleware/miniSiteMiddleware', () => ({ __middleware: 'miniSite' }));
 
 describe('app bootstrap', () => {
   beforeEach(() => {
@@ -62,7 +65,9 @@ describe('app bootstrap', () => {
 
     expect(app).toBe(mockExpressApp);
     expect(mockDotenvConfig).toHaveBeenCalledTimes(1);
-    expect(mockConnectDB).toHaveBeenCalledTimes(1);
+    // connectDB() a ete deplace dans server.js : app.js ne connecte plus la base
+    // lui-meme, il refuse simplement les requetes /api tant que Mongo est absent.
+    expect(mockConnectDB).not.toHaveBeenCalled();
 
     expect(mockJson).toHaveBeenCalledWith({ limit: '10mb' });
     expect(mockUrlencoded).toHaveBeenCalledWith({ extended: true, limit: '10mb' });
@@ -87,9 +92,36 @@ describe('app bootstrap', () => {
     expect(mockUse).toHaveBeenCalledWith('/api/ai', { __route: 'ai' });
     expect(mockUse).toHaveBeenCalledWith('/api/recommendations', { __route: 'recommendations' });
     expect(mockUse).toHaveBeenCalledWith('/api/analytics', { __route: 'analytics' });
+
+    // Mini site artisan
+    expect(mockUse).toHaveBeenCalledWith('/api', { __route: 'domain' });
+    expect(mockUse).toHaveBeenCalledWith('/site', { __route: 'miniSite' });
     expect(mockUse).toHaveBeenCalledWith('/api/calendar', { __route: 'calendar' });
     expect(mockUse).toHaveBeenCalledWith('/api/contracts', { __route: 'contracts' });
     expect(mockUse).toHaveBeenCalledWith('/api/proposals', { __route: 'proposals' });
+  });
+
+  test('configures the EJS view engine for the mini site', () => {
+    require('../../app');
+
+    expect(mockSet).toHaveBeenCalledWith('view engine', 'ejs');
+    expect(mockSet).toHaveBeenCalledWith('views', expect.stringContaining('views'));
+  });
+
+  test('mounts the mini site host router before every /api route', () => {
+    require('../../app');
+
+    const targets = mockUse.mock.calls.map(([first]) => first);
+    const miniSiteIndex = mockUse.mock.calls.findIndex(
+      ([first]) => first && first.__middleware === 'miniSite'
+    );
+
+    // Sur `slug.bmp.tn`, c'est le mini site qui doit repondre, pas l'API.
+    expect(miniSiteIndex).toBeGreaterThanOrEqual(0);
+    const firstApiRouteIndex = targets.findIndex(
+      (target) => typeof target === 'string' && target.startsWith('/api/')
+    );
+    expect(miniSiteIndex).toBeLessThan(firstApiRouteIndex);
   });
 
   test('cors origin callback allows known origins and rejects unknown ones', () => {

@@ -35,7 +35,10 @@ export default function ManufacturerOrders() {
       const response = await axios.get(`${API_URL}/products/orders`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setOrders(response.data);
+      // Garde defensive : si l'API renvoie autre chose qu'un tableau (typiquement
+      // l'index.html du SPA quand VITE_API_URL est mal configuree), l'operation de
+      // tableau plus bas ferait planter le rendu React (ecran blanc).
+      setOrders(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Erreur chargement commandes:", error);
     } finally {

@@ -83,7 +83,7 @@ export default function ReadOnlyCalendar({ artisanId, onContact }: ReadOnlyCalen
     setLoading(true);
     axios
       .get(`${API_URL}/calendar/public/${artisanId}`)
-      .then(res => setEvents(res.data))
+      .then(res => setEvents(Array.isArray(res.data) ? res.data : []))
       .catch(err => console.error('Failed to load public calendar', err))
       .finally(() => setLoading(false));
   }, [artisanId]);

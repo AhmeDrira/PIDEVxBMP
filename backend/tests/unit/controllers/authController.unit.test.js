@@ -16,6 +16,10 @@ jest.mock('../../../models/Notification', () => ({
   create: jest.fn(),
 }));
 
+jest.mock('../../../services/DomainService', () => ({
+  ensureDomainForArtisan: jest.fn(),
+}));
+
 jest.mock('../../../utils/actionLogger', () => ({
   logAction: jest.fn(),
 }));
@@ -40,7 +44,8 @@ jest.mock('nodemailer', () => ({
   })),
 }));
 
-const { User } = require('../../../models/User');
+const { User, Artisan } = require('../../../models/User');
+const DomainService = require('../../../services/DomainService');
 const authController = require('../../../controllers/authController');
 
 const createFindOneQuery = ({ resolvedValue, rejectedError } = {}) => {
@@ -126,6 +131,85 @@ describe('authController (unit)', () => {
       // Assert
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ message: 'Server error' });
+    });
+  });
+
+  describe('registerUser -> creation du mini site artisan', () => {
+    const registerArtisan = async () => {
+      const req = createMockReq({
+        body: {
+          firstName: 'Hamza',
+          lastName: 'Ayachi',
+          email: 'hamza@example.com',
+          password: 'secret123',
+          role: 'artisan',
+        },
+      });
+      const res = createMockRes();
+      await authController.registerUser(req, res);
+      return res;
+    };
+
+    beforeEach(() => {
+      User.findOne.mockResolvedValue(null); // aucun compte existant sur cet email
+      Artisan.create.mockResolvedValue({
+        id: 'artisan-1',
+        _id: 'artisan-1',
+        firstName: 'Hamza',
+        lastName: 'Ayachi',
+        email: 'hamza@example.com',
+        role: 'artisan',
+      });
+    });
+
+    it('should create the mini site for a new artisan', async () => {
+      DomainService.ensureDomainForArtisan.mockResolvedValue({ slug: 'hamza-ayachi' });
+
+      const res = await registerArtisan();
+
+      expect(DomainService.ensureDomainForArtisan).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: 'artisan-1' })
+      );
+      expect(res.statusCode).toBe(201);
+      expect(res.body.slug).toBe('hamza-ayachi');
+    });
+
+    it('should still register the artisan when the mini site creation fails', async () => {
+      // Regle metier : le mini site ne doit JAMAIS faire echouer une inscription.
+      DomainService.ensureDomainForArtisan.mockRejectedValue(new Error('Mongo down'));
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const res = await registerArtisan();
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.slug).toBeUndefined();
+      expect(res.body.email).toBe('hamza@example.com');
+    });
+
+    it('should omit the slug when no mini site could be created', async () => {
+      DomainService.ensureDomainForArtisan.mockResolvedValue(null);
+
+      const res = await registerArtisan();
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body).not.toHaveProperty('slug');
+    });
+
+    it('should not create a mini site for a non-artisan role', async () => {
+      const req = createMockReq({
+        body: {
+          firstName: 'Eya',
+          lastName: 'Expert',
+          email: 'eya@example.com',
+          password: 'secret123',
+          role: 'expert',
+        },
+      });
+      const res = createMockRes();
+
+      await authController.registerUser(req, res);
+
+      expect(DomainService.ensureDomainForArtisan).not.toHaveBeenCalled();
     });
   });
 

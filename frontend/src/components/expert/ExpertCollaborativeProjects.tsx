@@ -514,7 +514,10 @@ export default function ExpertCollaborativeProjects({ onNavigate }: ExpertCollab
     setError('');
     try {
       const res = await axios.get(`${API_URL}/projects/expert/${expertId}`, { headers: authHeaders() });
-      setProjects(res.data);
+      // Garde defensive : si l'API renvoie autre chose qu'un tableau (typiquement
+      // l'index.html du SPA quand VITE_API_URL est mal configuree), l'operation de
+      // tableau plus bas ferait planter le rendu React (ecran blanc).
+      setProjects(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
       setError(
         err?.response?.data?.message ||

@@ -52,7 +52,7 @@ export default function Logo({ variant = 'dark', size = 'md', className = '' }: 
           width={sizeConfig.px}
           height={sizeConfig.px}
           decoding="async"
-          fetchPriority="high"
+          fetchpriority="high"
           className="w-full h-full object-contain"
         />
       </div>

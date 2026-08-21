@@ -864,7 +864,10 @@ export default function ArtisanCalendar() {
     setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/calendar`, { headers: authHeaders() });
-      setEvents(res.data);
+      // Garde defensive : si l'API renvoie autre chose qu'un tableau (typiquement
+      // l'index.html du SPA quand VITE_API_URL est mal configuree), l'operation de
+      // tableau plus bas ferait planter le rendu React (ecran blanc).
+      setEvents(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to fetch calendar events', err);
     } finally {

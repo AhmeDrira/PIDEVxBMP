@@ -341,7 +341,10 @@ export default function ExpertContractView({ onNavigate }: ExpertContractViewPro
     setError('');
     try {
       const res = await axios.get(`${API_URL}/contracts`, { headers: authHeaders() });
-      setContracts(res.data);
+      // Garde defensive : si l'API renvoie autre chose qu'un tableau (typiquement
+      // l'index.html du SPA quand VITE_API_URL est mal configuree), l'operation de
+      // tableau plus bas ferait planter le rendu React (ecran blanc).
+      setContracts(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
       setError(
         err?.response?.data?.message ||
