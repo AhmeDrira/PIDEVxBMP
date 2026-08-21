@@ -2,6 +2,7 @@ const buildReq = (overrides = {}) => ({
   body: {},
   params: {},
   query: {},
+  headers: {},
   user: null,
   ...overrides,
 });

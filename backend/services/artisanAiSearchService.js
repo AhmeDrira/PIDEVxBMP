@@ -575,6 +575,7 @@ const __resetEmbeddingProviderForTests = () => {
 };
 
 module.exports = {
+  SPECIALIZATION_SYNONYMS,
   analyzeIntent,
   buildMongoFilter,
   searchArtisansWithAI,

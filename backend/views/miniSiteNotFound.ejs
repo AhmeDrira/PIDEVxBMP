@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini site introuvable — BMP</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --brand:#1F3A8A; --ink:#0F172A; --muted:#64748B; --bg:#F8FAFC; --surface:#fff; --line:#E2E8F0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --brand:#93B4FF; --ink:#F1F5F9; --muted:#94A3B8; --bg:#020617; --surface:#0F172A; --line:#1E293B; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: var(--bg); color: var(--ink); padding: 24px;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .box {
+    max-width: 460px; text-align: center; padding: 40px 28px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(15,23,42,.06);
+  }
+  .code { font-size: 44px; font-weight: 700; color: var(--brand); margin: 0; line-height: 1; }
+  h1 { font-size: 19px; margin: 14px 0 8px; }
+  p { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
+  code {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 2px 7px; font-size: 14px; word-break: break-all;
+  }
+  a.cta {
+    display: inline-block; padding: 12px 24px; border-radius: 999px;
+    background: var(--brand); color: #fff; text-decoration: none; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <p class="code">404</p>
+    <h1>Ce mini site n'existe pas</h1>
+    <p>
+      <% if (slug) { %>Aucun artisan n'utilise l'adresse <code><%= slug %></code>.<% } else { %>L'adresse demandée est introuvable.<% } %>
+    </p>
+    <a class="cta" href="<%= appUrl %>">Découvrir BMP</a>
+  </div>
+</body>
+</html>

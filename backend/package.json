@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test": "jest --runInBand",
     "test:unit": "jest --runInBand tests/unit",
-    "test:coverage": "jest --coverage --runInBand"
+    "test:coverage": "jest --coverage --runInBand",
+    "backfill:domains": "node scripts/backfillArtisanDomains.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,7 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
+    "ejs": "^6.0.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "google-auth-library": "^10.6.1",
@@ -31,6 +33,7 @@
     "nodemailer": "^8.0.1",
     "pdf-parse": "^1.1.1",
     "puppeteer-core": "^24.6.1",
+    "sharp": "^0.35.3",
     "socket.io": "^4.8.3",
     "stripe": "^16.0.0"
   },

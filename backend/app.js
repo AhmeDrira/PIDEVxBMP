@@ -9,6 +9,10 @@ connectDB();
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Moteur de template du mini site artisan (rendu côté serveur)
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 const configuredOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -71,6 +75,11 @@ app.use(
     },
   })
 );
+// Routage par sous-domaine du mini site artisan.
+// DOIT rester avant les routes /api : sur `slug.mestra.tn`, c'est le mini site
+// qui répond, pas l'application. Les Host non concernés passent immédiatement.
+app.use(require('./middleware/miniSiteMiddleware'));
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
 app.use('/api/invoices', require('./routes/invoiceRoutes'));
@@ -95,5 +104,9 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/ai',      require('./routes/aiRoutes'));
 app.use('/api/recommendations', require('./routes/recommendationRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+
+// Mini site artisan (slug & sous-domaine)
+app.use('/api', require('./routes/domainRoutes'));
+app.use('/site', require('./routes/miniSiteRoutes'));
 
 module.exports = app;

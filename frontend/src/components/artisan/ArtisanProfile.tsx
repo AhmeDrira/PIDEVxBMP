@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Loader2, Plus, X, Award } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Loader2, Plus, X, Award, Globe, Lock, Check, AlertCircle, ExternalLink } from 'lucide-react';
 import FaceIdSection from '../common/FaceIdSection';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
@@ -56,7 +56,56 @@ export default function ArtisanProfile() {
   const [newSkill, setNewSkill] = useState('');
   const [newCertification, setNewCertification] = useState('');
 
+  // Mini site public de l'artisan (slug + adresse), voir backend/services/DomainService.js
+  type MiniSite = {
+    slug: string;
+    url: string;
+    lockedAt: string | null;
+    daysRemaining: number | null;
+    editable: boolean;
+  };
+  type SlugCheck = {
+    status: 'idle' | 'checking' | 'available' | 'unavailable';
+    reason?: string;
+    message?: string;
+    suggestion?: string;
+  };
+  const [miniSite, setMiniSite] = useState<MiniSite | null>(null);
+  const [slugInput, setSlugInput] = useState('');
+  const [slugCheck, setSlugCheck] = useState<SlugCheck>({ status: 'idle' });
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // L'API renvoie des codes d'erreur stables (backend/utils/slugRules.js) et un
+  // message anglais ; c'est le front qui les traduit. On retombe sur le message
+  // de l'API si un nouveau code apparaissait cote serveur.
+  const slugErrorLabel = (reason?: string, fallback?: string) => {
+    switch (reason) {
+      case 'SLUG_REQUIRED':
+        return tr('Address is required', 'L\'adresse est obligatoire', 'العنوان مطلوب');
+      case 'SLUG_TOO_SHORT':
+        return tr('At least 3 characters', 'Au moins 3 caracteres', '3 أحرف على الأقل');
+      case 'SLUG_TOO_LONG':
+        return tr('At most 30 characters', 'Au maximum 30 caracteres', '30 حرفًا كحد أقصى');
+      case 'SLUG_INVALID_CHARACTERS':
+      case 'SLUG_INVALID_FORMAT':
+        return tr('Only lowercase letters, digits and hyphens', 'Uniquement minuscules, chiffres et tirets', 'أحرف صغيرة وأرقام وشرطات فقط');
+      case 'SLUG_LEADING_HYPHEN':
+        return tr('Cannot start with a hyphen', 'Ne peut pas commencer par un tiret', 'لا يمكن أن يبدأ بشرطة');
+      case 'SLUG_TRAILING_HYPHEN':
+        return tr('Cannot end with a hyphen', 'Ne peut pas se terminer par un tiret', 'لا يمكن أن ينتهي بشرطة');
+      case 'SLUG_DOUBLE_HYPHEN':
+        return tr('No two hyphens in a row', 'Pas deux tirets consecutifs', 'لا يمكن وضع شرطتين متتاليتين');
+      case 'SLUG_RESERVED':
+        return tr('This address is reserved', 'Cette adresse est reservee', 'هذا العنوان محجوز');
+      case 'SLUG_TAKEN':
+        return tr('This address is already taken', 'Cette adresse est deja prise', 'هذا العنوان محجوز بالفعل');
+      case 'SLUG_LOCKED':
+        return tr('This address can no longer be changed', 'Cette adresse ne peut plus etre modifiee', 'لا يمكن تغيير هذا العنوان');
+      default:
+        return fallback || tr('Invalid address', 'Adresse invalide', 'عنوان غير صالح');
+    }
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -136,6 +185,59 @@ export default function ArtisanProfile() {
     setFormData(prev => ({ ...prev, location: selectedStates.join(', ') }));
   }, [selectedStates]);
 
+  // Adresse du mini site. Chargement non bloquant : si l'appel echoue, le reste
+  // du profil reste parfaitement utilisable, la section est simplement masquee.
+  useEffect(() => {
+    const fetchMiniSite = async () => {
+      try {
+        const token = getToken();
+        if (!token) return;
+
+        const { data } = await axios.get(`${API_URL}/artisan-domain/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setMiniSite(data);
+        setSlugInput(data.slug);
+      } catch (error: any) {
+        console.error('Mini site load error:', error.response?.data || error.message);
+      }
+    };
+    fetchMiniSite();
+  }, []);
+
+  // Verification de disponibilite en temps reel, debounce 500 ms.
+  useEffect(() => {
+    if (!isEditing || !miniSite || !miniSite.editable) return;
+
+    const value = slugInput.trim().toLowerCase();
+    // Son propre slug n'est evidemment pas "deja pris" : inutile d'interroger le serveur.
+    if (!value || value === miniSite.slug) {
+      setSlugCheck({ status: 'idle' });
+      return;
+    }
+
+    setSlugCheck({ status: 'checking' });
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.get(`${API_URL}/check-slug`, { params: { slug: value } });
+        setSlugCheck(
+          data.available
+            ? { status: 'available' }
+            : {
+                status: 'unavailable',
+                reason: data.reason,
+                message: data.message,
+                suggestion: data.suggestion,
+              }
+        );
+      } catch (error) {
+        setSlugCheck({ status: 'idle' });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [slugInput, isEditing, miniSite]);
+
   const handleAddSkill = () => {
     const trimmed = newSkill.trim();
     if (trimmed && !skills.includes(trimmed)) {
@@ -164,6 +266,34 @@ export default function ArtisanProfile() {
         { ...formData, yearsExperience: Number(formData.yearsExperience) || 0, skills, certifications },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      // L'adresse du mini site a sa propre route : on ne l'appelle que si elle change.
+      const nextSlug = slugInput.trim().toLowerCase();
+      if (miniSite && miniSite.editable && nextSlug && nextSlug !== miniSite.slug) {
+        try {
+          const { data } = await axios.put(
+            `${API_URL}/artisan-domain/me`,
+            { slug: nextSlug },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          setMiniSite(data);
+          setSlugInput(data.slug);
+          setSlugCheck({ status: 'idle' });
+          toast.success(tr('Mini site address updated', 'Adresse du mini site mise a jour', 'تم تحديث عنوان الموقع المصغر'));
+        } catch (slugError: any) {
+          // Le profil est deja enregistre : on garde le formulaire ouvert pour
+          // que l'artisan corrige uniquement l'adresse.
+          const data = slugError.response?.data;
+          setSlugCheck({
+            status: 'unavailable',
+            reason: data?.reason,
+            message: data?.message,
+            suggestion: data?.suggestion,
+          });
+          toast.error(slugErrorLabel(data?.reason, data?.message));
+          return; // le bloc finally remet isLoading a false
+        }
+      }
 
       setIsEditing(false);
       toast.success(tr('Profile updated successfully', 'Profil mis a jour avec succes', 'تم تحديث الملف الشخصي بنجاح'));
@@ -326,6 +456,74 @@ export default function ArtisanProfile() {
                 </div>
                 <p className="text-xs text-muted-foreground">{tr('Select one or more governorates.', 'Selectionnez un ou plusieurs gouvernorats.', 'اختر واحد أو أكثر من الولايات.')}</p>
               </div>
+
+              {/* Mini site address (slug) */}
+              {miniSite && (
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="slug">{tr('Mini site address', 'Adresse de votre mini site', 'عنوان موقعك المصغر')}</Label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={18} style={{ color: 'var(--muted-foreground)' }} />
+                    <Input
+                      id="slug"
+                      value={slugInput}
+                      disabled={!miniSite.editable}
+                      onChange={e => setSlugInput(e.target.value.toLowerCase())}
+                      placeholder="prenom-metier-ville"
+                      className="pl-10 pr-10"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {slugCheck.status === 'checking' && <Loader2 size={18} className="animate-spin text-muted-foreground" />}
+                      {slugCheck.status === 'available' && <Check size={18} className="text-emerald-600" />}
+                      {slugCheck.status === 'unavailable' && <AlertCircle size={18} className="text-destructive" />}
+                      {!miniSite.editable && <Lock size={18} className="text-muted-foreground" />}
+                    </span>
+                  </div>
+
+                  {/* Aperçu du lien final */}
+                  <p className="text-xs text-muted-foreground break-all">
+                    {tr('Your public address:', 'Votre adresse publique :', 'عنوانك العام:')}{' '}
+                    <span className="font-medium text-foreground">
+                      {miniSite.url.replace(miniSite.slug, slugInput.trim().toLowerCase() || miniSite.slug)}
+                    </span>
+                  </p>
+
+                  {slugCheck.status === 'available' && (
+                    <p className="text-xs text-emerald-600">{tr('This address is available.', 'Cette adresse est disponible.', 'هذا العنوان متاح.')}</p>
+                  )}
+                  {slugCheck.status === 'unavailable' && (
+                    <p className="text-xs text-destructive">
+                      {slugErrorLabel(slugCheck.reason, slugCheck.message)}
+                      {slugCheck.suggestion && (
+                        <>
+                          {' — '}
+                          <button
+                            type="button"
+                            className="underline font-medium"
+                            onClick={() => setSlugInput(slugCheck.suggestion as string)}
+                          >
+                            {tr('use', 'utiliser', 'استخدم')} {slugCheck.suggestion}
+                          </button>
+                        </>
+                      )}
+                    </p>
+                  )}
+
+                  {miniSite.editable ? (
+                    <p className="text-xs text-muted-foreground">
+                      {tr(
+                        `You can change this address for ${miniSite.daysRemaining} more day(s).`,
+                        `Vous pouvez modifier cette adresse pendant encore ${miniSite.daysRemaining} jour(s).`,
+                        `يمكنك تغيير هذا العنوان لمدة ${miniSite.daysRemaining} يوم إضافي.`
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Lock size={12} />
+                      {tr('This address is now locked and can no longer be changed.', 'Cette adresse est desormais verrouillee et ne peut plus etre modifiee.', 'هذا العنوان مقفل الآن ولا يمكن تغييره.')}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Bio */}
@@ -422,6 +620,30 @@ export default function ArtisanProfile() {
                 <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Experience', 'Experience', 'Experience')}</p>
                 <p style={{ color: 'var(--foreground)' }}>{formData.yearsExperience ? `${formData.yearsExperience} ${tr('years', 'ans', 'years')}` : tr('Not provided', 'Non renseigne', 'Not provided')}</p>
               </div>
+              {miniSite && (
+                <div className="md:col-span-2">
+                  <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Mini site address', 'Adresse de votre mini site', 'عنوان موقعك المصغر')}</p>
+                  <a
+                    href={miniSite.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary hover:underline break-all"
+                  >
+                    <Globe size={16} />
+                    {miniSite.url}
+                    <ExternalLink size={14} />
+                  </a>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                    {miniSite.editable
+                      ? tr(
+                          `Editable for ${miniSite.daysRemaining} more day(s).`,
+                          `Modifiable pendant encore ${miniSite.daysRemaining} jour(s).`,
+                          `قابل للتعديل لمدة ${miniSite.daysRemaining} يوم إضافي.`
+                        )
+                      : tr('Locked — this address can no longer be changed.', 'Verrouillee — cette adresse ne peut plus etre modifiee.', 'مقفل — لا يمكن تغيير هذا العنوان.')}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
