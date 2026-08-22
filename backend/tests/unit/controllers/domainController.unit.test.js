@@ -5,6 +5,7 @@ jest.mock('../../../services/DomainService', () => ({
   resolveBySlug: jest.fn(),
   buildPublicProfile: jest.fn(() => ({ slug: 'hamza-ayachi', fullName: 'Hamza Ayachi' })),
   ensureDomainForArtisan: jest.fn(),
+  generateSlug: jest.fn(),
   buildMiniSiteUrl: jest.fn((slug) => `https://${slug}.bmp.tn`),
   RESERVED_REASON: 'SLUG_RESERVED',
   TAKEN_REASON: 'SLUG_TAKEN',
@@ -185,6 +186,12 @@ describe('domainController — mini site of the logged-in artisan', () => {
   beforeEach(() => {
     ArtisanDomain.findOne.mockReturnValue(chainableQuery(null));
     DomainService.ensureDomainForArtisan.mockResolvedValue(null);
+    // Par defaut : profil incomplet, donc aucune suggestion.
+    DomainService.generateSlug.mockReturnValue('hamza-painting-ariana');
+    DomainService.checkSlugAvailable.mockResolvedValue({
+      available: true,
+      slug: 'hamza-painting-ariana',
+    });
   });
 
   describe('getMyDomain', () => {
@@ -327,5 +334,120 @@ describe('domainController — mini site of the logged-in artisan', () => {
 
       expect(res.statusCode).toBe(403);
     });
+  });
+});
+
+describe('domainController — suggested slug', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  /** Artisan au profil complet : metier ET zone renseignes. */
+  const completeArtisan = (overrides = {}) => ({
+    _id: 'artisan-1',
+    role: 'artisan',
+    firstName: 'Hamza',
+    domain: 'Painting',
+    location: 'Ariana',
+    ...overrides,
+  });
+
+  const buildDomain = (overrides = {}) => ({
+    slug: 'hamza-ayachi',
+    lockedAt: new Date(Date.now() + 10 * DAY),
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  });
+
+  const getFor = async (user, domain) => {
+    ArtisanDomain.findOne.mockReturnValue(chainableQuery(domain));
+    const res = buildRes();
+    await getMyDomain(buildReq({ user }), res);
+    return res;
+  };
+
+  beforeEach(() => {
+    DomainService.generateSlug.mockReturnValue('hamza-painting-ariana');
+    DomainService.checkSlugAvailable.mockResolvedValue({
+      available: true,
+      slug: 'hamza-painting-ariana',
+    });
+  });
+
+  it('should suggest prenom-metier-ville when the profile is complete', async () => {
+    const res = await getFor(completeArtisan(), buildDomain());
+
+    expect(DomainService.generateSlug).toHaveBeenCalledWith('Hamza', 'Painting', 'Ariana');
+    expect(res.body.suggestedSlug).toBe('hamza-painting-ariana');
+  });
+
+  it('should suggest nothing when the trade is missing', async () => {
+    const res = await getFor(completeArtisan({ domain: '' }), buildDomain());
+
+    expect(res.body.suggestedSlug).toBeNull();
+    expect(DomainService.generateSlug).not.toHaveBeenCalled();
+  });
+
+  it('should suggest nothing when the area is missing', async () => {
+    const res = await getFor(completeArtisan({ location: '' }), buildDomain());
+
+    expect(res.body.suggestedSlug).toBeNull();
+    expect(DomainService.generateSlug).not.toHaveBeenCalled();
+  });
+
+  it('should suggest nothing when the slug already matches the suggestion', async () => {
+    const res = await getFor(completeArtisan(), buildDomain({ slug: 'hamza-painting-ariana' }));
+
+    expect(res.body.suggestedSlug).toBeNull();
+  });
+
+  it('should suggest nothing once the 30-day window has passed', async () => {
+    // Proposer un changement impossible serait trompeur.
+    const res = await getFor(
+      completeArtisan(),
+      buildDomain({ lockedAt: new Date(Date.now() - DAY) })
+    );
+
+    expect(res.body.suggestedSlug).toBeNull();
+    expect(DomainService.generateSlug).not.toHaveBeenCalled();
+  });
+
+  it('should suggest nothing when the candidate is already taken', async () => {
+    // Sinon « Adopter » renverrait un 409 a l'artisan.
+    DomainService.checkSlugAvailable.mockResolvedValue({
+      available: false,
+      slug: 'hamza-painting-ariana',
+      reason: 'SLUG_TAKEN',
+    });
+
+    const res = await getFor(completeArtisan(), buildDomain());
+
+    expect(res.body.suggestedSlug).toBeNull();
+  });
+
+  it('should let the artisan keep their own slug while checking availability', async () => {
+    await getFor(completeArtisan(), buildDomain());
+
+    expect(DomainService.checkSlugAvailable).toHaveBeenCalledWith('hamza-painting-ariana', {
+      excludeArtisanId: 'artisan-1',
+    });
+  });
+
+  it('should clear the suggestion right after it has been adopted', async () => {
+    const domain = buildDomain();
+    ArtisanDomain.findOne.mockReturnValue(chainableQuery(domain));
+    DomainService.checkSlugAvailable.mockResolvedValue({
+      available: true,
+      slug: 'hamza-painting-ariana',
+    });
+
+    const res = buildRes();
+    await updateMyDomain(
+      buildReq({ user: completeArtisan(), body: { slug: 'hamza-painting-ariana' } }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.slug).toBe('hamza-painting-ariana');
+    // Le slug vaut desormais la suggestion : la banniere doit disparaitre.
+    expect(res.body.suggestedSlug).toBeNull();
   });
 });

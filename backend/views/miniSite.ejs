@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= profile.fullName %><%= profile.domain ? ' — ' + profile.domain : '' %></title>
 <meta name="description" content="<%= meta.description %>">
+<%# Tant que le métier ou la zone d'intervention manque, la page n'a pas assez de
+    substance pour être indexée : on évite de laisser Google référencer un profil
+    vide sous le nom de l'artisan. Le mini site reste accessible par lien direct. %>
+<% if (!profile.domain || !profile.location) { %>
+<meta name="robots" content="noindex, nofollow">
+<% } %>
 <link rel="canonical" href="<%= meta.url %>">
 <link rel="icon" href="<%= meta.avatarPath %>" type="image/svg+xml">
 

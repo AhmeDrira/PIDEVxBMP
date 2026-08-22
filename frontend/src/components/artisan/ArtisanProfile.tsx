@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Loader2, Plus, X, Award, Globe, Lock, Check, AlertCircle, ExternalLink } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, Save, Camera, Loader2, Plus, X, Award, Globe, Lock, Check, AlertCircle, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import FaceIdSection from '../common/FaceIdSection';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
@@ -31,7 +31,12 @@ const SPECIALIZATIONS = [
   'Aluminum Work',
 ];
 
-export default function ArtisanProfile() {
+interface ArtisanProfileProps {
+  /** Navigation vers une autre vue du tableau de bord artisan (ex. 'portfolio'). */
+  onNavigate?: (view: string) => void;
+}
+
+export default function ArtisanProfile({ onNavigate }: ArtisanProfileProps = {}) {
   const { language } = useLanguage();
   const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const [isEditing, setIsEditing] = useState(false);
@@ -55,6 +60,9 @@ export default function ArtisanProfile() {
   const [certifications, setCertifications] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
   const [newCertification, setNewCertification] = useState('');
+  // Les realisations sont gerees dans ArtisanPortfolio.tsx, mais /api/auth/me les
+  // renvoie deja : on les stocke uniquement pour la checklist de completion.
+  const [portfolio, setPortfolio] = useState<Array<{ media?: Array<unknown> }>>([]);
 
   // Mini site public de l'artisan (slug + adresse), voir backend/services/DomainService.js
   type MiniSite = {
@@ -63,6 +71,8 @@ export default function ArtisanProfile() {
     lockedAt: string | null;
     daysRemaining: number | null;
     editable: boolean;
+    /** Slug « prenom-metier-ville » propose une fois le profil complete, sinon null. */
+    suggestedSlug: string | null;
   };
   type SlugCheck = {
     status: 'idle' | 'checking' | 'available' | 'unavailable';
@@ -71,6 +81,11 @@ export default function ArtisanProfile() {
     suggestion?: string;
   };
   const [miniSite, setMiniSite] = useState<MiniSite | null>(null);
+  // Rejet de la suggestion : indexe sur le slug propose, donc une NOUVELLE
+  // suggestion (apres modification du profil) se reaffiche malgre un rejet passe.
+  const dismissKey = (slug: string) => `bmp.slugSuggestionDismissed.${slug}`;
+  const [dismissedSuggestion, setDismissedSuggestion] = useState<string | null>(null);
+  const [adoptingSlug, setAdoptingSlug] = useState(false);
   const [slugInput, setSlugInput] = useState('');
   const [slugCheck, setSlugCheck] = useState<SlugCheck>({ status: 'idle' });
 
@@ -160,6 +175,7 @@ export default function ArtisanProfile() {
         setSelectedStates(parsedStates);
         setSkills(Array.isArray(userData.skills) ? userData.skills : []);
         setCertifications(Array.isArray(userData.certifications) ? userData.certifications : []);
+        setPortfolio(Array.isArray(userData.portfolio) ? userData.portfolio : []);
 
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
@@ -198,6 +214,9 @@ export default function ArtisanProfile() {
         });
         setMiniSite(data);
         setSlugInput(data.slug);
+        if (data.suggestedSlug && localStorage.getItem(dismissKey(data.suggestedSlug))) {
+          setDismissedSuggestion(data.suggestedSlug);
+        }
       } catch (error: any) {
         console.error('Mini site load error:', error.response?.data || error.message);
       }
@@ -318,6 +337,195 @@ export default function ArtisanProfile() {
   };
 
   if (loading) return <div className="p-8 text-center">{tr('Loading profile...', 'Chargement du profil...', 'جاري تحميل الملف الشخصي...')}</div>;
+
+  const adoptSuggestedSlug = async () => {
+    if (!miniSite?.suggestedSlug) return;
+    setAdoptingSlug(true);
+    try {
+      const token = getToken();
+      const { data } = await axios.put(
+        `${API_URL}/artisan-domain/me`,
+        { slug: miniSite.suggestedSlug },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMiniSite(data);
+      setSlugInput(data.slug);
+      setSlugCheck({ status: 'idle' });
+      toast.success(tr('Mini site address updated', 'Adresse du mini site mise a jour', 'تم تحديث عنوان الموقع المصغر'));
+    } catch (error: any) {
+      const data = error.response?.data;
+      toast.error(slugErrorLabel(data?.reason, data?.message));
+    } finally {
+      setAdoptingSlug(false);
+    }
+  };
+
+  const dismissSuggestedSlug = () => {
+    if (!miniSite?.suggestedSlug) return;
+    try {
+      localStorage.setItem(dismissKey(miniSite.suggestedSlug), '1');
+    } catch {
+      // Mode navigation privee : le rejet ne survivra pas au rechargement,
+      // mais la banniere doit disparaitre tout de suite malgre tout.
+    }
+    setDismissedSuggestion(miniSite.suggestedSlug);
+  };
+
+  const showSlugSuggestion = Boolean(
+    miniSite?.suggestedSlug &&
+    miniSite.suggestedSlug !== miniSite.slug &&
+    miniSite.suggestedSlug !== dismissedSuggestion
+  );
+
+  const renderSlugSuggestion = () =>
+    showSlugSuggestion ? (
+      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <Globe size={18} className="text-primary shrink-0" />
+        <p className="text-sm flex-1 text-foreground">
+          {tr('We suggest a more complete address:', 'On vous suggere une adresse plus complete :', 'نقترح عليك عنوانًا أكثر اكتمالاً:')}{' '}
+          <span className="font-semibold break-all">
+            {miniSite?.suggestedSlug}.bmp.tn
+          </span>
+        </p>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            onClick={adoptSuggestedSlug}
+            disabled={adoptingSlug}
+            className="text-white"
+            style={{ backgroundColor: 'var(--primary)' }}
+          >
+            {adoptingSlug ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
+            {tr('Adopt', 'Adopter', 'اعتماد')}
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={dismissSuggestedSlug}>
+            {tr('No thanks', 'Non merci', 'لا شكرًا')}
+          </Button>
+        </div>
+      </div>
+    ) : null;
+
+  // ── Completion du mini site ────────────────────────────────────────────────
+  // Les 3 premiers items se remplissent dans ce formulaire ; le 4e renvoie vers
+  // ArtisanPortfolio.tsx, ou les realisations sont gerees.
+  const checklist = [
+    {
+      key: 'location',
+      label: tr('Intervention area', "Zone d'intervention", 'منطقة التدخل'),
+      done: Boolean(formData.location.trim()),
+      Icon: MapPin,
+    },
+    {
+      key: 'domain',
+      label: tr('Specialization', 'Specialisation', 'التخصص'),
+      done: Boolean(formData.domain.trim()),
+      Icon: Briefcase,
+    },
+    {
+      key: 'phone',
+      label: tr('Phone number', 'Numero de telephone', 'رقم الهاتف'),
+      done: Boolean(formData.phone.trim()),
+      Icon: Phone,
+    },
+    {
+      key: 'portfolio',
+      label: tr('A project with a photo', 'Une realisation avec photo', 'إنجاز مع صورة'),
+      // Une realisation sans media n'apporte rien au mini site : la galerie
+      // n'affiche une vignette que s'il y a un fichier.
+      done: portfolio.some((item) => (item?.media?.length ?? 0) > 0),
+      Icon: ImageIcon,
+      navigateTo: 'portfolio',
+    },
+  ];
+  const completedCount = checklist.filter((item) => item.done).length;
+  const completionPercent = Math.round((completedCount / checklist.length) * 100);
+  const isProfileComplete = completedCount === checklist.length;
+
+  const renderChecklist = () => (
+    <div className="rounded-xl border border-border p-4 bg-muted/30">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-sm font-medium text-foreground">
+          {tr('Complete your mini site', 'Completez votre mini site', 'أكمل موقعك المصغر')}
+        </p>
+        <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+          {tr(
+            `${completedCount}/${checklist.length} completed`,
+            `${completedCount}/${checklist.length} complete`,
+            `${completedCount}/${checklist.length} مكتمل`
+          )}
+        </span>
+      </div>
+
+      <div
+        className="h-1.5 w-full rounded-full bg-border overflow-hidden mb-4"
+        role="progressbar"
+        aria-valuenow={completionPercent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${completionPercent}%`,
+            backgroundColor: isProfileComplete ? '#10B981' : 'var(--primary)',
+          }}
+        />
+      </div>
+
+      <ul className="space-y-2">
+        {checklist.map(({ key, label, done, Icon, navigateTo }) => {
+          const canNavigate = Boolean(navigateTo && onNavigate);
+          const row = (
+            <>
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: done ? '#10B98122' : 'var(--muted)',
+                  color: done ? '#10B981' : 'var(--muted-foreground)',
+                }}
+              >
+                {done ? <Check size={12} /> : <X size={12} />}
+              </span>
+              <Icon size={14} className="shrink-0 text-muted-foreground" />
+              <span className={done ? 'text-muted-foreground line-through' : 'text-foreground'}>
+                {label}
+              </span>
+              {canNavigate && !done && (
+                <ExternalLink size={12} className="text-primary shrink-0" />
+              )}
+            </>
+          );
+
+          return (
+            <li key={key} className="text-sm">
+              {canNavigate ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.(navigateTo as string)}
+                  className="flex items-center gap-2 text-left hover:underline w-full"
+                >
+                  {row}
+                </button>
+              ) : (
+                <span className="flex items-center gap-2">{row}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {!isProfileComplete && (
+        <p className="text-xs text-muted-foreground mt-3">
+          {tr(
+            'Complete this information to make your mini site more attractive and visible on Google.',
+            'Completez ces informations pour rendre votre mini site plus attractif et visible sur Google.',
+            'أكمل هذه المعلومات لجعل موقعك المصغر أكثر جاذبية وظهورًا على Google.'
+          )}
+        </p>
+      )}
+    </div>
+  );
 
   const fullName = `${formData.firstName} ${formData.lastName}`;
   const initials = `${formData.firstName?.charAt(0) || ''}${formData.lastName?.charAt(0) || ''}`.toUpperCase();
@@ -456,6 +664,9 @@ export default function ArtisanProfile() {
                 </div>
                 <p className="text-xs text-muted-foreground">{tr('Select one or more governorates.', 'Selectionnez un ou plusieurs gouvernorats.', 'اختر واحد أو أكثر من الولايات.')}</p>
               </div>
+
+              {/* Mini site completion checklist */}
+              <div className="md:col-span-2 space-y-3">{renderSlugSuggestion()}{renderChecklist()}</div>
 
               {/* Mini site address (slug) */}
               {miniSite && (
@@ -620,6 +831,7 @@ export default function ArtisanProfile() {
                 <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Experience', 'Experience', 'Experience')}</p>
                 <p style={{ color: 'var(--foreground)' }}>{formData.yearsExperience ? `${formData.yearsExperience} ${tr('years', 'ans', 'years')}` : tr('Not provided', 'Non renseigne', 'Not provided')}</p>
               </div>
+              <div className="md:col-span-2 space-y-3">{renderSlugSuggestion()}{renderChecklist()}</div>
               {miniSite && (
                 <div className="md:col-span-2">
                   <p className="text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>{tr('Mini site address', 'Adresse de votre mini site', 'عنوان موقعك المصغر')}</p>

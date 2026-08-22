@@ -4,7 +4,7 @@ const DomainService = require('../services/DomainService');
 const { checkSlugEditable } = require('../utils/slugRules');
 
 // Mise en forme commune des réponses « mon mini site ».
-const serializeDomain = (domain, requestHost) => {
+const serializeDomain = (domain, requestHost, suggestedSlug = null) => {
   const lock = checkSlugEditable(domain);
   return {
     slug: domain.slug,
@@ -12,7 +12,35 @@ const serializeDomain = (domain, requestHost) => {
     lockedAt: domain.lockedAt,
     daysRemaining: lock.daysRemaining,
     editable: lock.editable,
+    suggestedSlug,
   };
+};
+
+/**
+ * Slug « prenom-metier-ville » proposé à l'artisan une fois son profil complété.
+ * Renvoie null — donc aucune suggestion — dans tous les cas où la proposition
+ * serait inutile ou trompeuse :
+ *   - profil incomplet (métier ou zone manquant)
+ *   - fenêtre de 30 jours dépassée : le slug ne peut plus changer
+ *   - la suggestion est identique au slug actuel
+ *   - la suggestion est déjà prise ou réservée : l'artisan cliquerait sur
+ *     « Adopter » pour recevoir un 409
+ */
+const computeSuggestedSlug = async (artisan, domain) => {
+  if (!checkSlugEditable(domain).editable) return null;
+  if (!artisan.domain || !artisan.location) return null;
+
+  const candidate = DomainService.generateSlug(
+    artisan.firstName,
+    artisan.domain,
+    artisan.location
+  );
+  if (!candidate || candidate === domain.slug) return null;
+
+  const check = await DomainService.checkSlugAvailable(candidate, {
+    excludeArtisanId: artisan._id,
+  });
+  return check.available ? check.slug : null;
 };
 
 // Récupère le mini site de l'artisan connecté, en le créant au passage s'il n'existe
@@ -80,7 +108,8 @@ exports.getMyDomain = async (req, res) => {
       return res.status(404).json({ message: 'Mini site not found' });
     }
 
-    return res.status(200).json(serializeDomain(domain, req.headers.host));
+    const suggestedSlug = await computeSuggestedSlug(req.user, domain);
+    return res.status(200).json(serializeDomain(domain, req.headers.host, suggestedSlug));
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -128,7 +157,8 @@ exports.updateMyDomain = async (req, res) => {
       await domain.save();
     }
 
-    return res.status(200).json(serializeDomain(domain, req.headers.host));
+    const suggestedSlug = await computeSuggestedSlug(req.user, domain);
+    return res.status(200).json(serializeDomain(domain, req.headers.host, suggestedSlug));
   } catch (error) {
     // Course avec une autre requête : l'index unique a tranché.
     if (error && error.code === 11000) {

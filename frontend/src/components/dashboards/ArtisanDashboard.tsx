@@ -521,7 +521,7 @@ export default function ArtisanDashboard({ onLogout }: ArtisanDashboardProps) {
       case 'subscription':
         return <ArtisanSubscription />;
       case 'profile':
-        return <ArtisanProfile />;
+        return <ArtisanProfile onNavigate={setActiveView} />;
       case 'portfolio':
         return <ArtisanPortfolio
           onViewReviews={() => setActiveView('reviews')}

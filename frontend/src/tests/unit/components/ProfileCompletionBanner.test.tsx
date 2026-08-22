@@ -40,14 +40,14 @@ afterEach(() => {
 describe('ProfileCompletionBanner — role-driven scoring', () => {
   it('renders 100% complete state with confirmation chips for an artisan', () => {
     render(<ProfileCompletionBanner user={completeArtisan} />);
-    expect(screen.getByText('Profile Complete!')).toBeInTheDocument();
-    expect(screen.getByText('9/9 fields')).toBeInTheDocument();
-    expect(screen.getByText('Full Name')).toBeInTheDocument();
-    expect(screen.getByText(/100% complete/)).toBeInTheDocument();
+    expect(screen.getByText('Profil complet !')).toBeInTheDocument();
+    expect(screen.getByText('9/9 champs')).toBeInTheDocument();
+    expect(screen.getByText('Nom complet')).toBeInTheDocument();
+    expect(screen.getByText(/100%/)).toBeInTheDocument();
     // No dismiss button on the 100% state
     expect(screen.queryByRole('button', { name: /dismiss/i })).toBeNull();
     // No CTA when complete
-    expect(screen.queryByRole('button', { name: /complete my profile/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /compléter mon profil/i })).toBeNull();
   });
 
   it('shows missing field chips and the CTA when score < 100', async () => {
@@ -55,13 +55,13 @@ describe('ProfileCompletionBanner — role-driven scoring', () => {
     const onNavigate = vi.fn();
     render(<ProfileCompletionBanner user={user} onNavigate={onNavigate} />);
 
-    expect(screen.getByText(/^Profile \d+% complete$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Profil complété à \d+%$/)).toBeInTheDocument();
     // Missing field hints render as chips
-    expect(screen.getByText('Add photo')).toBeInTheDocument();
-    expect(screen.getByText('Add phone')).toBeInTheDocument();
+    expect(screen.getByText('Ajouter une photo')).toBeInTheDocument();
+    expect(screen.getByText('Ajouter un téléphone')).toBeInTheDocument();
 
     const userEv = userEvent.setup();
-    await userEv.click(screen.getByRole('button', { name: /complete my profile/i }));
+    await userEv.click(screen.getByRole('button', { name: /compléter mon profil/i }));
     expect(onNavigate).toHaveBeenCalledWith('profile');
   });
 
@@ -75,7 +75,7 @@ describe('ProfileCompletionBanner — role-driven scoring', () => {
       />
     );
     const userEv = userEvent.setup();
-    await userEv.click(screen.getByRole('button', { name: /complete my profile/i }));
+    await userEv.click(screen.getByRole('button', { name: /compléter mon profil/i }));
     expect(onNavigate).toHaveBeenCalledWith('my-profile');
   });
 
@@ -83,7 +83,7 @@ describe('ProfileCompletionBanner — role-driven scoring', () => {
     const onNavigate = vi.fn();
     render(<ProfileCompletionBanner user={{ role: 'artisan' }} onNavigate={onNavigate} />);
     const userEv = userEvent.setup();
-    await userEv.click(screen.getByRole('button', { name: /add photo/i }));
+    await userEv.click(screen.getByRole('button', { name: /ajouter une photo/i }));
     expect(onNavigate).toHaveBeenCalledWith('profile');
   });
 
@@ -93,21 +93,21 @@ describe('ProfileCompletionBanner — role-driven scoring', () => {
         user={{ role: 'manufacturer' }}
       />
     );
-    expect(screen.getByText('Add company name')).toBeInTheDocument();
-    expect(screen.getByText('Describe your business')).toBeInTheDocument();
-    expect(screen.getByText('Add certification no.')).toBeInTheDocument();
+    expect(screen.getByText("Ajouter le nom de l'entreprise")).toBeInTheDocument();
+    expect(screen.getByText('Décrire votre activité')).toBeInTheDocument();
+    expect(screen.getByText('Ajouter le n° de certification')).toBeInTheDocument();
   });
 
   it('uses the expert field set when role=expert', () => {
     render(<ProfileCompletionBanner user={{ role: 'expert' }} />);
-    expect(screen.getByText('Add institution')).toBeInTheDocument();
-    expect(screen.getByText('Add specialization')).toBeInTheDocument();
+    expect(screen.getByText('Ajouter une institution')).toBeInTheDocument();
+    expect(screen.getByText('Ajouter une spécialisation')).toBeInTheDocument();
   });
 
   it('falls back to admin field set for unknown roles', () => {
     render(<ProfileCompletionBanner user={{ role: 'wizard' }} />);
-    // Admin set has 4 fields total. Score 0 → "0/4 fields"
-    expect(screen.getByText('0/4 fields')).toBeInTheDocument();
+    // Admin set has 4 fields total. Score 0 → "0/4 champs"
+    expect(screen.getByText('0/4 champs')).toBeInTheDocument();
   });
 });
 
@@ -134,7 +134,7 @@ describe('ProfileCompletionBanner — data sources', () => {
 
     render(<ProfileCompletionBanner />);
     await waitFor(() =>
-      expect(screen.getByText('Profile Complete!')).toBeInTheDocument()
+      expect(screen.getByText('Profil complet !')).toBeInTheDocument()
     );
   });
 
@@ -157,12 +157,12 @@ describe('ProfileCompletionBanner — data sources', () => {
       JSON.stringify({ role: 'artisan', firstName: 'A', lastName: 'B' })
     );
     render(<ProfileCompletionBanner />);
-    expect(screen.getByText(/^Profile \d+% complete$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Profil complété à \d+%$/)).toBeInTheDocument();
 
     localStorage.setItem('user', JSON.stringify(completeArtisan));
     fireEvent(window, new Event('profile-updated'));
     await waitFor(() =>
-      expect(screen.getByText('Profile Complete!')).toBeInTheDocument()
+      expect(screen.getByText('Profil complet !')).toBeInTheDocument()
     );
   });
 
@@ -172,12 +172,12 @@ describe('ProfileCompletionBanner — data sources', () => {
       JSON.stringify({ role: 'artisan', firstName: 'A', lastName: 'B' })
     );
     render(<ProfileCompletionBanner />);
-    expect(screen.getByText(/^Profile \d+% complete$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Profil complété à \d+%$/)).toBeInTheDocument();
 
     localStorage.setItem('user', JSON.stringify(completeArtisan));
     fireEvent(window, new Event('storage'));
     await waitFor(() =>
-      expect(screen.getByText('Profile Complete!')).toBeInTheDocument()
+      expect(screen.getByText('Profil complet !')).toBeInTheDocument()
     );
   });
 
@@ -198,9 +198,9 @@ describe('ProfileCompletionBanner — data sources', () => {
     );
     // Admin set has 4 fields, name+email complete (45%) → photo+phone missing
     await waitFor(() =>
-      expect(screen.getByText(/Profile \d+% complete/)).toBeInTheDocument()
+      expect(screen.getByText(/Profil complété à \d+%/)).toBeInTheDocument()
     );
     // 2 missing chips would render
-    expect(screen.getAllByText(/Add (photo|phone)/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/Ajouter (une photo|un téléphone)/i).length).toBeGreaterThanOrEqual(2);
   });
 });

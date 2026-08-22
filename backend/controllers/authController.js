@@ -10,6 +10,7 @@ const { User, Artisan, Expert, Manufacturer, Admin } = require('../models/User')
 const Notification = require('../models/Notification');
 const { logAction } = require('../utils/actionLogger');
 const DomainService = require('../services/DomainService');
+const ArtisanDomain = require('../models/ArtisanDomain');
 
 // Force IPv4 for all DNS lookups and outbound HTTP(S) connections.
 // Node.js 20+ / 22 uses "happy eyeballs" which tries IPv4 + IPv6 in parallel;
@@ -93,6 +94,25 @@ const ensureArtisanMiniSite = async (artisan) => {
   } catch (error) {
     console.error('Mini site slug creation failed for artisan', artisan?._id, error);
     return null;
+  }
+};
+
+// Envoie l'email de bienvenue annoncant le mini site a un artisan.
+// Non bloquant, comme ensureArtisanMiniSite : un echec d'envoi ne doit jamais
+// faire echouer la verification d'email ni une connexion Google.
+const sendArtisanWelcome = async (artisan, requestHost) => {
+  try {
+    if (!artisan || artisan.role !== 'artisan' || !artisan.email) return;
+
+    const domain = await ArtisanDomain.findOne({ artisanId: artisan._id }).select('slug').lean();
+    const miniSiteUrl = domain ? DomainService.buildMiniSiteUrl(domain.slug, requestHost) : null;
+
+    await sendWelcomeEmail(artisan.email, {
+      firstName: artisan.firstName,
+      miniSiteUrl,
+    });
+  } catch (error) {
+    console.error('Welcome email failed for artisan', artisan?._id, error);
   }
 };
 
@@ -288,6 +308,9 @@ const loginUser = async (req, res) => {
         await user.save();
       }
 
+      // Capture AVANT ecrasement : lastLoginAt vaut null tant que l'utilisateur
+      // ne s'est jamais connecte, mais la ligne suivante le remplit.
+      const isFirstLogin = !user.lastLoginAt;
       user.lastLoginAt = new Date();
       await user.save({ validateBeforeSave: false });
 
@@ -301,6 +324,7 @@ const loginUser = async (req, res) => {
         permissions: user.permissions || undefined,
         adminType: user.adminType,
         profilePhoto: user.profilePhoto,
+        isFirstLogin,
         token: generateToken(user._id),
       });
     } else {
@@ -316,7 +340,7 @@ const loginUser = async (req, res) => {
 // @route   POST /api/auth/google
 // @access  Public
 // Helper to create a new OAuth user with the correct Mongoose discriminator model
-async function createOAuthUser(baseData, role) {
+async function createOAuthUser(baseData, role, requestHost) {
   const validRoles = ['artisan', 'expert', 'manufacturer'];
   const newRole = (role && validRoles.includes(role)) ? role : 'artisan';
   switch (newRole) {
@@ -329,6 +353,9 @@ async function createOAuthUser(baseData, role) {
       // Meme regle que l'inscription classique : le mini site existe des la creation.
       const artisan = await Artisan.create({ ...baseData, location: '', domain: '' });
       await ensureArtisanMiniSite(artisan);
+      // Google a deja verifie l'adresse : il n'y a pas d'email de verification
+      // dans ce flux, donc c'est le seul email qui annonce le mini site.
+      await sendArtisanWelcome(artisan, requestHost);
       return artisan;
     }
   }
@@ -392,7 +419,7 @@ async function googleLogin(req, res) {
         password: randomPassword,
         isVerified: true,
         profilePhoto: googleUser.picture || '',
-      }, requestedRole);
+      }, requestedRole, req.headers.host);
     }
 
     // Apply the same business rules as normal login
@@ -410,6 +437,8 @@ async function googleLogin(req, res) {
       });
     }
 
+    // Idem : un compte cree a l'instant par createOAuthUser a lastLoginAt a null.
+    const isFirstLogin = !user.lastLoginAt;
     user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
 
@@ -423,6 +452,7 @@ async function googleLogin(req, res) {
       permissions: user.permissions || undefined,
       adminType: user.adminType,
       profilePhoto: user.profilePhoto,
+      isFirstLogin,
       token: generateToken(user._id),
     });
   } catch (error) {
@@ -900,6 +930,7 @@ async function faceLogin(req, res) {
 
     const token = generateToken({ id: bestMatch._id, role: bestMatch.role });
 
+    const isFirstLogin = !bestMatch.lastLoginAt;
     bestMatch.lastLoginAt = new Date();
     await bestMatch.save({ validateBeforeSave: false });
 
@@ -910,6 +941,7 @@ async function faceLogin(req, res) {
       email: bestMatch.email,
       role: bestMatch.role,
       profilePhoto: bestMatch.profilePhoto,
+      isFirstLogin,
       token,
     });
   } catch (error) {
@@ -1069,6 +1101,38 @@ async function sendVerificationEmail(email, verificationUrl) {
   }
   
   console.log('[DEV] Verification URL:', verificationUrl);
+}
+
+async function sendWelcomeEmail(email, { firstName, miniSiteUrl } = {}) {
+  const fromName = process.env.EMAIL_FROM_NAME || 'BMP';
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  const greeting = firstName ? `Welcome ${firstName}!` : `Welcome to ${fromName}!`;
+  const subject = miniSiteUrl
+    ? `Your ${fromName} mini site is live`
+    : `Welcome to ${fromName}`;
+
+  // Le bloc mini site n'apparait que si l'artisan en a bien un : inutile de
+  // promettre une adresse qu'on ne pourrait pas afficher.
+  const miniSiteBlock = miniSiteUrl
+    ? `<p>Good news: your professional mini site is <strong>already online</strong>.</p><p><a href="${miniSiteUrl}" style="display:inline-block;padding:12px 20px;background:#1F3A8A;color:#fff;border-radius:8px;text-decoration:none;">View my mini site</a></p><p>Your public address: <a href="${miniSiteUrl}">${miniSiteUrl}</a></p><p>Complete your profile (trade, area, phone and a project photo) to make it more attractive and visible on Google.</p><p><a href="${appUrl}">Complete my profile</a></p>`
+    : `<p>Complete your profile to get the most out of the platform.</p><p><a href="${appUrl}" style="display:inline-block;padding:12px 20px;background:#1F3A8A;color:#fff;border-radius:8px;text-decoration:none;">Complete my profile</a></p>`;
+
+  const html = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2>${greeting}</h2><p>Your account is now active.</p>${miniSiteBlock}</div>`;
+
+  const transporter = getTransporter();
+  const fromEmail = process.env.EMAIL_FROM || 'no-reply@bmp.tn';
+  const from = `"${fromName}" <${fromEmail}>`;
+
+  if (transporter) {
+    try {
+      await transporter.sendMail({ from, to: email, subject, html });
+      return;
+    } catch (error) {
+      console.error('Nodemailer welcome email send failed:', error);
+    }
+  }
+
+  console.log('[DEV] Welcome email for', email, '- mini site:', miniSiteUrl || 'none');
 }
 
 async function sendTemporaryPasswordEmail(email, tempPassword) {
@@ -1363,6 +1427,9 @@ async function verifyEmail(req, res) {
     user.verificationToken = undefined;
     user.verificationTokenExpires = undefined;
     await user.save({ validateBeforeSave: false });
+
+    // Le compte vient d'etre active : c'est le bon moment pour annoncer le mini site.
+    await sendArtisanWelcome(user, req.headers.host);
 
     return res.status(200).json({ message: 'Email verified successfully. You can now log in.' });
   } catch (error) {

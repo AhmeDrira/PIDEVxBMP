@@ -6,9 +6,13 @@ import {
   CheckCircle,
   CreditCard,
   FileText,
+  ExternalLink,
   FolderKanban,
+  Globe,
   Receipt,
+  Sparkles,
   TrendingUp,
+  X,
   XCircle,
 } from 'lucide-react';
 import {
@@ -135,6 +139,9 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [userData, setUserData] = useState<any>(null);
+  // Bienvenue au tout premier login : annonce le mini site deja en ligne.
+  const [miniSite, setMiniSite] = useState<{ slug: string; url: string } | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,6 +154,52 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       token = JSON.parse(storedUser).token;
     }
     return token;
+  };
+
+  // Le mini site n'est charge que si la bienvenue a une chance d'etre affichee :
+  // isFirstLogin vient de la reponse de login, et localStorage evite que la
+  // banniere reapparaisse a chaque rechargement tant que le token reste valide.
+  useEffect(() => {
+    const stored = localStorage.getItem('user');
+    if (!stored) return;
+
+    let user: any = null;
+    try {
+      user = JSON.parse(stored);
+    } catch {
+      return;
+    }
+    if (!user?.isFirstLogin || user.role !== 'artisan') return;
+
+    const seenKey = `bmp.welcomeSeen.${user._id}`;
+    if (localStorage.getItem(seenKey)) return;
+
+    const token = getToken();
+    if (!token) return;
+
+    axios
+      .get(`${API_URL}/artisan-domain/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(({ data }) => {
+        if (!data?.url) return;
+        setMiniSite({ slug: data.slug, url: data.url });
+        setShowWelcome(true);
+      })
+      .catch(() => {
+        // Chargement non bloquant : sans mini site, pas de banniere, le reste
+        // du tableau de bord fonctionne normalement.
+      });
+  }, [API_URL]);
+
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    try {
+      const stored = localStorage.getItem('user');
+      const user = stored ? JSON.parse(stored) : null;
+      if (user?._id) localStorage.setItem(`bmp.welcomeSeen.${user._id}`, '1');
+    } catch {
+      // Navigation privee : la banniere reapparaitra au prochain rechargement,
+      // mais elle doit disparaitre immediatement malgre tout.
+    }
   };
 
   const fetchAllData = useCallback(async (showLoader = true) => {
@@ -616,6 +669,52 @@ export default function ArtisanHome({ onNavigate }: ArtisanHomeProps) {
       {error && (
         <Card className="p-4 border border-red-200 bg-red-50 text-red-700 rounded-xl">
           {error}
+        </Card>
+      )}
+
+      {showWelcome && miniSite && (
+        <Card className="p-5 rounded-2xl border border-primary/30 bg-primary/5 relative">
+          <button
+            type="button"
+            onClick={dismissWelcome}
+            aria-label={tr('Dismiss', 'Fermer', 'إغلاق')}
+            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+          >
+            <X size={16} />
+          </button>
+
+          <div className="flex items-start gap-3 pr-6">
+            <Sparkles size={20} className="text-primary shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="font-semibold text-foreground">
+                {tr('Welcome!', 'Bienvenue !', 'مرحبًا!')}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {tr(
+                  'You already have a public mini site — complete your profile to make it more attractive.',
+                  'Vous avez deja un mini site public — completez votre profil pour le rendre plus attractif.',
+                  'لديك بالفعل موقع مصغر عام — أكمل ملفك الشخصي.'
+                )}
+              </p>
+
+              {/* Action principale : un bouton primaire plein (variant par defaut
+                  du design system), l'URL restant lisible juste en dessous.
+                  Le CTA « completer mon profil » n'est pas duplique ici : il est
+                  deja porte par le ProfileCompletionBanner juste en dessous. */}
+              <div className="flex flex-col items-start gap-2 pt-1">
+                <Button asChild size="sm">
+                  <a href={miniSite.url} target="_blank" rel="noopener noreferrer">
+                    <Globe size={15} className="mr-1.5" />
+                    {tr('View my mini site', 'Voir mon mini site', 'عرض موقعي المصغر')}
+                    <ExternalLink size={13} className="ml-1.5" />
+                  </a>
+                </Button>
+                <span className="text-xs text-muted-foreground break-all">
+                  {miniSite.url.replace(/^https?:\/\//, '')}
+                </span>
+              </div>
+            </div>
+          </div>
         </Card>
       )}
 

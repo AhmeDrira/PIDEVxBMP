@@ -32,12 +32,19 @@ interface UserData {
   [key: string]: any;
 }
 
+/**
+ * Libelle traduisible : [anglais, francais, arabe].
+ * Le tuple se deplie directement dans tr(en, fr, ar) au moment du rendu, les
+ * tableaux de champs etant definis hors du composant (donc sans acces a tr()).
+ */
+type I18nText = [string, string, string];
+
 interface Field {
   key: string;
-  label: string;
+  label: I18nText;
   Icon: React.ElementType;
   weight: number;
-  hint: string;
+  hint: I18nText;
   check: (u: UserData) => boolean;
 }
 
@@ -51,44 +58,44 @@ interface ProfileCompletionBannerProps {
 // ─── Role → field definitions ─────────────────────────────────────────────────
 
 const ARTISAN_FIELDS: Field[] = [
-  { key: 'name',            label: 'Full Name',      Icon: User,       weight: 10, hint: 'Add your name',       check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
-  { key: 'email',           label: 'Email',          Icon: Mail,       weight: 5,  hint: 'Add email',           check: u => !!u.email?.trim() },
-  { key: 'profilePhoto',    label: 'Photo',          Icon: Camera,     weight: 15, hint: 'Add photo',           check: u => !!u.profilePhoto },
-  { key: 'phone',           label: 'Phone',          Icon: Phone,      weight: 10, hint: 'Add phone',           check: u => !!u.phone?.trim() },
-  { key: 'location',        label: 'Location',       Icon: MapPin,     weight: 15, hint: 'Add location',        check: u => !!u.location?.trim() },
-  { key: 'bio',             label: 'Bio',            Icon: FileText,   weight: 15, hint: 'Write your bio',      check: u => !!u.bio?.trim() },
-  { key: 'domain',          label: 'Specialization', Icon: Briefcase,  weight: 15, hint: 'Add specialization',  check: u => !!u.domain?.trim() },
-  { key: 'yearsExperience', label: 'Experience',     Icon: Clock,      weight: 10, hint: 'Add experience',      check: u => !!(u.yearsExperience && Number(u.yearsExperience) > 0) },
-  { key: 'skills',          label: 'Skills',         Icon: Star,       weight: 5,  hint: 'Add skills',          check: u => Array.isArray(u.skills) && u.skills.length > 0 },
+  { key: 'name',            label: ['Full Name', 'Nom complet', 'الاسم الكامل'],      Icon: User,       weight: 10, hint: ['Add your name', 'Ajouter votre nom', 'أضف اسمك'],       check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
+  { key: 'email',           label: ['Email', 'Email', 'البريد الإلكتروني'],          Icon: Mail,       weight: 5,  hint: ['Add email', 'Ajouter un email', 'أضف البريد الإلكتروني'],           check: u => !!u.email?.trim() },
+  { key: 'profilePhoto',    label: ['Photo', 'Photo', 'الصورة'],          Icon: Camera,     weight: 15, hint: ['Add photo', 'Ajouter une photo', 'أضف صورة'],           check: u => !!u.profilePhoto },
+  { key: 'phone',           label: ['Phone', 'Téléphone', 'الهاتف'],          Icon: Phone,      weight: 10, hint: ['Add phone', 'Ajouter un téléphone', 'أضف رقم هاتف'],           check: u => !!u.phone?.trim() },
+  { key: 'location',        label: ['Location', 'Localisation', 'الموقع'],       Icon: MapPin,     weight: 15, hint: ['Add location', 'Ajouter une localisation', 'أضف موقعًا'],        check: u => !!u.location?.trim() },
+  { key: 'bio',             label: ['Bio', 'Bio', 'النبذة الشخصية'],            Icon: FileText,   weight: 15, hint: ['Write your bio', 'Rédiger votre bio', 'اكتب نبذتك'],      check: u => !!u.bio?.trim() },
+  { key: 'domain',          label: ['Specialization', 'Spécialisation', 'التخصص'], Icon: Briefcase,  weight: 15, hint: ['Add specialization', 'Ajouter une spécialisation', 'أضف تخصصًا'],  check: u => !!u.domain?.trim() },
+  { key: 'yearsExperience', label: ['Experience', 'Expérience', 'الخبرة'],     Icon: Clock,      weight: 10, hint: ['Add experience', 'Ajouter une expérience', 'أضف خبرة'],      check: u => !!(u.yearsExperience && Number(u.yearsExperience) > 0) },
+  { key: 'skills',          label: ['Skills', 'Compétences', 'المهارات'],         Icon: Star,       weight: 5,  hint: ['Add skills', 'Ajouter des compétences', 'أضف مهارات'],          check: u => Array.isArray(u.skills) && u.skills.length > 0 },
 ];
 
 const EXPERT_FIELDS: Field[] = [
-  { key: 'name',           label: 'Full Name',      Icon: User,       weight: 10, hint: 'Add your name',       check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
-  { key: 'email',          label: 'Email',          Icon: Mail,       weight: 5,  hint: 'Add email',           check: u => !!u.email?.trim() },
-  { key: 'profilePhoto',   label: 'Photo',          Icon: Camera,     weight: 15, hint: 'Add photo',           check: u => !!u.profilePhoto },
-  { key: 'phone',          label: 'Phone',          Icon: Phone,      weight: 10, hint: 'Add phone',           check: u => !!u.phone?.trim() },
-  { key: 'location',       label: 'Location',       Icon: MapPin,     weight: 15, hint: 'Add location',        check: u => !!u.location?.trim() },
-  { key: 'bio',            label: 'Bio',            Icon: FileText,   weight: 15, hint: 'Write your bio',      check: u => !!u.bio?.trim() },
-  { key: 'specialization', label: 'Specialization', Icon: Briefcase,  weight: 15, hint: 'Add specialization',  check: u => !!(u.domain?.trim() || u.specialization?.trim()) },
-  { key: 'institution',    label: 'Institution',    Icon: Building2,  weight: 15, hint: 'Add institution',     check: u => !!u.institution?.trim() },
+  { key: 'name',           label: ['Full Name', 'Nom complet', 'الاسم الكامل'],      Icon: User,       weight: 10, hint: ['Add your name', 'Ajouter votre nom', 'أضف اسمك'],       check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
+  { key: 'email',          label: ['Email', 'Email', 'البريد الإلكتروني'],          Icon: Mail,       weight: 5,  hint: ['Add email', 'Ajouter un email', 'أضف البريد الإلكتروني'],           check: u => !!u.email?.trim() },
+  { key: 'profilePhoto',   label: ['Photo', 'Photo', 'الصورة'],          Icon: Camera,     weight: 15, hint: ['Add photo', 'Ajouter une photo', 'أضف صورة'],           check: u => !!u.profilePhoto },
+  { key: 'phone',          label: ['Phone', 'Téléphone', 'الهاتف'],          Icon: Phone,      weight: 10, hint: ['Add phone', 'Ajouter un téléphone', 'أضف رقم هاتف'],           check: u => !!u.phone?.trim() },
+  { key: 'location',       label: ['Location', 'Localisation', 'الموقع'],       Icon: MapPin,     weight: 15, hint: ['Add location', 'Ajouter une localisation', 'أضف موقعًا'],        check: u => !!u.location?.trim() },
+  { key: 'bio',            label: ['Bio', 'Bio', 'النبذة الشخصية'],            Icon: FileText,   weight: 15, hint: ['Write your bio', 'Rédiger votre bio', 'اكتب نبذتك'],      check: u => !!u.bio?.trim() },
+  { key: 'specialization', label: ['Specialization', 'Spécialisation', 'التخصص'], Icon: Briefcase,  weight: 15, hint: ['Add specialization', 'Ajouter une spécialisation', 'أضف تخصصًا'],  check: u => !!(u.domain?.trim() || u.specialization?.trim()) },
+  { key: 'institution',    label: ['Institution', 'Institution', 'المؤسسة'],    Icon: Building2,  weight: 15, hint: ['Add institution', 'Ajouter une institution', 'أضف مؤسسة'],     check: u => !!u.institution?.trim() },
 ];
 
 const MANUFACTURER_FIELDS: Field[] = [
-  { key: 'name',                label: 'Contact Name',    Icon: User,      weight: 10, hint: 'Add your name',        check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
-  { key: 'email',               label: 'Email',           Icon: Mail,      weight: 5,  hint: 'Add email',            check: u => !!u.email?.trim() },
-  { key: 'profilePhoto',        label: 'Company Logo',    Icon: Camera,    weight: 10, hint: 'Add company logo',     check: u => !!u.profilePhoto },
-  { key: 'companyName',         label: 'Company Name',    Icon: Building2, weight: 15, hint: 'Add company name',     check: u => !!u.companyName?.trim() },
-  { key: 'phone',               label: 'Phone',           Icon: Phone,     weight: 10, hint: 'Add phone',            check: u => !!u.phone?.trim() },
-  { key: 'location',            label: 'Location',        Icon: MapPin,    weight: 15, hint: 'Add location',         check: u => !!u.location?.trim() },
-  { key: 'description',         label: 'Description',     Icon: FileText,  weight: 20, hint: 'Describe your business', check: u => !!u.description?.trim() },
-  { key: 'certificationNumber', label: 'Certification No.',Icon: Award,    weight: 15, hint: 'Add certification no.', check: u => !!u.certificationNumber?.trim() },
+  { key: 'name',                label: ['Contact Name', 'Nom du contact', 'اسم جهة الاتصال'],    Icon: User,      weight: 10, hint: ['Add your name', 'Ajouter votre nom', 'أضف اسمك'],        check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
+  { key: 'email',               label: ['Email', 'Email', 'البريد الإلكتروني'],           Icon: Mail,      weight: 5,  hint: ['Add email', 'Ajouter un email', 'أضف البريد الإلكتروني'],            check: u => !!u.email?.trim() },
+  { key: 'profilePhoto',        label: ['Company Logo', 'Logo de l\'entreprise', 'شعار الشركة'],    Icon: Camera,    weight: 10, hint: ['Add company logo', 'Ajouter un logo', 'أضف شعارًا'],     check: u => !!u.profilePhoto },
+  { key: 'companyName',         label: ['Company Name', 'Nom de l\'entreprise', 'اسم الشركة'],    Icon: Building2, weight: 15, hint: ['Add company name', 'Ajouter le nom de l\'entreprise', 'أضف اسم الشركة'],     check: u => !!u.companyName?.trim() },
+  { key: 'phone',               label: ['Phone', 'Téléphone', 'الهاتف'],           Icon: Phone,     weight: 10, hint: ['Add phone', 'Ajouter un téléphone', 'أضف رقم هاتف'],            check: u => !!u.phone?.trim() },
+  { key: 'location',            label: ['Location', 'Localisation', 'الموقع'],        Icon: MapPin,    weight: 15, hint: ['Add location', 'Ajouter une localisation', 'أضف موقعًا'],         check: u => !!u.location?.trim() },
+  { key: 'description',         label: ['Description', 'Description', 'الوصف'],     Icon: FileText,  weight: 20, hint: ['Describe your business', 'Décrire votre activité', 'صف نشاطك'], check: u => !!u.description?.trim() },
+  { key: 'certificationNumber', label: ['Certification No.', 'N° de certification', 'رقم الشهادة'],Icon: Award,    weight: 15, hint: ['Add certification no.', 'Ajouter le n° de certification', 'أضف رقم الشهادة'], check: u => !!u.certificationNumber?.trim() },
 ];
 
 const ADMIN_FIELDS: Field[] = [
-  { key: 'name',         label: 'Full Name', Icon: User,   weight: 25, hint: 'Add your name', check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
-  { key: 'email',        label: 'Email',     Icon: Mail,   weight: 20, hint: 'Add email',     check: u => !!u.email?.trim() },
-  { key: 'profilePhoto', label: 'Photo',     Icon: Camera, weight: 30, hint: 'Add photo',     check: u => !!u.profilePhoto },
-  { key: 'phone',        label: 'Phone',     Icon: Phone,  weight: 25, hint: 'Add phone',     check: u => !!u.phone?.trim() },
+  { key: 'name',         label: ['Full Name', 'Nom complet', 'الاسم الكامل'], Icon: User,   weight: 25, hint: ['Add your name', 'Ajouter votre nom', 'أضف اسمك'], check: u => !!(u.firstName?.trim() && u.lastName?.trim()) },
+  { key: 'email',        label: ['Email', 'Email', 'البريد الإلكتروني'],     Icon: Mail,   weight: 20, hint: ['Add email', 'Ajouter un email', 'أضف البريد الإلكتروني'],     check: u => !!u.email?.trim() },
+  { key: 'profilePhoto', label: ['Photo', 'Photo', 'الصورة'],     Icon: Camera, weight: 30, hint: ['Add photo', 'Ajouter une photo', 'أضف صورة'],     check: u => !!u.profilePhoto },
+  { key: 'phone',        label: ['Phone', 'Téléphone', 'الهاتف'],     Icon: Phone,  weight: 25, hint: ['Add phone', 'Ajouter un téléphone', 'أضف رقم هاتف'],     check: u => !!u.phone?.trim() },
 ];
 
 const FIELDS_BY_ROLE: Record<string, Field[]> = {
@@ -133,12 +140,45 @@ function palette(pct: number) {
   return              { bar: 'linear-gradient(90deg,#ef4444,#f97316)',     glow: 'rgba(239,68,68,0.20)',  accent: '#ef4444', bg: 'linear-gradient(135deg,#fff7ed,#fee2e2)', border: '#fecaca' };
 }
 
-function motivation(pct: number, missing: Field[]): string {
-  if (pct >= 100) return 'Your profile is 100% complete — you stand out to clients!';
-  if (pct >= 80)  return 'Almost there! A complete profile gets 3× more visibility.';
-  if (pct >= 60)  return `Add your ${missing[0]?.label.toLowerCase() ?? 'info'} to boost your credibility.`;
-  if (pct >= 40)  return 'Good start! Fill in the remaining fields to increase trust.';
-  return 'Complete your profile to unlock full platform credibility.';
+type Translate = (en: string, fr: string, ar?: string) => string;
+
+function motivation(pct: number, missing: Field[], tr: Translate): string {
+  if (pct >= 100) {
+    return tr(
+      'Your profile is 100% complete — you stand out to clients!',
+      'Votre profil est complété à 100% — vous vous démarquez auprès des clients !',
+      'ملفك الشخصي مكتمل 100% — أنت تتميز أمام العملاء!'
+    );
+  }
+  if (pct >= 80) {
+    return tr(
+      'Almost there! A complete profile gets 3× more visibility.',
+      'Vous y êtes presque ! Un profil complet obtient 3× plus de visibilité.',
+      'أوشكت على الانتهاء! الملف الكامل يحصل على ظهور أكبر بـ 3 مرات.'
+    );
+  }
+  if (pct >= 60) {
+    // Le libelle est cite entre guillemets : cela evite tout probleme d'accord
+    // en francais selon le genre du champ manquant.
+    const next = missing[0] ? tr(...missing[0].label) : tr('info', 'information', 'معلومة');
+    return tr(
+      `Add your ${next.toLowerCase()} to boost your credibility.`,
+      `Complétez « ${next} » pour renforcer votre crédibilité.`,
+      `أكمل « ${next} » لتعزيز مصداقيتك.`
+    );
+  }
+  if (pct >= 40) {
+    return tr(
+      'Good start! Fill in the remaining fields to increase trust.',
+      'Bon début ! Complétez les champs restants pour inspirer confiance.',
+      'بداية جيدة! أكمل الحقول المتبقية لكسب الثقة.'
+    );
+  }
+  return tr(
+    'Complete your profile to unlock full platform credibility.',
+    'Complétez votre profil pour gagner en crédibilité sur la plateforme.',
+    'أكمل ملفك الشخصي لتعزيز مصداقيتك على المنصة.'
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -238,16 +278,26 @@ export default function ProfileCompletionBanner({
               : <Zap size={14} style={{ color: c.accent, flexShrink: 0 }} />
             }
             <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--foreground)' }}>
-              {isComplete ? 'Profile Complete!' : `Profile ${score}% complete`}
+              {isComplete
+                ? tr('Profile Complete!', 'Profil complet !', 'الملف الشخصي مكتمل!')
+                : tr(
+                    `Profile ${score}% complete`,
+                    `Profil complété à ${score}%`,
+                    `الملف الشخصي مكتمل بنسبة ${score}%`
+                  )}
             </span>
             <span style={{ fontSize: 11, fontWeight: 700, color: c.accent, background: `${c.accent}18`, borderRadius: 20, padding: '2px 8px' }}>
-              {done.length}/{fields.length} fields
+              {tr(
+                `${done.length}/${fields.length} fields`,
+                `${done.length}/${fields.length} champs`,
+                `${done.length}/${fields.length} حقول`
+              )}
             </span>
           </div>
 
           {/* Motivation text */}
           <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.5 }}>
-            {motivation(score, missing)}
+            {motivation(score, missing, tr)}
           </p>
 
           {/* Progress bar */}
@@ -268,7 +318,7 @@ export default function ProfileCompletionBanner({
                   >
                     <span style={{ fontSize: 12 }}>+</span>
                     <Icon size={10} />
-                    {f.hint}
+                    {tr(...f.hint)}
                   </button>
                 );
               })}
@@ -282,7 +332,7 @@ export default function ProfileCompletionBanner({
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; }}
             >
-              <Zap size={13} /> Complete My Profile <ChevronRight size={13} />
+              <Zap size={13} /> {tr('Complete My Profile', 'Compléter mon profil', 'أكمل ملفي الشخصي')} <ChevronRight size={13} />
             </button>
           )}
 
@@ -293,7 +343,7 @@ export default function ProfileCompletionBanner({
                 const Icon = f.Icon;
                 return (
                   <span key={f.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 20, background: `${c.accent}18`, color: c.accent, fontSize: 11, fontWeight: 600 }}>
-                    <Icon size={10} /> {f.label}
+                    <Icon size={10} /> {tr(...f.label)}
                   </span>
                 );
               })}

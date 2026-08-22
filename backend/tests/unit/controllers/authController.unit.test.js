@@ -1,4 +1,4 @@
-const { createMockReq, createMockRes } = require('../mocks/http.mock');
+const { createMockReq, createMockRes, chainableQuery } = require('../mocks/http.mock');
 const { buildUser } = require('../builders/user.builder');
 const { validLoginPayload, validAdminSecretPayload } = require('../fixtures/auth.fixture');
 
@@ -18,6 +18,11 @@ jest.mock('../../../models/Notification', () => ({
 
 jest.mock('../../../services/DomainService', () => ({
   ensureDomainForArtisan: jest.fn(),
+  buildMiniSiteUrl: jest.fn((slug) => `https://${slug}.bmp.tn`),
+}));
+
+jest.mock('../../../models/ArtisanDomain', () => ({
+  findOne: jest.fn(),
 }));
 
 jest.mock('../../../utils/actionLogger', () => ({
@@ -46,6 +51,8 @@ jest.mock('nodemailer', () => ({
 
 const { User, Artisan } = require('../../../models/User');
 const DomainService = require('../../../services/DomainService');
+const ArtisanDomain = require('../../../models/ArtisanDomain');
+const nodemailer = require('nodemailer');
 const authController = require('../../../controllers/authController');
 
 const createFindOneQuery = ({ resolvedValue, rejectedError } = {}) => {
@@ -256,5 +263,141 @@ describe('authController (unit)', () => {
         isSuperAdmin: true,
       }));
     });
+  });
+});
+
+describe('authController — welcome email announcing the mini site', () => {
+  const buildArtisan = (overrides = {}) => ({
+    _id: 'artisan-1',
+    role: 'artisan',
+    email: 'sonia@example.com',
+    firstName: 'Sonia',
+    isVerified: false,
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  });
+
+  /** Recupere le contenu du dernier email envoye via nodemailer. */
+  const lastMail = () => {
+    const transport = nodemailer.createTransport.mock.results.at(-1)?.value;
+    return transport?.sendMail.mock.calls.at(-1)?.[0];
+  };
+
+  beforeEach(() => {
+    process.env.SMTP_SERVICE = 'gmail';
+    process.env.SMTP_USER = 'bot@example.com';
+    process.env.SMTP_PASS = 'secret';
+    ArtisanDomain.findOne.mockReturnValue(chainableQuery({ slug: 'sonia-bouzid' }));
+  });
+
+  describe('verifyEmail', () => {
+    const verify = async (user) => {
+      User.findOne.mockResolvedValue(user);
+      const req = createMockReq({ body: { token: 'raw-token' }, headers: { host: 'app.bmp.tn' } });
+      const res = createMockRes();
+      await authController.verifyEmail(req, res);
+      return res;
+    };
+
+    it('should send the welcome email once the artisan account is verified', async () => {
+      const res = await verify(buildArtisan());
+
+      expect(res.statusCode).toBe(200);
+      const mail = lastMail();
+      expect(mail.to).toBe('sonia@example.com');
+      expect(mail.html).toContain('https://sonia-bouzid.bmp.tn');
+      expect(mail.html).toContain('already online');
+    });
+
+    it('should greet the artisan by first name', async () => {
+      await verify(buildArtisan());
+
+      expect(lastMail().html).toContain('Welcome Sonia!');
+    });
+
+    it('should not send a mini site email to a non-artisan', async () => {
+      await verify(buildArtisan({ role: 'expert' }));
+
+      expect(ArtisanDomain.findOne).not.toHaveBeenCalled();
+      expect(lastMail()).toBeUndefined();
+    });
+
+    it('should still verify the account when the email fails', async () => {
+      // Regle metier : un echec d'envoi ne doit jamais bloquer la verification.
+      ArtisanDomain.findOne.mockImplementation(() => {
+        throw new Error('Mongo down');
+      });
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const res = await verify(buildArtisan());
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toMatch(/verified successfully/i);
+    });
+
+    it('should omit the mini site block when the artisan has no domain yet', async () => {
+      ArtisanDomain.findOne.mockReturnValue(chainableQuery(null));
+
+      await verify(buildArtisan());
+
+      const mail = lastMail();
+      expect(mail.html).not.toContain('already online');
+      expect(mail.html).toContain('Complete my profile');
+    });
+
+    it('should return 400 without sending anything for an invalid token', async () => {
+      User.findOne.mockResolvedValue(null);
+      const req = createMockReq({ body: { token: 'bad' }, headers: {} });
+      const res = createMockRes();
+
+      await authController.verifyEmail(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(lastMail()).toBeUndefined();
+    });
+  });
+});
+
+describe('authController — isFirstLogin flag', () => {
+  const login = async (user) => {
+    User.findOne.mockReturnValue(createFindOneQuery({ resolvedValue: user }));
+    const res = createMockRes();
+    await authController.loginUser(createMockReq({ body: validLoginPayload() }), res);
+    return res;
+  };
+
+  it('should report isFirstLogin true when the user never logged in', async () => {
+    const res = await login(buildUser({
+      lastLoginAt: null,
+      matchPassword: jest.fn().mockResolvedValue(true),
+      save: jest.fn().mockResolvedValue(undefined),
+    }));
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ isFirstLogin: true }));
+  });
+
+  it('should report isFirstLogin false on subsequent logins', async () => {
+    const res = await login(buildUser({
+      lastLoginAt: new Date('2026-01-01'),
+      matchPassword: jest.fn().mockResolvedValue(true),
+      save: jest.fn().mockResolvedValue(undefined),
+    }));
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ isFirstLogin: false }));
+  });
+
+  it('should capture the flag before overwriting lastLoginAt', async () => {
+    // Le piege : lastLoginAt est ecrase juste avant la reponse. Si la capture
+    // se faisait apres, isFirstLogin serait toujours false.
+    const user = buildUser({
+      lastLoginAt: null,
+      matchPassword: jest.fn().mockResolvedValue(true),
+      save: jest.fn().mockResolvedValue(undefined),
+    });
+
+    const res = await login(user);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ isFirstLogin: true }));
+    expect(user.lastLoginAt).toBeInstanceOf(Date);
   });
 });
