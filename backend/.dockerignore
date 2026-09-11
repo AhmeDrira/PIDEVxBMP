@@ -1,0 +1,26 @@
+# ⚠ SANS CE FICHIER, UN BUILD LOCAL PRODUIT UNE IMAGE CASSEE.
+#
+# Le Dockerfile fait `npm install` PUIS `COPY . .`. Sans exclusion, le
+# node_modules de la machine de developpement ecrase celui que le conteneur
+# vient d'installer : les binaires natifs de l'hote remplacent ceux de
+# Linux/musl.
+#
+# C'est l'origine de l'erreur sharp — `@img/sharp-win32-x64` (Windows) prenait
+# la place de `@img/sharp-linuxmusl-x64`, et sharp refusait de se charger au
+# demarrage. Le meme piege vaut pour tout module natif.
+#
+# La CI ne rencontrait pas le probleme : elle part d'un `checkout` propre, donc
+# sans node_modules. Ce fichier aligne simplement le build local sur le sien.
+node_modules
+npm-debug.log
+
+# Secrets. Deja ignores par git, donc absents en CI ; les exclure ici evite
+# qu'un build local n'embarque le .env de developpement dans l'image.
+.env
+.env.*
+
+# Bruit pur : rien de tout ca ne sert dans l'image, et le contexte de build
+# s'en trouve nettement allege.
+.git
+.gitignore
+coverage
