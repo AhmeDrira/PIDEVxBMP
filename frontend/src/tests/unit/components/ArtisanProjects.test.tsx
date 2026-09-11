@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -148,5 +148,151 @@ describe('ArtisanProjects', () => {
       expect(screen.queryByText('Villa Sidi')).not.toBeInTheDocument();
     });
     expect(screen.getByText('Warehouse Sfax')).toBeInTheDocument();
+  });
+});
+describe('ArtisanProjects - localisation libre a la creation', () => {
+  /**
+   * La creation de projet exigeait que la localisation appartienne aux
+   * gouvernorats declares dans le profil de l'artisan, et qu'elle provienne
+   * d'une suggestion d'autocompletion. Un artisan sans gouvernorat renseigne
+   * ne recevait donc aucune suggestion et ne pouvait creer aucun projet.
+   *
+   * Rien dans le produit n'impose qu'un chantier se situe dans le gouvernorat
+   * declare : un artisan se deplace. Ces tests verrouillent la levee de cette
+   * contrainte.
+   *
+   * Nominatim est volontairement mocke sur une reponse vide : c'est exactement
+   * la situation ou l'ancienne regle bloquait la soumission.
+   */
+  const ouvrirLeFormulaire = async (user: ReturnType<typeof userEvent.setup>) => {
+    await screen.findByRole('button', { name: /create project|creer un projet/i });
+    await user.click(screen.getByRole('button', { name: /create project|creer un projet/i }));
+    await screen.findByRole('heading', { name: /nouveau projet/i });
+  };
+
+  const saisirLaLocalisation = async (user: ReturnType<typeof userEvent.setup>, localisation: string) => {
+    await user.type(screen.getByLabelText(/localisation/i), localisation);
+    // Attendre que le debounce de l'autocompletion soit passe, pour eprouver
+    // le cas « aucune suggestion » plutot qu'un simple champ pas encore sonde.
+    await screen.findByText(/aucune suggestion pour cette saisie/i);
+  };
+
+  const remplirLeReste = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.type(screen.getByLabelText(/titre du projet/i), 'Renovation hors zone');
+    await user.type(screen.getByLabelText(/^description/i), 'Travaux de renovation complete du sejour');
+    fireEvent.change(screen.getByLabelText(/date de d[ée]but/i), { target: { value: '2026-10-01' } });
+    fireEvent.change(screen.getByLabelText(/date de fin/i), { target: { value: '2026-11-01' } });
+  };
+
+  const boutonCreer = () => screen.getByRole('button', { name: /^cr[ée]er le projet$/i });
+
+  beforeEach(() => {
+    localStorage.setItem('token', 'artisan-projects-token');
+    localStorage.setItem('user', JSON.stringify({ _id: 'artisan-1', role: 'artisan', token: 'artisan-projects-token' }));
+    // Artisan abonne : seule la contrainte de localisation est en jeu ici.
+    sessionStorage.setItem('artisan-sub-active', '1');
+
+    server.use(
+      http.get('*/api/projects', () => HttpResponse.json([])),
+      http.get('https://nominatim.openstreetmap.org/search', () => HttpResponse.json([]))
+    );
+  });
+
+  it('should create a project located outside the profile governorates', async () => {
+    // Arrange - profil a Tunis et Sfax, chantier a Djerba (Medenine).
+    let corpsRecu: any = null;
+    server.use(
+      http.get('*/api/auth/me', () => HttpResponse.json({ user: { location: 'Tunis, Sfax' } })),
+      http.post('*/api/projects', async ({ request }) => {
+        corpsRecu = await request.json();
+        return HttpResponse.json({ _id: 'project-new', ...corpsRecu }, { status: 201 });
+      })
+    );
+
+    const user = userEvent.setup();
+
+    // Act
+    render(<ArtisanProjects />);
+    await ouvrirLeFormulaire(user);
+    await remplirLeReste(user);
+    await saisirLaLocalisation(user, 'Houmt Souk, Djerba, Medenine');
+
+    // Assert - le formulaire est soumettable et la localisation part telle quelle.
+    await waitFor(() => expect(boutonCreer()).toBeEnabled());
+    await user.click(boutonCreer());
+
+    await waitFor(() => expect(corpsRecu).not.toBeNull());
+    expect(corpsRecu.location).toBe('Houmt Souk, Djerba, Medenine');
+  });
+
+  it('should create a project when the artisan profile has no governorate at all', async () => {
+    // Arrange - profil sans localisation : le cas qui rendait la creation impossible.
+    let corpsRecu: any = null;
+    server.use(
+      http.get('*/api/auth/me', () => HttpResponse.json({ user: { location: '' } })),
+      http.post('*/api/projects', async ({ request }) => {
+        corpsRecu = await request.json();
+        return HttpResponse.json({ _id: 'project-new', ...corpsRecu }, { status: 201 });
+      })
+    );
+
+    const user = userEvent.setup();
+
+    // Act
+    render(<ArtisanProjects />);
+    await ouvrirLeFormulaire(user);
+    await remplirLeReste(user);
+    await saisirLaLocalisation(user, 'Tozeur');
+
+    // Assert - aucun message ne reclame plus une localisation issue du profil.
+    expect(screen.queryByText(/gouvernorats de profil/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/aucune localisation detectee/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/selectionnez une ville valide/i)).not.toBeInTheDocument();
+
+    await waitFor(() => expect(boutonCreer()).toBeEnabled());
+    await user.click(boutonCreer());
+
+    await waitFor(() => expect(corpsRecu).not.toBeNull());
+    expect(corpsRecu.location).toBe('Tozeur');
+  });
+
+  it('should still require the location field to be filled', async () => {
+    // Lever la contrainte de gouvernorat ne rend pas le champ facultatif.
+    server.use(http.get('*/api/auth/me', () => HttpResponse.json({ user: { location: '' } })));
+
+    const user = userEvent.setup();
+
+    render(<ArtisanProjects />);
+    await ouvrirLeFormulaire(user);
+    await remplirLeReste(user);
+
+    expect(boutonCreer()).toBeDisabled();
+  });
+
+  it('should keep autocompletion and voice input available on the location field', async () => {
+    // C'est la contrainte qui tombe, pas l'outillage de saisie.
+    server.use(
+      http.get('*/api/auth/me', () => HttpResponse.json({ user: { location: '' } })),
+      http.get('https://nominatim.openstreetmap.org/search', () =>
+        HttpResponse.json([{ place_id: 1, display_name: 'Tozeur, Tunisie' }])
+      )
+    );
+
+    const user = userEvent.setup();
+
+    render(<ArtisanProjects />);
+    await ouvrirLeFormulaire(user);
+
+    // La dictee vocale reste proposee sur le champ localisation.
+    expect(
+      screen.getByText(/voice input for location|dictee vocale pour la localisation/i)
+    ).toBeInTheDocument();
+
+    // Et une suggestion hors profil est bien proposee, puis selectionnable.
+    await user.type(screen.getByLabelText(/localisation/i), 'Tozeur');
+    const suggestion = await screen.findByText('Tozeur, Tunisie');
+    await user.click(suggestion);
+
+    expect(screen.getByLabelText(/localisation/i)).toHaveValue('Tozeur, Tunisie');
   });
 });

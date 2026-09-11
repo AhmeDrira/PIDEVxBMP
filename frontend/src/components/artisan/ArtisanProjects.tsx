@@ -51,34 +51,26 @@ declare global {
 }
 
 // Composant d'autocomplétion pour la localisation
-const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates = [], inputId = 'location'  }: {
+/**
+ * Saisie de localisation, avec autocompletion et dictee vocale.
+ *
+ * ⚠ L'autocompletion AIDE, elle ne restreint pas. Les suggestions etaient
+ * filtrees sur les gouvernorats du profil, et un profil sans gouvernorat n'en
+ * recevait aucune — la creation de projet devenait alors impossible. Rien dans
+ * le produit n'impose qu'un chantier se situe dans le gouvernorat declare : un
+ * artisan se deplace.
+ */
+const LocationInput = ({ value, onChange, onSelect, error, onBlur, inputId = 'location' }: {
   value: string; 
   onChange: (value: string) => void; 
   onSelect: (location: string) => void;
   error?: string;
   onBlur?: () => void;
-  allowedStates?: string[];
   inputId?: string;
 }) => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-
-  const normalizeText = (text: string) =>
-    text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  const isSuggestionInAllowedStates = (displayName: string) => {
-    if (!allowedStates.length) return false;
-
-    const normalizedDisplayName = normalizeText(displayName);
-    return allowedStates.some((state) => normalizedDisplayName.includes(normalizeText(state)));
-  };
 
   const fetchSuggestions = async (query: string) => {
     if (!query || query.length < 3) {
@@ -91,11 +83,8 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=tn&addressdetails=1&limit=10`
       );
 
-      const filteredSuggestions = response.data.filter((item: any) =>
-        isSuggestionInAllowedStates(item.display_name || '')
-      );
-
-      setSuggestions(filteredSuggestions.slice(0, 6));
+      // Toutes les propositions sont montrees : c'est une aide a la saisie.
+      setSuggestions((response.data || []).slice(0, 6));
     } catch (error) {
       console.error('Erreur lors de la récupération des suggestions', error);
     } finally {
@@ -108,7 +97,7 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
       if (value) fetchSuggestions(value);
     }, 500);
     return () => clearTimeout(timer);
-  }, [value, allowedStates.join(',')]);
+  }, [value]);
 
   const handleSelect = (suggestion: any) => {
     const displayName = suggestion.display_name;
@@ -149,7 +138,7 @@ const LocationInput = ({ value, onChange, onSelect, error, onBlur, allowedStates
       )}
       {showSuggestions && !loading && value.length >= 3 && suggestions.length === 0 && (
         <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg px-4 py-3 text-sm text-muted-foreground">
-          Aucune ville trouvee pour vos gouvernorats de profil.
+          Aucune suggestion pour cette saisie — vous pouvez la conserver telle quelle.
         </div>
       )}
       {loading && <div className="absolute right-3 top-3 text-sm text-muted-foreground">Chargement...</div>}
@@ -195,7 +184,6 @@ export default function ArtisanProjects() {
   });
 
   // État pour savoir si une localisation valide a été sélectionnée
-  const [locationSelected, setLocationSelected] = useState(false);
 
   // État pour les erreurs de validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -204,7 +192,6 @@ export default function ArtisanProjects() {
   const [isListening, setIsListening] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [artisanProfileLocation, setArtisanProfileLocation] = useState('');
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -330,15 +317,9 @@ export default function ArtisanProjects() {
   }, []);
 
   const updateFieldValue = (field: SpeechField, value: string) => {
-    if (field === 'location') {
-      setFormData((prev) => ({ ...prev, location: value }));
-      const allowedLocations = getProfileLocations();
-      const normalizedValue = normalizeTextForCompare(value);
-      const isAllowed = allowedLocations.some((state) => normalizedValue.includes(normalizeTextForCompare(state)));
-      setLocationSelected(isAllowed);
-    } else {
-      setFormData((prev) => ({ ...prev, [field]: value }));
-    }
+    // La localisation dictee est prise telle quelle, comme les autres champs :
+    // elle n'a plus a correspondre au profil de l'artisan.
+    setFormData((prev) => ({ ...prev, [field]: value }));
 
     if (touched[field]) {
       setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
@@ -550,28 +531,6 @@ export default function ArtisanProjects() {
     }
   }, [view, selectedProject]);
 
-  // --- Chargement de la localisation du profil artisan ---
-  useEffect(() => {
-    const fetchArtisanProfileLocation = async () => {
-      try {
-        const token = getToken();
-        if (!token) return;
-
-        const response = await axios.get(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const userData = response.data?.user ? response.data.user : response.data;
-        const location = (userData?.location || '').trim();
-        setArtisanProfileLocation(location);
-      } catch (error) {
-        console.error('Erreur lors du chargement de la localisation profil:', error);
-      }
-    };
-
-    fetchArtisanProfileLocation();
-  }, [API_URL]);
-
   // --- Pré-remplissage du formulaire d'édition ---
   useEffect(() => {
     if (view === 'edit' && selectedProject) {
@@ -584,7 +543,6 @@ export default function ArtisanProjects() {
         endDate: selectedProject.endDate?.substring(0, 10),
         progress: selectedProject.progress || 0,
       });
-      setLocationSelected(true); // La localisation existante est considérée valide
     }
   }, [view, selectedProject]);
 
@@ -599,7 +557,6 @@ export default function ArtisanProjects() {
       endDate: '',
       progress: 0,
     });
-    setLocationSelected(false);
     setErrors({});
     setTouched({});
     setView('create');
@@ -614,12 +571,6 @@ export default function ArtisanProjects() {
     return () => window.removeEventListener('artisan-shortcut:new-project', onNewProjectShortcut);
   }, [guard, handleCreateView]);
 
-  const getProfileLocations = () =>
-    artisanProfileLocation
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-
   // --- Validation d'un champ ---
   const validateField = (name: string, value: any): string => {
     switch (name) {
@@ -630,15 +581,9 @@ export default function ArtisanProjects() {
         if (value.length < 10) return 'La description doit contenir au moins 10 caractères';
         return '';
       case 'location':
-        if (!value) return 'La localisation est obligatoire';
-        const allowedLocations = getProfileLocations();
-        if (!allowedLocations.length) {
-          return 'Aucune localisation detectee dans votre profil artisan';
-        }
-        if (!locationSelected) {
-          return `Selectionnez une ville valide de: ${allowedLocations.join(', ')}`;
-        }
-        return '';
+        // Seule exigence : le champ est renseigne. Ni appartenance aux
+        // gouvernorats du profil, ni passage oblige par une suggestion.
+        return !String(value || '').trim() ? 'La localisation est obligatoire' : '';
       case 'budget':
         if (!value) return 'Le budget est obligatoire';
         if (isNaN(Number(value)) || Number(value) <= 0) return 'Le budget doit être un nombre positif';
@@ -665,7 +610,7 @@ export default function ArtisanProjects() {
       if (error) return false;
     }
 
-    return locationSelected;
+    return true;
   };
 
   // --- Gestion du blur pour marquer un champ comme touché ---
@@ -703,8 +648,7 @@ export default function ArtisanProjects() {
         }
       );
       setFormData({ title: '', description: '', location: '', budget: '', startDate: '', endDate: '', progress: 0 });
-      setLocationSelected(false);
-      toast.success(tr('Project created successfully', 'Projet cree avec succes', 'Project created successfully'));
+        toast.success(tr('Project created successfully', 'Projet cree avec succes', 'Project created successfully'));
       setView('list');
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
@@ -1178,20 +1122,17 @@ export default function ArtisanProjects() {
                 value={formData.location}
                 onChange={(value) => {
                   setFormData({ ...formData, location: value });
-                  setLocationSelected(false);
                   if (touched.location) setErrors((prev) => ({ ...prev, location: validateField('location', value) }));
                 }}
                 onSelect={(value) => {
                   setFormData({ ...formData, location: value });
-                  setLocationSelected(true);
                   if (touched.location) setErrors((prev) => ({ ...prev, location: '' }));
                 }}
                 onBlur={() => handleBlur('location')}
-                allowedStates={getProfileLocations()}
                 error={touched.location && errors.location ? errors.location : undefined}
               />
               <p className="text-xs text-muted-foreground">
-                Saisissez une ville; seules les villes dans vos gouvernorats de profil sont acceptees.
+                Saisissez une ville ou un lieu. Les suggestions sont une aide : toute saisie est acceptée.
               </p>
               <p className="text-xs text-muted-foreground" aria-live="polite">
                 {activeSpeechField === 'location'
@@ -1354,20 +1295,17 @@ export default function ArtisanProjects() {
                 value={formData.location}
                 onChange={(value) => {
                   setFormData({ ...formData, location: value });
-                  setLocationSelected(false);
                   if (touched.location) setErrors((prev) => ({ ...prev, location: validateField('location', value) }));
                 }}
                 onSelect={(value) => {
                   setFormData({ ...formData, location: value });
-                  setLocationSelected(true);
                   if (touched.location) setErrors((prev) => ({ ...prev, location: '' }));
                 }}
                 onBlur={() => handleBlur('location')}
-                allowedStates={getProfileLocations()}
                 error={touched.location && errors.location ? errors.location : undefined}
               />
               <p className="text-xs text-muted-foreground">
-                Saisissez une ville; seules les villes dans vos gouvernorats de profil sont acceptees.
+                Saisissez une ville ou un lieu. Les suggestions sont une aide : toute saisie est acceptée.
               </p>
               <p className="text-xs text-muted-foreground" aria-live="polite">
                 {activeSpeechField === 'location'
