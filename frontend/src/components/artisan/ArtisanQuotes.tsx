@@ -5,15 +5,177 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Plus, FileText, Download, Eye, Clock, CheckCircle, X, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff, Sparkles, Gauge, AlertTriangle, Wand2, Loader2 } from 'lucide-react';
+import { Plus, FileText, Download, Eye, Clock, CheckCircle, X, XCircle, ArrowRight, ShoppingCart, FolderKanban, Trash2, Search, Filter, Mic, MicOff, Sparkles, Gauge, AlertTriangle, Wand2, Loader2, Package } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useSubscriptionGuard } from './SubscriptionGuard';
+import QuoteMethodChoice, { QuoteMethod } from './QuoteMethodChoice';
+import QuoteTemplateGallery from './QuoteTemplateGallery';
+import QuoteTemplateParams from './QuoteTemplateParams';
+import AutoGrowTextarea from './AutoGrowTextarea';
+import MarketplaceMaterialPicker from './MarketplaceMaterialPicker';
+import type { MarketplaceProduct } from './MarketplaceMaterialPicker';
+import PlanImport from './PlanImport';
+import PlanRoomPicker from './PlanRoomPicker';
+import type { PlanRoomCandidate } from './PlanRoomPicker';
+
+/**
+ * Estimation de surface de murs renvoyee par map-reading.
+ *
+ * Ce n'est PAS une valeur lue : elle vient de 2 x (longueur + largeur) x
+ * hauteur, a partir de deux cotes que le modele a rattachees a la piece. Elle
+ * suppose la piece rectangulaire et ignore les ouvertures, d'ou la `mention`
+ * qui ne doit jamais etre separee du chiffre.
+ */
+interface PlanEstimation {
+  champ_cible: string;
+  unite: string;
+  mention: string;
+  hauteur_utilisee: number | null;
+  candidats: Array<{
+    piece_index: number;
+    libelle: string;
+    valeur: number;
+    longueur_m?: number;
+    largeur_m?: number;
+    texte_source: string;
+  }>;
+}
+
+/** Deux decimales, virgule francaise. */
+const formatNombre = (valeur: number) =>
+  String(Math.round(valeur * 100) / 100).replace('.', ',');
+
+/** Cote de plan : toujours deux decimales, « 2,90 » et non « 2,9 ». */
+const formatCote = (valeur: number) => valeur.toFixed(2).replace('.', ',');
+
+/**
+ * Projette une estimation sur les pieces retenues par l'artisan.
+ *
+ * Deux issues volontairement distinctes :
+ *   - en m², l'estimation pre-remplit le champ, editable comme le reste ;
+ *   - en `ml`, elle ne le pre-remplit PAS. Sans hauteur lue sur le plan, le
+ *     calcul ne donne qu'un perimetre ; le verser dans un champ qui attend des
+ *     m² produirait un devis faux d'un facteur egal a la hauteur, sans que rien
+ *     ne le signale. On l'affiche donc a cote, a charge pour l'artisan de
+ *     multiplier par la hauteur qu'il constate sur place.
+ */
+/** Une piece retenue, avec les cotes que le plan en donne. */
+type PieceRetenue = PlanEstimation['candidats'][number];
+
+/**
+ * Batit les quatre murs d'une piece rectangulaire.
+ *
+ * Sortie par piece : 2 murs a la longueur, 2 a la largeur, paires groupees,
+ * nommes d'apres la cote LUE et jamais d'apres une orientation — seul
+ * l'artisan sur place sait ce qui est a gauche.
+ *
+ * Une seule implementation, empruntee aussi bien par la hauteur lue sur le
+ * plan que par celle saisie a la main : c'est le meme calcul, il n'a aucune
+ * raison d'exister en deux exemplaires qui pourraient diverger.
+ */
+const construireMurs = (retenues: PieceRetenue[], hauteurM: number) =>
+  retenues.flatMap((candidat) => {
+    const longueur = Number(candidat.longueur_m);
+    const largeur = Number(candidat.largeur_m);
+    if (!Number.isFinite(longueur) || !Number.isFinite(largeur) || hauteurM <= 0) {
+      // Sans les deux cotes, on retombe sur le total de la piece.
+      return [{
+        nom: candidat.libelle || 'Mur 1',
+        mode: 'surface',
+        surfaceM2: candidat.valeur,
+        longueurM: 0,
+        hauteurM: 2.5,
+      }];
+    }
+    // Paires groupees : les deux murs de meme cote se suivent, comme dans
+    // l'esprit de l'artisan qui les regarde.
+    return [longueur, longueur, largeur, largeur].map((cote, rang) => ({
+      nom: `Mur ${formatCote(cote)} m (${(rang % 2) + 1}/2)`,
+      mode: 'longueur',
+      surfaceM2: 0,
+      longueurM: cote,
+      hauteurM,
+    }));
+  });
+
+const projeterEstimation = (
+  estimation: PlanEstimation | null,
+  indices: number[]
+): {
+  prefill?: PrefilledField;
+  note?: string;
+  /**
+   * Le plan donne les cotes de la piece mais pas sa hauteur : on ne peut pas
+   * calculer les murs, mais il suffit d'une valeur pour y arriver. On remonte
+   * donc les pieces retenues afin que le formulaire la reclame.
+   */
+  demandeHauteur?: { candidats: PieceRetenue[]; mention: string };
+} => {
+  if (!estimation) return {};
+
+  const retenues = estimation.candidats.filter((c) => indices.includes(c.piece_index));
+  if (retenues.length === 0) return {};
+
+  const total = Math.round(retenues.reduce((somme, c) => somme + Number(c.valeur), 0) * 100) / 100;
+  const detail = retenues.map((c) => `${c.libelle} ${formatNombre(c.valeur)}`).join(' + ');
+
+  if (estimation.unite === 'm²') {
+    /**
+     * Quatre murs par piece, pas un bloc : l'hypothese rectangulaire devient
+     * visible dans la liste et chaque mur se corrige separement. Un total
+     * unique aurait force l'artisan a refaire l'addition entiere pour retirer
+     * une baie vitree.
+     */
+    const murs = construireMurs(retenues, estimation.hauteur_utilisee || 0);
+
+    return {
+      prefill: {
+        value: murs,
+        hint: `${estimation.mention} (${detail} — total ${formatNombre(total)} m²)`,
+      },
+    };
+  }
+
+  /**
+   * Le plan porte les cotes de la piece mais aucune hauteur — c'est le cas
+   * normal d'une vue de dessus, qui ne montre jamais la hauteur. Plutot que
+   * de s'arreter la, on demande la seule donnee qui manque.
+   */
+  const cotees = retenues.filter(
+    (c) => Number.isFinite(Number(c.longueur_m)) && Number.isFinite(Number(c.largeur_m))
+  );
+  if (cotees.length > 0) {
+    return { demandeHauteur: { candidats: cotees, mention: estimation.mention } };
+  }
+
+  return {
+    note: `Périmètre estimé d'après le plan : ${formatNombre(total)} m de mur (${detail}). `
+      + `Aucune hauteur sous plafond n'est indiquée sur le plan : multipliez par la vôtre. `
+      + estimation.mention,
+  };
+};
+// `import type` obligatoire : SWC transpile fichier par fichier, sans acces au
+// systeme de types. Un type importe comme une valeur reste dans le JS emis et
+// echoue au chargement, le module ne l'exportant pas a l'execution.
+import type {
+  QuoteTemplate,
+  QuoteTemplateLine,
+  PrefilledField,
+} from './quoteTemplateTypes';
+import type { PlanReading } from './PlanImport';
+import { QUOTE_UNITS } from '../../lib/quoteUnits';
+import {
+  computePaymentSchedule,
+  defaultPaymentSchedule,
+  PaymentTranche,
+  TrancheType,
+} from '../../lib/paymentSchedule';
 import { useLanguage } from '../../context/LanguageContext';
 
-type SpeechField = 'clientName' | 'laborHand' | 'description' | 'validUntil' | 'upfrontValue' | 'invoiceDueDate';
+type SpeechField = 'clientName' | 'description' | 'validUntil' | 'invoiceDueDate';
 
 type AiRiskLevel = 'low' | 'medium' | 'high';
 
@@ -99,19 +261,39 @@ type AiQuoteDraft = {
 type QuoteFormData = {
   project: string;
   clientName: string;
-  laborHand: string;
   description: string;
   validUntil: string;
-  paymentType: 'percentage' | 'fixed';
-  upfrontValue: string;
+
 };
 
+/**
+ * Un brouillon de devis, tel qu'il survit a un rechargement de page.
+ *
+ * ⚠ `formData` ne porte que l'EN-TETE (projet, client, description, echeance).
+ * Tout le reste du devis vivait uniquement en memoire : recharger la page
+ * effacait les lignes, l'echeancier et les cles de dedoublonnage sans le dire.
+ * Ces champs sont donc optionnels a la lecture — les brouillons ecrits avant
+ * ce correctif n'en ont pas — mais toujours ecrits desormais.
+ */
 type QuoteDraftItem = {
   id: string;
   timestamp: number;
   title: string;
   formData: QuoteFormData;
+  quoteLines?: QuoteTemplateLine[];
+  paymentSchedule?: Array<Pick<PaymentTranche, 'label' | 'type' | 'value'>>;
+  importedMaterialKeys?: string[];
+  marketplaceProductKeys?: string[];
 };
+
+/**
+ * Cle de transport de la selection faite sur le Marketplace.
+ *
+ * `sessionStorage` plutot que l'URL : quinze identifiants Mongo feraient une
+ * adresse de 400 caracteres, et il faudrait de toute facon transporter nom,
+ * prix et categorie. La cle est bornee a l'onglet et effacee des consommation.
+ */
+const MARKETPLACE_SELECTION_KEY = 'bmp:quote-marketplace-selection';
 
 const DRAFT_QUOTES_STORAGE_KEY = 'all_draft_quotes';
 const LEGACY_DRAFT_QUOTE_STORAGE_KEY = 'draft_quote_data';
@@ -120,11 +302,8 @@ const AUTO_SAVE_DELAY_MS = 2500;
 const initialFormData: QuoteFormData = {
   project: '',
   clientName: '',
-  laborHand: '',
   description: '',
   validUntil: '',
-  paymentType: 'percentage',
-  upfrontValue: ''
 };
 
 type BrowserSpeechRecognitionEvent = Event & {
@@ -168,7 +347,67 @@ export default function ArtisanQuotes() {
   const tr = (en: string, fr: string, ar: string = en) => (language === 'ar' ? ar : language === 'fr' ? fr : en);
   const isSpeechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   const { guard, PopupElement } = useSubscriptionGuard();
-  const [view, setView] = useState<'list' | 'create' | 'details'>('list');
+  const [view, setView] = useState<'list' | 'choice' | 'planImport' | 'planTemplates' | 'planRooms' | 'templateParams' | 'templates' | 'create' | 'details'>('list');
+  // Modele auto-calcule en cours de parametrage. Null pour un modele fige.
+  const [pendingTemplate, setPendingTemplate] = useState<QuoteTemplate | null>(null);
+  /**
+   * Parcours « depuis un plan ». La lecture est faite une seule fois a l'import
+   * puis conservee ici : changer de metier reprojette la meme lecture sans
+   * jamais rappeler le modele.
+   */
+  const [planReading, setPlanReading] = useState<PlanReading | null>(null);
+  const [planPrefill, setPlanPrefill] = useState<Record<string, PrefilledField>>({});
+  /**
+   * Renseignements affiches a cote d'un champ sans le remplir — la hauteur
+   * sous plafond lue, dont on ne peut pas deduire la surface des murs.
+   */
+  const [planNotes, setPlanNotes] = useState<Record<string, string>>({});
+  /**
+   * Pieces lues quand il y en a plusieurs : l'artisan choisit celles que son
+   * devis couvre avant d'arriver au formulaire.
+   */
+  const [planRooms, setPlanRooms] = useState<{ champ: string; unite: string; candidats: PlanRoomCandidate[] } | null>(null);
+  /** Estimation de murs en attente de la selection de pieces. */
+  const [planEstimation, setPlanEstimation] = useState<PlanEstimation | null>(null);
+  /**
+   * Metier retenu dans le parcours « depuis un plan ».
+   *
+   * Conserve apres la generation des lignes, alors que `pendingTemplate` est
+   * remis a null : c'est lui qui permet de revenir aux mesures puis de
+   * regagner le formulaire de parametres sans redemander le metier.
+   */
+  const [planTemplate, setPlanTemplate] = useState<QuoteTemplate | null>(null);
+  /**
+   * Pieces dont le plan donne longueur et largeur, mais pas la hauteur.
+   * Renseigne, le formulaire reclame la hauteur pour calculer les murs.
+   */
+  const [planMursPrompt, setPlanMursPrompt] = useState<
+    { champ: string; candidats: PlanEstimation['candidats']; mention: string } | null
+  >(null);
+  // Lignes du devis : unique source du montant, en mode libre comme en mode
+  // modele metier. Un devis ne peut pas etre genere sans au moins une ligne.
+  const [quoteLines, setQuoteLines] = useState<QuoteTemplateLine[]>([]);
+  const [artisanDomain, setArtisanDomain] = useState<string>('');
+  // Cles des materiaux du projet deja inseres dans le tableau : un second clic
+  // sur « Depuis les materiaux du projet » n'ajoute que ce qui manque encore.
+  const [importedMaterialKeys, setImportedMaterialKeys] = useState<string[]>([]);
+  /**
+   * Produits du marketplace deja ajoutes au devis.
+   *
+   * Etat distinct d'`importedMaterialKeys`, pour deux raisons :
+   *   - les deux stockent des `Product._id`, donc les partager ferait qu'un
+   *     produit ajoute depuis le projet bloquerait son ajout depuis le
+   *     marketplace, alors que ce sont deux gestes differents ;
+   *   - `importedMaterialKeys` est vide au changement de projet, ce qui n'a
+   *     aucun sens pour un ajout marketplace, sans rapport avec le projet.
+   */
+  const [marketplaceProductKeys, setMarketplaceProductKeys] = useState<string[]>([]);
+  const [showMarketplacePicker, setShowMarketplacePicker] = useState(false);
+  // Echeancier de paiement a N tranches. Initialise avec les 2 tranches par
+  // defaut, qui reproduisent l'ancien comportement Acompte / Solde.
+  const [paymentSchedule, setPaymentSchedule] = useState<
+    Array<Pick<PaymentTranche, 'label' | 'type' | 'value'>>
+  >(defaultPaymentSchedule());
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
 
   const [quotes, setQuotes] = useState<any[]>([]);
@@ -311,82 +550,26 @@ export default function ArtisanQuotes() {
     return null;
   };
 
-  const parseSpokenNumber = (raw: string) => {
-    const normalized = normalizeSpeechText(raw).replace(',', '.');
-    const match = normalized.match(/-?\d+(?:\.\d+)?/);
-    if (!match) return null;
-    const value = Number(match[0]);
-    return Number.isFinite(value) ? String(value) : null;
-  };
-
-  const parsePaymentTypeFromSpeech = (raw: string): 'percentage' | 'fixed' | null => {
-    const normalized = normalizeSpeechText(raw);
-    if (!normalized) return null;
-
-    const compact = normalized.replace(/\s+/g, '');
-
-    const percentageKeywords = [
-      'percent',
-      'percentage',
-      'pourcent',
-      'pourcentage',
-      'pourcenta',
-      'pourcentag',
-      'pour cent',
-      '%',
-      'نسبة',
-      'مئوية',
-      'بالمئة',
-      'بالمائة',
-    ];
-
-    const fixedKeywords = [
-      'fixed',
-      'fixe',
-      'fix',
-      'montant fixe',
-      'fixed amount',
-      'amount',
-      'montant',
-      'ثابت',
-      'مبلغ',
-      'قيمة ثابتة',
-    ];
-
-    const hasKeyword = (keywords: string[]) =>
-      keywords.some((kw) => normalized.includes(kw) || compact.includes(kw.replace(/\s+/g, '')));
-
-    if (hasKeyword(percentageKeywords)) return 'percentage';
-    if (hasKeyword(fixedKeywords)) return 'fixed';
-
-    // Last-resort fuzzy stems for imperfect transcripts.
-    if (/(percen|pourc|pourcen|percenta)/.test(compact)) return 'percentage';
-    if (/(fix|montan|amoun)/.test(compact)) return 'fixed';
-
-    return null;
-  };
-
-  const hasDraftContent = (data: QuoteFormData) => Boolean(
+  /**
+   * Des lignes suffisent a faire un brouillon.
+   *
+   * L'en-tete seul ne suffisait pas : un artisan qui commence par batir son
+   * tableau, sans encore nommer son client, n'avait rien de sauvegarde.
+   */
+  const hasDraftContent = (data: QuoteFormData, lines: QuoteTemplateLine[] = quoteLines) => Boolean(
     data.project
     || data.clientName.trim()
-    || data.laborHand.trim()
     || data.description.trim()
     || data.validUntil
-    || data.upfrontValue.trim()
+    || (Array.isArray(lines) && lines.length > 0)
   );
 
   const sanitizeDraftFormData = (draftData: Partial<QuoteFormData>, fallback: QuoteFormData): QuoteFormData => ({
     ...fallback,
     project: typeof draftData.project === 'string' ? draftData.project : fallback.project,
     clientName: typeof draftData.clientName === 'string' ? draftData.clientName : fallback.clientName,
-    laborHand: typeof draftData.laborHand === 'string' ? draftData.laborHand : fallback.laborHand,
     description: typeof draftData.description === 'string' ? draftData.description : fallback.description,
     validUntil: typeof draftData.validUntil === 'string' ? draftData.validUntil : fallback.validUntil,
-    paymentType:
-      draftData.paymentType === 'fixed' || draftData.paymentType === 'percentage'
-        ? draftData.paymentType
-        : fallback.paymentType,
-    upfrontValue: typeof draftData.upfrontValue === 'string' ? draftData.upfrontValue : fallback.upfrontValue,
   });
 
   const createDraftId = () => `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -405,6 +588,11 @@ export default function ArtisanQuotes() {
       timestamp,
       title: buildDraftTitle(draftData),
       formData: { ...draftData },
+      // Le devis entier, pas seulement son en-tete.
+      quoteLines: quoteLines.map((line) => ({ ...line })),
+      paymentSchedule: paymentSchedule.map((tranche) => ({ ...tranche })),
+      importedMaterialKeys: [...importedMaterialKeys],
+      marketplaceProductKeys: [...marketplaceProductKeys],
     };
 
     setDrafts((prev) => {
@@ -437,6 +625,21 @@ export default function ArtisanQuotes() {
   const handleResumeDraft = (draft: QuoteDraftItem) => {
     guard(() => {
       setFormData({ ...draft.formData });
+      // Un brouillon anterieur au correctif n'a pas ces champs : on repart
+      // alors des valeurs neuves plutot que de laisser celles du devis
+      // precedent, qui n'ont rien a voir avec celui qu'on reprend.
+      setQuoteLines(Array.isArray(draft.quoteLines) ? draft.quoteLines.map((l) => ({ ...l })) : []);
+      setPaymentSchedule(
+        Array.isArray(draft.paymentSchedule) && draft.paymentSchedule.length > 0
+          ? draft.paymentSchedule.map((t) => ({ ...t }))
+          : defaultPaymentSchedule()
+      );
+      setImportedMaterialKeys(
+        Array.isArray(draft.importedMaterialKeys) ? [...draft.importedMaterialKeys] : []
+      );
+      setMarketplaceProductKeys(
+        Array.isArray(draft.marketplaceProductKeys) ? [...draft.marketplaceProductKeys] : []
+      );
       setActiveDraftId(draft.id);
       setLastSavedAt(new Date(draft.timestamp).toISOString());
       setErrors({});
@@ -463,18 +666,307 @@ export default function ArtisanQuotes() {
       setAiDraft(null);
       setAiDraftError('');
       setIsDraftMenuOpen(false);
-      setView('create');
+      setPendingTemplate(null);
+      setMarketplaceProductKeys([]);
+      setShowMarketplacePicker(false);
+      setPlanReading(null);
+      setPlanPrefill({});
+      setPlanNotes({});
+      setPlanRooms(null);
+      setPlanEstimation(null);
+      setPlanTemplate(null);
+      setPlanMursPrompt(null);
+      // Etape intermediaire : l'artisan choisit d'abord sa methode. La reprise
+      // d'un brouillon et l'arrivee depuis un projet (?projectId=) continuent
+      // d'ouvrir le formulaire directement, leur intention etant deja explicite.
+      setView('choice');
     });
   };
 
-  const handleExitCreateQuote = () => {
-    if (hasDraftContent(formData)) {
+  const handleSelectQuoteMethod = (method: QuoteMethod) => {
+    if (method === 'template') {
+      setView('templates');
+      return;
+    }
+    if (method === 'plan') {
+      setPlanReading(null);
+      setPlanPrefill({});
+      setPlanNotes({});
+      setPlanRooms(null);
+      setPlanEstimation(null);
+      setPlanTemplate(null);
+      setPlanMursPrompt(null);
+      setView('planImport');
+      return;
+    }
+    // Devis libre : on part d'un tableau vide, l'artisan ajoute ses lignes.
+    setQuoteLines([]);
+    setImportedMaterialKeys([]);
+    setView('create');
+  };
+
+  /** Applique un modele au formulaire, quelle que soit l'origine des lignes. */
+  const applyTemplateLines = (template: QuoteTemplate, lines: QuoteTemplateLine[]) => {
+    setQuoteLines(lines.map((line) => ({ ...line })));
+    setImportedMaterialKeys([]);
+    // Les lignes sont remplacees, donc celles venues du marketplace ont
+    // disparu : garder leurs cles ferait afficher « Deja ajoute » sur des
+    // produits qui ne sont plus dans le devis.
+    setMarketplaceProductKeys([]);
+    setFormData((prev) => ({ ...prev, description: template.title }));
+    setPendingTemplate(null);
+    setView('create');
+  };
+
+  /**
+   * Projette la lecture du plan sur le metier choisi.
+   *
+   * Aucun appel au modele : le backend refait le mapping et le garde-fou de
+   * source, ce qui est instantane et gratuit. Un echec n'est pas bloquant —
+   * l'artisan continue avec un formulaire vide.
+   */
+  const handleSelectTemplateForPlan = async (
+    template: QuoteTemplate,
+    lectureExplicite?: PlanReading
+  ) => {
+    const prefill: Record<string, PrefilledField> = {};
+    const notes: Record<string, string> = {};
+    /**
+     * Mesures lues, telles que l'ecran de selection les montre.
+     *
+     * Renseignees des qu'il y a au moins une piece, meme quand on ne s'arrete
+     * pas dessus : c'est l'ecran vers lequel le bouton « Retour » ramene
+     * depuis le formulaire, et l'artisan doit pouvoir y revoir ce qui a ete lu
+     * meme si le parcours l'avait saute.
+     */
+    let mesures: { champ: string; unite: string; candidats: PlanRoomCandidate[] } | null = null;
+    /** Vrai quand plusieurs pieces obligent a demander laquelle est concernee. */
+    let doitChoisir = false;
+    let estimation: PlanEstimation | null = null;
+    let demandeHauteur: { champ: string; candidats: PlanEstimation['candidats']; mention: string } | null = null;
+    // Pieces retenues d'office : une seule surface lue, donc rien a demander.
+    let indicesRetenus: number[] = [];
+
+    // La lecture peut arriver en argument : quand le metier est reconnu des
+    // l'import, `planReading` n'est pas encore a jour dans ce meme rendu.
+    const lecture = lectureExplicite || planReading;
+
+    if (lecture) {
+      try {
+        const token = getToken();
+        const { data } = await axios.post(
+          `${API_URL}/quotes/templates/${template.id}/map-reading`,
+          { lecture },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        (data.propositions || []).forEach((proposition: any) => {
+          const candidats = proposition.candidats || [];
+          if (candidats.length > 0 && !mesures) {
+            mesures = {
+              champ: proposition.champ_cible,
+              unite: proposition.unite || 'm²',
+              candidats,
+            };
+          }
+
+          if (candidats.length === 1) {
+            // Une seule piece lue : il n'y a rien a choisir.
+            prefill[proposition.champ_cible] = {
+              value: candidats[0].valeur,
+              hint: `${candidats[0].libelle} — « ${String(candidats[0].texte_source).replace(/\s+/g, ' ')} »`,
+            };
+            indicesRetenus = [candidats[0].piece_index];
+          } else if (candidats.length > 1) {
+            // Plusieurs pieces : le plan couvre le logement entier, le devis
+            // non. On passe par l'ecran de selection plutot que de trancher.
+            doitChoisir = true;
+          }
+        });
+
+        // Renseignements qui ne remplissent rien : hauteur sous plafond lue,
+        // cotations brutes faute de cotes rattachees a une piece. Plusieurs
+        // peuvent viser le meme champ, on les accumule au lieu de les ecraser.
+        (data.indications || []).forEach((indication: any) => {
+          if (indication && indication.champ_cible) {
+            const existant = notes[indication.champ_cible];
+            notes[indication.champ_cible] = existant
+              ? `${existant} · ${indication.texte}`
+              : String(indication.texte);
+          }
+        });
+
+        estimation = (data.estimations || [])[0] || null;
+
+        if ((data.avertissements || []).length > 0) {
+          toast.info(data.avertissements.join(' '));
+        }
+      } catch {
+        toast.error(tr(
+          'The plan reading could not be applied.',
+          "La lecture du plan n'a pas pu être appliquée.",
+          'تعذر تطبيق قراءة المخطط.'
+        ));
+      }
+    }
+
+    // Sans ecran de selection, l'estimation s'applique tout de suite.
+    if (!doitChoisir && estimation) {
+      const projection = projeterEstimation(estimation, indicesRetenus);
+      if (projection.prefill) prefill[estimation.champ_cible] = projection.prefill;
+      demandeHauteur = projection.demandeHauteur
+        ? { champ: estimation.champ_cible, ...projection.demandeHauteur }
+        : null;
+      if (projection.note) {
+        notes[estimation.champ_cible] = notes[estimation.champ_cible]
+          ? `${notes[estimation.champ_cible]} · ${projection.note}`
+          : projection.note;
+      }
+    }
+
+    setPlanPrefill(prefill);
+    setPlanNotes(notes);
+    setPendingTemplate(template);
+    setPlanRooms(mesures);
+    setPlanEstimation(estimation);
+    setPlanMursPrompt(demandeHauteur);
+    setPlanTemplate(template);
+    setView(doitChoisir ? 'planRooms' : 'templateParams');
+  };
+
+  /**
+   * Somme des pieces cochees : elle devient la surface de depart du modele, et
+   * sert aussi de base a l'estimation des murs, calculee sur la meme selection.
+   */
+  const handleConfirmPlanRooms = (total: number, detail: string, indices: number[]) => {
+    if (planRooms) {
+      setPlanPrefill((prev) => ({
+        ...prev,
+        [planRooms.champ]: { value: total, hint: detail },
+      }));
+    }
+
+    const projection = projeterEstimation(planEstimation, indices);
+    setPlanMursPrompt(
+      planEstimation && projection.demandeHauteur
+        ? { champ: planEstimation.champ_cible, ...projection.demandeHauteur }
+        : null
+    );
+    if (planEstimation && projection.prefill) {
+      setPlanPrefill((prev) => ({ ...prev, [planEstimation.champ_cible]: projection.prefill! }));
+    }
+    if (planEstimation && projection.note) {
+      setPlanNotes((prev) => ({
+        ...prev,
+        [planEstimation.champ_cible]: prev[planEstimation.champ_cible]
+          ? `${prev[planEstimation.champ_cible]} · ${projection.note}`
+          : projection.note!,
+      }));
+    }
+
+    setView('templateParams');
+  };
+
+  const handleSelectTemplate = (template: QuoteTemplate) => {
+    // Modele auto-calcule : on demande d'abord ses parametres. Les modeles
+    // figes gardent le chemin d'origine, selection -> formulaire.
+    if (Array.isArray(template.parameters) && template.parameters.length > 0) {
+      setPendingTemplate(template);
+      setView('templateParams');
+      return;
+    }
+    applyTemplateLines(template, template.lines);
+  };
+
+  /** Recalcule le total d'une ligne des qu'une quantite ou un prix change. */
+  const updateQuoteLine = (index: number, patch: Partial<QuoteTemplateLine>) => {
+    setQuoteLines((prev) =>
+      prev.map((line, i) => {
+        if (i !== index) return line;
+        const next = { ...line, ...patch };
+        const quantity = Number(next.quantity) || 0;
+        const unitPrice = Number(next.unitPrice) || 0;
+        return { ...next, total: quantity * unitPrice };
+      })
+    );
+  };
+
+  const removeQuoteLine = (index: number) => {
+    setQuoteLines((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateTranche = (
+    index: number,
+    patch: Partial<Pick<PaymentTranche, 'label' | 'type' | 'value'>>
+  ) => {
+    setPaymentSchedule((prev) =>
+      prev.map((tranche, i) => (i === index ? { ...tranche, ...patch } : tranche))
+    );
+  };
+
+  const removeTranche = (index: number) => {
+    setPaymentSchedule((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  /**
+   * Ajoute une tranche deja nommee.
+   *
+   * Le libelle vide etait la cause du 400 « Tranche 3: label is required » :
+   * une tranche a 0 % ne desequilibre pas l'echeancier, donc le bouton
+   * restait actif et le refus n'arrivait qu'au serveur. Un nom par defaut
+   * fait que l'echeancier est valide des l'ajout ; l'artisan le renomme.
+   */
+  const addTranche = () => {
+    setPaymentSchedule((prev) => [
+      ...prev,
+      { label: `${tr('Instalment', 'Tranche', 'قسط')} ${prev.length + 1}`, type: 'percent', value: 0 },
+    ]);
+  };
+
+  const addQuoteLine = () => {
+    setQuoteLines((prev) => [
+      ...prev,
+      { designation: '', quantity: 1, unit: 'unité', unitPrice: 0, lineType: 'material', total: 0 },
+    ]);
+  };
+
+  /** Met le brouillon a jour avant de quitter l'ecran de saisie. */
+  const persistDraftBeforeLeaving = () => {
+    if (hasDraftContent(formData, quoteLines)) {
       upsertDraft(formData, activeDraftId || undefined);
     } else if (activeDraftId) {
       removeDraftById(activeDraftId);
     }
     setIsDraftMenuOpen(false);
+  };
+
+  /** Abandon du devis en cours : retour a la liste. */
+  const handleExitCreateQuote = () => {
+    persistDraftBeforeLeaving();
+    setPendingTemplate(null);
     setView('list');
+  };
+
+  /**
+   * Retour depuis l'ecran de saisie, contextuel au parcours.
+   *
+   * Un devis bati depuis un plan ramene aux mesures lues : l'artisan qui
+   * recule veut corriger une piece mal cochee, pas abandonner son devis. Il
+   * faut alors rendre son metier a `pendingTemplate`, que la generation des
+   * lignes avait remis a null — sans quoi l'ecran de parametres ne se
+   * reafficherait pas apres correction.
+   *
+   * A ne pas confondre avec le bouton « Annuler » en bas du formulaire, qui
+   * exprime bien un abandon et continue de ramener a la liste.
+   */
+  const handleBackFromCreateQuote = () => {
+    if (planReading && planRooms) {
+      persistDraftBeforeLeaving();
+      setPendingTemplate(planTemplate);
+      setView('planRooms');
+      return;
+    }
+    handleExitCreateQuote();
   };
 
   useEffect(() => {
@@ -492,7 +984,8 @@ export default function ArtisanQuotes() {
           parsedDrafts.forEach((draft) => {
             const candidate = draft as Partial<QuoteDraftItem> & { lastSavedAt?: string };
             const nextFormData = sanitizeDraftFormData(candidate.formData || {}, initialFormData);
-            if (!hasDraftContent(nextFormData)) return;
+            const nextLines = Array.isArray(candidate.quoteLines) ? candidate.quoteLines : [];
+            if (!hasDraftContent(nextFormData, nextLines)) return;
 
             const parsedTimestamp =
               typeof candidate.timestamp === 'number'
@@ -509,6 +1002,14 @@ export default function ArtisanQuotes() {
                   ? candidate.title.trim()
                   : buildDraftTitle(nextFormData),
               formData: nextFormData,
+              // Absents des brouillons ecrits avant ce correctif : on les
+              // laisse vides plutot que de les inventer.
+              quoteLines: nextLines,
+              paymentSchedule: Array.isArray(candidate.paymentSchedule) ? candidate.paymentSchedule : undefined,
+              importedMaterialKeys: Array.isArray(candidate.importedMaterialKeys)
+                ? candidate.importedMaterialKeys : [],
+              marketplaceProductKeys: Array.isArray(candidate.marketplaceProductKeys)
+                ? candidate.marketplaceProductKeys : [],
             });
           });
         }
@@ -586,7 +1087,7 @@ export default function ArtisanQuotes() {
       return;
     }
 
-    if (!hasDraftContent(formData)) {
+    if (!hasDraftContent(formData, quoteLines)) {
       setIsSaving(false);
       if (activeDraftId) {
         setDrafts((prev) => prev.filter((draft) => draft.id !== activeDraftId));
@@ -605,7 +1106,20 @@ export default function ArtisanQuotes() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [formData, view, isSubmitting, activeDraftId, isDraftsLoaded]);
+    // `quoteLines` et l'echeancier font partie des dependances : sans eux,
+    // batir un tableau de dix lignes ne declenchait aucune sauvegarde et
+    // n'affichait meme pas « Sauvegarde en cours… ».
+  }, [
+    formData,
+    quoteLines,
+    paymentSchedule,
+    importedMaterialKeys,
+    marketplaceProductKeys,
+    view,
+    isSubmitting,
+    activeDraftId,
+    isDraftsLoaded,
+  ]);
 
   useEffect(() => {
     if (!aiDraft) return;
@@ -632,15 +1146,6 @@ export default function ArtisanQuotes() {
     if (field === 'invoiceDueDate') {
       const typedValue = String(value);
       setInvoiceDueDate(typedValue);
-      return;
-    }
-
-    if (field === 'upfrontValue') {
-      const typedValue = String(value);
-      setFormData((prev) => ({ ...prev, upfrontValue: typedValue }));
-      if (touched.upfrontValue) {
-        setErrors((prev) => ({ ...prev, upfrontValue: validateField('upfrontValue', typedValue) }));
-      }
       return;
     }
 
@@ -678,11 +1183,8 @@ export default function ArtisanQuotes() {
     recognition.interimResults = true;
 
     const isDateField = field === 'validUntil' || field === 'invoiceDueDate';
-    const isNumericField = field === 'laborHand';
-    const isPaymentTermsField = field === 'upfrontValue';
-    let recognizedAnyValue = false;
 
-    speechBaseRef.current = (isDateField || isNumericField || isPaymentTermsField)
+    speechBaseRef.current = isDateField
       ? ''
       : String(formDataRef.current[field] || '').trim();
     speechFinalRef.current = '';
@@ -708,42 +1210,11 @@ export default function ArtisanQuotes() {
       if (isDateField) {
         const parsedDate = parseSpokenDateToIso(combined);
         if (parsedDate) {
-          recognizedAnyValue = true;
           applyFieldValue('validUntil', parsedDate);
         }
         return;
       }
 
-      if (isNumericField) {
-        const parsedNumber = parseSpokenNumber(combined);
-        if (parsedNumber !== null) {
-          recognizedAnyValue = true;
-          applyFieldValue('laborHand', parsedNumber);
-        }
-        return;
-      }
-
-      if (isPaymentTermsField) {
-        const parsedPaymentType = parsePaymentTypeFromSpeech(combined);
-        const parsedNumber = parseSpokenNumber(combined);
-
-        if (parsedPaymentType) {
-          recognizedAnyValue = true;
-          setFormData((prev) => ({ ...prev, paymentType: parsedPaymentType }));
-          if (touched.paymentType) {
-            setErrors((prev) => ({ ...prev, paymentType: validateField('paymentType', parsedPaymentType) }));
-          }
-        }
-
-        if (parsedNumber !== null) {
-          recognizedAnyValue = true;
-          applyFieldValue('upfrontValue', parsedNumber);
-        }
-
-        return;
-      }
-
-      recognizedAnyValue = true;
       applyFieldValue(field, combined);
     };
 
@@ -762,32 +1233,6 @@ export default function ArtisanQuotes() {
       }
       if (field === 'invoiceDueDate' && !invoiceDueDate) {
         toast.info(tr('Due date not recognized. Try format 12/04/2026.', 'Date d echeance non reconnue. Essayez le format 12/04/2026.', 'Due date not recognized. Try format 12/04/2026.'));
-      }
-      if (isPaymentTermsField && !recognizedAnyValue) {
-        const latePaymentType = parsePaymentTypeFromSpeech(speechFinalRef.current);
-        const lateNumber = parseSpokenNumber(speechFinalRef.current);
-
-        if (latePaymentType) {
-          setFormData((prev) => ({ ...prev, paymentType: latePaymentType }));
-          if (touched.paymentType) {
-            setErrors((prev) => ({ ...prev, paymentType: validateField('paymentType', latePaymentType) }));
-          }
-          recognizedAnyValue = true;
-        }
-
-        if (lateNumber !== null) {
-          applyFieldValue('upfrontValue', lateNumber);
-          recognizedAnyValue = true;
-        }
-      }
-      if (isPaymentTermsField && !recognizedAnyValue) {
-        toast.info(
-          tr(
-            'Payment terms not recognized. Say: 30 percent or 500 fixed amount.',
-            'Conditions de paiement non reconnues. Dites: 30 pourcent ou 500 montant fixe.',
-            'Payment terms not recognized. Say: 30 percent or 500 fixed amount.'
-          )
-        );
       }
       setIsListening(false);
       setActiveSpeechField(null);
@@ -936,23 +1381,107 @@ export default function ArtisanQuotes() {
     })),
     ...personalMaterialEntries,
   ];
-  const materialsAmount = groupedMaterials.reduce((sum: number, entry: any) => {
-    const price = Number(entry?.item?.price);
-    const quantity = Number(entry?.quantity);
-    const safePrice = Number.isFinite(price) ? price : 0;
-    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
-    return sum + (safePrice * safeQuantity);
-  }, 0);
-  const laborHandAmount = Number(formData.laborHand || 0);
-  const totalAmount = (Number.isFinite(laborHandAmount) ? laborHandAmount : 0) + materialsAmount;
-  const upfrontRaw = Number(formData.upfrontValue || 0);
-  const upfrontAmount = formData.paymentType === 'percentage'
-    ? (Number.isFinite(upfrontRaw) ? (totalAmount * upfrontRaw) / 100 : 0)
-    : (Number.isFinite(upfrontRaw) ? upfrontRaw : 0);
-  const safeUpfrontAmount = Math.min(Math.max(upfrontAmount, 0), totalAmount);
-  const uponCompletionAmount = Math.max(totalAmount - safeUpfrontAmount, 0);
-  const upfrontPercentage = totalAmount > 0 ? (safeUpfrontAmount / totalAmount) * 100 : 0;
-  const uponCompletionPercentage = Math.max(100 - upfrontPercentage, 0);
+  // Totaux issus des lignes du modele ; ignores quand il n'y en a pas.
+  /** Materiaux du projet pas encore presents dans le tableau. */
+  const pendingProjectMaterials = groupedMaterials.filter(
+    (entry: any) => !importedMaterialKeys.includes(String(entry?.key || ''))
+  );
+
+  const addLinesFromProjectMaterials = () => {
+    if (pendingProjectMaterials.length === 0) return;
+
+    const newLines = pendingProjectMaterials.map((entry: any) => {
+      const quantity = Number(entry?.quantity) || 1;
+      const unitPrice = Number(entry?.item?.price) || 0;
+      return {
+        designation: String(entry?.item?.name || ''),
+        quantity,
+        // Ni Product ni personalMaterials ne portent d'unite : l'artisan ajuste.
+        unit: 'unité',
+        unitPrice,
+        lineType: 'material' as const,
+        total: quantity * unitPrice,
+      };
+    });
+
+    setQuoteLines((prev) => [...prev, ...newLines]);
+    setImportedMaterialKeys((prev) => [
+      ...prev,
+      ...pendingProjectMaterials.map((entry: any) => String(entry?.key || '')),
+    ]);
+  };
+
+  /**
+   * Transforme les produits choisis en lignes de devis ordinaires.
+   *
+   * `unit` vaut 'unité' faute de mieux : le modele Product ne porte aucune
+   * unite, et la deduire de la categorie — texte libre, en francais comme en
+   * anglais — donnerait un resultat plausible mais faux, que l'artisan ne
+   * penserait pas a corriger. Un defaut visiblement approximatif appelle la
+   * correction ; un defaut credible la fait oublier.
+   */
+  /**
+   * Part choisir des materiaux sur la vraie page Marketplace.
+   *
+   * La sauvegarde est FORCEE avant de naviguer : l'autosauvegarde attend
+   * 2500 ms, et un rechargement de page qui part avant elle emporterait les
+   * lignes tout juste saisies. `upsertDraft` est synchrone et rend l'id du
+   * brouillon, qui accompagne l'artisan a l'aller comme au retour.
+   */
+  const handleGoToMarketplace = () => {
+    const draftId = upsertDraft(formData, activeDraftId || undefined);
+    setIsDraftMenuOpen(false);
+    window.location.href = `/?artisanView=marketplace&quoteDraftId=${encodeURIComponent(draftId)}`;
+  };
+
+  const addLinesFromMarketplace = (produits: MarketplaceProduct[]) => {
+    const newLines = produits.map((produit) => {
+      const unitPrice = Number(produit?.price) || 0;
+      return {
+        designation: String(produit?.name || ''),
+        // Modifiable ensuite sur la ligne, comme pour les materiaux du projet.
+        quantity: 1,
+        unit: 'unité',
+        unitPrice,
+        lineType: 'material' as const,
+        total: unitPrice,
+      };
+    });
+
+    setQuoteLines((prev) => [...prev, ...newLines]);
+    setMarketplaceProductKeys((prev) => Array.from(new Set([
+      ...prev,
+      ...produits.map((produit) => String(produit?._id || '')),
+    ])));
+    setShowMarketplacePicker(false);
+  };
+
+  const linesLaborTotal = quoteLines
+    .filter((line) => line.lineType === 'labor')
+    .reduce((sum, line) => sum + (Number(line.total) || 0), 0);
+  const linesMaterialsTotal = quoteLines
+    .filter((line) => line.lineType === 'material')
+    .reduce((sum, line) => sum + (Number(line.total) || 0), 0);
+
+  // Les lignes sont l'unique source du devis : plus de saisie globale.
+  const laborHandAmount = linesLaborTotal;
+  const totalAmount = linesLaborTotal + linesMaterialsTotal;
+
+  const {
+    tranches: computedTranches,
+    sum: scheduleSum,
+    isBalanced: isScheduleBalanced,
+  } = computePaymentSchedule(paymentSchedule, totalAmount);
+  // Une tranche « Solde restant » absorbe l'ecart : l'echeancier ne peut alors
+  // jamais etre desequilibre, sauf si les tranches precedentes depassent le total.
+  const hasRemainingTranche = paymentSchedule.some((t) => t.type === 'remaining');
+  /**
+   * Le serveur exige un libelle par tranche : le verifier ici evite de
+   * decouvrir le refus apres coup. L'equilibre seul ne suffisait pas — une
+   * tranche a 0 % sans nom laissait l'echeancier equilibre et le bouton actif.
+   */
+  const allTranchesNamed = paymentSchedule.every((t) => String(t.label || '').trim().length > 0);
+  const canSubmitSchedule = paymentSchedule.length > 0 && isScheduleBalanced && allTranchesNamed;
 
   const normalizeRisk = (value: number) => Math.min(Math.max(Number(value) || 0, 0), 100);
   const feasibilityBadgeClass = (level: AiRiskLevel) => {
@@ -972,19 +1501,28 @@ export default function ArtisanQuotes() {
   };
 
   const applyAiDraftToForm = (draft: AiQuoteDraft, showSuccessToast = true) => {
-    const nextPaymentType = draft.recommendations.paymentType.value;
-    const nextUpfrontValue = nextPaymentType === 'percentage'
-      ? String(draft.recommendations.upfront.percent)
-      : String(draft.recommendations.upfront.fixedAmount);
-
     setFormData((prev) => ({
       ...prev,
-      laborHand: String(draft.recommendations.laborHand.value),
       description: draft.recommendations.description.value,
       validUntil: draft.recommendations.validUntil.value,
-      paymentType: nextPaymentType,
-      upfrontValue: nextUpfrontValue,
     }));
+
+    // Il n'y a plus de champ « Labor hand » : la recommandation de l'IA devient
+    // une ligne « Main d'œuvre », modifiable comme les autres.
+    const suggestedLabor = Number(draft.recommendations.laborHand.value) || 0;
+    if (suggestedLabor > 0) {
+      setQuoteLines((prev) => [
+        ...prev,
+        {
+          designation: tr('Labor (AI suggestion)', "Main d'œuvre (suggestion IA)", 'يد عاملة (اقتراح الذكاء الاصطناعي)'),
+          quantity: 1,
+          unit: 'aucun',
+          unitPrice: suggestedLabor,
+          lineType: 'labor' as const,
+          total: suggestedLabor,
+        },
+      ]);
+    }
     setErrors({});
     setTouched({});
 
@@ -1077,6 +1615,17 @@ export default function ArtisanQuotes() {
     return token;
   };
 
+  // Metier de l'artisan : sert uniquement a mettre le bon modele en avant.
+  // Chargement non bloquant, la galerie fonctionne sans.
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    axios
+      .get(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(({ data }) => setArtisanDomain((data?.user ?? data)?.domain || ''))
+      .catch(() => {});
+  }, []);
+
   const showOverlayToast = (msg: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToastMessage(msg);
     setToastType(type);
@@ -1099,6 +1648,69 @@ export default function ArtisanQuotes() {
       setView('create');
     }
   }, []);
+
+  /**
+   * Retour du Marketplace : on rouvre le bon brouillon, puis on y verse la
+   * selection.
+   *
+   * L'ordre compte. Les brouillons sont hydrates depuis `localStorage` par un
+   * autre effet ; lire `drafts` avant qu'il ait tourne donnerait un tableau
+   * vide et le brouillon serait introuvable. D'ou l'attente de
+   * `isDraftsLoaded`.
+   */
+  useEffect(() => {
+    if (!isDraftsLoaded) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const draftId = params.get('quoteDraftId');
+    if (!draftId) return;
+
+    const brouillon = drafts.find((draft) => draft.id === draftId);
+    if (!brouillon) return;
+
+    handleResumeDraft(brouillon);
+
+    // Nettoyage de l'adresse, comme le fait le tableau de bord pour
+    // `artisanView` : le parametre a fait son office.
+    params.delete('quoteDraftId');
+    params.delete('artisanView');
+    const reste = params.toString();
+    window.history.replaceState({}, '', reste ? `/?${reste}` : '/');
+  }, [isDraftsLoaded, drafts]);
+
+  /**
+   * Verse la selection dans le devis une fois celui-ci rouvert.
+   *
+   * Separe de l'effet precedent a dessein : `handleResumeDraft` passe par
+   * `guard()`, qui n'ouvre rien si l'abonnement a expire. On attend donc de
+   * CONSTATER que le brouillon est actif avant de consommer la selection ; en
+   * cas de blocage, elle reste en attente au lieu d'etre perdue.
+   */
+  useEffect(() => {
+    if (!activeDraftId || view !== 'create') return;
+
+    let charge: { draftId?: string; produits?: MarketplaceProduct[] } | null = null;
+    try {
+      const brut = sessionStorage.getItem(MARKETPLACE_SELECTION_KEY);
+      if (!brut) return;
+      charge = JSON.parse(brut);
+    } catch {
+      sessionStorage.removeItem(MARKETPLACE_SELECTION_KEY);
+      return;
+    }
+
+    if (!charge || charge.draftId !== activeDraftId) {
+      // Selection destinee a un autre devis : on l'ecarte plutot que de
+      // risquer d'inserer des lignes dans le mauvais.
+      if (charge && charge.draftId) sessionStorage.removeItem(MARKETPLACE_SELECTION_KEY);
+      return;
+    }
+
+    sessionStorage.removeItem(MARKETPLACE_SELECTION_KEY);
+    if (Array.isArray(charge.produits) && charge.produits.length > 0) {
+      addLinesFromMarketplace(charge.produits);
+    }
+  }, [activeDraftId, view]);
 
   // --- CHARGEMENT DES DONNÉES ---
   useEffect(() => {
@@ -1154,29 +1766,19 @@ export default function ArtisanQuotes() {
       case 'project': {
         if (!value) return 'Project is required';
         if (!availableProjects.some((proj) => proj._id === value)) return 'Selected project is already completed';
-        const projForQuote = projects.find((proj) => proj._id === value);
-        const marketplaceCount = Array.isArray(projForQuote?.materials) ? projForQuote.materials.length : 0;
-        const personalCount = Array.isArray(projForQuote?.personalMaterials) ? projForQuote.personalMaterials.length : 0;
-        if (marketplaceCount + personalCount <= 0) return 'The selected project must have at least one material before creating a quote';
+        /**
+         * Un devis n'a jamais eu besoin de porter un materiau.
+         *
+         * Une regle exigeait ici au moins un materiau — marketplace ou
+         * personnel — sur le projet. Elle interdisait des devis parfaitement
+         * legitimes : nettoyage, diagnostic, petite reparation, ou peinture
+         * dont le client fournit deja le produit. Elle n'existait qu'ici :
+         * `createQuote` cote serveur n'a jamais rien verifie de tel.
+         */
         return '';
       }
       case 'clientName':
         return !value ? 'Client name is required' : '';
-      case 'laborHand':
-        if (value === '' || value === null || value === undefined) return 'Labor hand is required';
-        if (isNaN(Number(value)) || Number(value) < 0) return 'Labor hand must be a non-negative number';
-        return '';
-      case 'paymentType':
-        if (!['percentage', 'fixed'].includes(String(value))) return 'Payment mode is required';
-        return '';
-      case 'upfrontValue': {
-        if (value === '' || value === null || value === undefined) return 'Upfront value is required';
-        const upfront = Number(value);
-        if (!Number.isFinite(upfront) || upfront <= 0) return 'Upfront must be a positive number';
-        if (formData.paymentType === 'percentage' && upfront > 100) return 'Upfront percentage cannot exceed 100%';
-        if (formData.paymentType === 'fixed' && upfront > totalAmount) return 'Upfront amount cannot exceed total amount';
-        return '';
-      }
       case 'description':
         if (!value) return 'Description is required';
         if (value.length < 10) return 'Description must be at least 10 characters';
@@ -1194,12 +1796,16 @@ export default function ArtisanQuotes() {
   };
 
   const validateForm = (): boolean => {
-    const fields = ['project', 'clientName', 'laborHand', 'description', 'validUntil', 'paymentType', 'upfrontValue'];
+    // laborHand / paymentType / upfrontValue ont disparu du formulaire : le devis
+    // se construit desormais entierement depuis les lignes et l'echeancier.
+    const fields = ['project', 'clientName', 'description', 'validUntil'];
     for (const field of fields) {
       if (validateField(field, formData[field as keyof typeof formData])) return false;
     }
+    // Le devis se construit uniquement depuis le tableau : au moins une ligne,
+    // et un montant strictement positif une fois les prix unitaires saisis.
+    if (quoteLines.length === 0) return false;
     if (totalAmount <= 0) return false;
-    // PaymentTerms est optionnel, on ne le valide pas pour le form valide
     return true;
   };
 
@@ -1217,31 +1823,46 @@ export default function ArtisanQuotes() {
     setIsSubmitting(true);
     try {
       const token = getToken();
-      const paymentTermsSummary =
-        `Mode: ${formData.paymentType === 'percentage' ? 'Percentage (%)' : 'Fixed Amount'} | ` +
-        `Upfront: ${upfrontPercentage.toFixed(2)}% (${safeUpfrontAmount.toFixed(2)} TND) | ` +
-        `Upon Completion: ${uponCompletionPercentage.toFixed(2)}% (${uponCompletionAmount.toFixed(2)} TND)`;
+      // Le resume textuel reprend desormais l'echeancier a N tranches.
+      const paymentTermsSummary = computedTranches
+        .map((tranche) => `${tranche.label}: ${tranche.percentage.toFixed(2)}% (${tranche.amount.toFixed(2)} TND)`)
+        .join(' | ');
 
       await axios.post(`${API_URL}/quotes`, {
         ...formData,
-        laborHand: Number(formData.laborHand || 0),
-        materialsAmount,
+        // Repli pour les integrations historiques : le backend recalcule ces
+        // deux montants depuis quoteLines des qu'elles sont presentes.
+        laborHand: linesLaborTotal,
+        materialsAmount: linesMaterialsTotal,
         paymentTerms: paymentTermsSummary,
-        upfrontPercent: upfrontPercentage,
+        upfrontPercent: computedTranches.length > 0 ? computedTranches[0].percentage : 0,
+        quoteLines,
+        paymentSchedule: computedTranches,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Quote generated successfully!');
       clearCurrentDraft();
       setFormData({ ...initialFormData });
+      setQuoteLines([]);
+      setImportedMaterialKeys([]);
+      setMarketplaceProductKeys([]);
+      setPaymentSchedule(defaultPaymentSchedule());
       setErrors({});
       setTouched({});
       setAiDraft(null);
       setAiDraftError('');
       setView('list');
-    } catch (error) {
-      console.error("Error creating quote:", error);
-      alert('Failed to create quote.');
+    } catch (error: any) {
+      console.error('Error creating quote:', error);
+      // Le serveur nomme la tranche fautive et la regle violee : un « Failed
+      // to create quote » generique obligeait a deviner ce qui n'allait pas.
+      const backendMessage = error?.response?.data?.message;
+      toast.error(backendMessage || tr(
+        'Failed to create quote.',
+        'La création du devis a échoué.',
+        'فشل إنشاء العرض.'
+      ));
     } finally {
       setIsSubmitting(false);
     }
@@ -1694,13 +2315,143 @@ export default function ArtisanQuotes() {
   });
 
   // ==========================================
+  // VUE 0 : CHOIX DE LA METHODE
+  // ==========================================
+  if (view === 'choice') {
+    return (
+      <QuoteMethodChoice
+        onSelect={handleSelectQuoteMethod}
+        onBack={() => setView('list')}
+      />
+    );
+  }
+
+  // ==========================================
+  // VUE 0 bis : GALERIE DES MODELES METIER
+  // ==========================================
+  if (view === 'templates') {
+    return (
+      <QuoteTemplateGallery
+        artisanDomain={artisanDomain}
+        onSelect={handleSelectTemplate}
+        onBack={() => setView('choice')}
+      />
+    );
+  }
+
+  // ==========================================
+  // VUE 0 bis-2 : IMPORT ET LECTURE D'UN PLAN
+  // ==========================================
+  if (view === 'planImport') {
+    return (
+      <PlanImport
+        onRead={(lecture, template) => {
+          setPlanReading(lecture);
+          // Metier reconnu dans la description : on saute la galerie. Sinon
+          // l'artisan choisit lui-meme, ce qui reste un parcours normal.
+          if (template) {
+            handleSelectTemplateForPlan(template, lecture);
+            return;
+          }
+          setView('planTemplates');
+        }}
+        onBack={() => setView('choice')}
+      />
+    );
+  }
+
+  // ==========================================
+  // VUE 0 bis-3 : CHOIX DU METIER, DEPUIS UN PLAN
+  // ==========================================
+  if (view === 'planTemplates') {
+    return (
+      <QuoteTemplateGallery
+        artisanDomain={artisanDomain}
+        // Seuls metiers dont les champs se lisent sur un plan. Plomberie et
+        // Electricite en sont exclus : leurs listes de points ne s'y ecrivent
+        // pas, les proposer reviendrait a deviner.
+        allowedIds={['carreleur-salle-de-bain-8m2', 'peintre-piece-25m2']}
+        onSelect={handleSelectTemplateForPlan}
+        onBack={() => setView('planImport')}
+      />
+    );
+  }
+
+  // ==========================================
+  // VUE 0 ter : PARAMETRES D'UN MODELE AUTO-CALCULE
+  // ==========================================
+  if (view === 'planRooms' && planRooms) {
+    return (
+      <PlanRoomPicker
+        candidats={planRooms.candidats}
+        unite={planRooms.unite}
+        onConfirm={handleConfirmPlanRooms}
+        onSkip={() => setView('templateParams')}
+        onBack={() => setView('planTemplates')}
+      />
+    );
+  }
+
+  if (view === 'templateParams' && pendingTemplate) {
+    return (
+      <QuoteTemplateParams
+        template={pendingTemplate}
+        prefill={Object.keys(planPrefill).length > 0 ? planPrefill : undefined}
+        notes={Object.keys(planNotes).length > 0 ? planNotes : undefined}
+        missingInput={planMursPrompt ? {
+          champ: planMursPrompt.champ,
+          message: tr(
+            'No ceiling height found on this plan. Enter it to compute the wall surfaces automatically from the room dimensions.',
+            'Hauteur sous plafond non trouvée sur ce plan. Indiquez-la pour calculer automatiquement la surface des murs à partir des dimensions de la pièce.',
+            'لم يتم العثور على ارتفاع السقف في هذا المخطط.'
+          ),
+          label: tr('Ceiling height', 'Hauteur sous plafond', 'ارتفاع السقف'),
+          unit: 'm',
+          // Un exemple, pas un defaut : rien n'est saisi a la place de l'artisan.
+          placeholder: tr('e.g. 2.50', 'ex : 2,50', '2,50'),
+          caveat: planMursPrompt.mention,
+          buildItems: (valeur: number) => construireMurs(planMursPrompt.candidats, valeur),
+        } : undefined}
+        onGenerated={applyTemplateLines}
+        backLabel={
+          planReading && planRooms
+            ? tr('Back to the plan measurements', 'Retour aux mesures du plan', 'العودة إلى قياسات المخطط')
+            : undefined
+        }
+        onBack={() => {
+          /**
+           * On revient sur ses pas, pas sur le choix du metier. Depuis un
+           * plan, l'artisan qui recule veut le plus souvent corriger sa
+           * selection de pieces ou revoir ce qui a ete lu — pas changer de
+           * metier. La galerie ne reste la destination que faute de mesures
+           * a revoir.
+           *
+           * Le modele n'est oublie QUE si l'on repart vers une galerie : en
+           * revenant aux mesures, le metier reste choisi, et l'effacer
+           * empecherait de revenir au formulaire apres correction.
+           */
+          if (planReading && planRooms) {
+            setView('planRooms');
+            return;
+          }
+          setPendingTemplate(null);
+          setView(planReading ? 'planTemplates' : 'templates');
+        }}
+      />
+    );
+  }
+
+  // ==========================================
   // VUE 1 : CRÉATION
   // ==========================================
   if (view === 'create') {
     return (
       <div className="mx-auto w-full max-w-7xl px-4 lg:px-8">
-        <Button variant="outline" onClick={handleExitCreateQuote} className="mb-6 rounded-lg border border-gray-300 shadow-sm">
-          <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Quotes', 'Retour aux devis', 'العودة إلى العروض')}
+        <Button variant="outline" onClick={handleBackFromCreateQuote} className="mb-6 rounded-lg border border-gray-300 shadow-sm">
+          <ArrowRight size={20} className="mr-2 rotate-180" />{' '}
+          {planReading && planRooms
+            ? tr('Back to the plan measurements', 'Retour aux mesures du plan', 'العودة إلى قياسات المخطط')
+            : tr('Back to Quotes', 'Retour aux devis', 'العودة إلى العروض')}
         </Button>
         <Card className="rounded-xl border border-border bg-card p-6 shadow-sm md:p-8">
           <div className="mb-8 flex items-center justify-between gap-4">
@@ -1749,6 +2500,8 @@ export default function ArtisanQuotes() {
                   value={formData.project}
                   onChange={(e) => {
                     setFormData({ ...formData, project: e.target.value });
+                    // Les cles memorisees appartiennent au projet precedent.
+                    setImportedMaterialKeys([]);
                     if (touched.project) setErrors(prev => ({ ...prev, project: validateField('project', e.target.value) }));
                   }}
                   onBlur={() => handleBlur('project')}
@@ -1794,128 +2547,204 @@ export default function ArtisanQuotes() {
                 )}
               </div>
 
-              {/* Finance */}
-              <section className="space-y-6 rounded-xl border border-gray-200 bg-gray-50 p-6">
-                <h3 className="text-lg font-semibold text-foreground">Finance Overview</h3>
-
-                <div className="grid grid-cols-1 gap-6 w-full md:grid-cols-2">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <Label htmlFor="laborHand" className="text-base font-semibold whitespace-nowrap">
-                        Labor hand (TND) <span style={{ color: 'red' }}>*</span>
-                      </Label>
-                      {renderSpeechButton('laborHand')}
+              {/* Lignes du devis : unique mode de saisie, en devis libre comme
+                  depuis un modele metier. Toujours affichee, meme vide. */}
+              <section className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {tr('Quote lines', 'Lignes du devis', 'سطور العرض')} <span style={{ color: 'red' }}>*</span>
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {pendingProjectMaterials.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg"
+                          onClick={addLinesFromProjectMaterials}
+                        >
+                          <Package size={14} className="mr-1" />
+                          {tr(
+                            `From project materials (${pendingProjectMaterials.length} left)`,
+                            `Depuis les matériaux du projet (${pendingProjectMaterials.length} restants)`,
+                            `من مواد المشروع (${pendingProjectMaterials.length})`
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="rounded-lg bg-secondary text-white hover:bg-secondary/90"
+                        onClick={handleGoToMarketplace}
+                      >
+                        <ShoppingCart size={14} className="mr-1" />
+                        {tr('Add from marketplace', 'Ajouter depuis le marketplace', 'إضافة من السوق')}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={addQuoteLine}>
+                        <Plus size={14} className="mr-1" />
+                        {tr('Add a line', 'Ajouter une ligne', 'أضف سطرًا')}
+                      </Button>
                     </div>
-                    <Input
-                      id="laborHand"
-                      type="number"
-                      step="any"
-                      min={0}
-                      value={formData.laborHand}
-                      onChange={(e) => {
-                        applyFieldValue('laborHand', e.target.value);
-                      }}
-                      onBlur={() => handleBlur('laborHand')}
-                      placeholder="0.00"
-                      className={`h-12 w-full rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        touched.laborHand && errors.laborHand ? 'border-red-500' : 'border-border'
-                      }`}
+                  </div>
+
+                  {showMarketplacePicker && (
+                    <MarketplaceMaterialPicker
+                      alreadyAddedIds={marketplaceProductKeys}
+                      onAdd={addLinesFromMarketplace}
+                      onClose={() => setShowMarketplacePicker(false)}
                     />
-                    {touched.laborHand && errors.laborHand && (
-                      <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.laborHand}</p>
-                    )}
-                  </div>
+                  )}
 
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold whitespace-nowrap">Materials from project (TND)</Label>
-                    <div className="flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 shadow-sm">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 rounded-lg border border-border"
-                        disabled={!selectedProject}
-                        onClick={() => setShowAllMaterials((prev) => !prev)}
-                      >
-                        <FolderKanban size={14} className="mr-2" />
-                        {showAllMaterials ? 'Hide materials' : 'View All materials'}
-                      </Button>
-                      <span className="text-lg font-bold text-primary">{formatAmount(materialsAmount)}</span>
-                    </div>
-                    {showAllMaterials && (
-                      <div className="max-h-48 overflow-auto rounded-lg border border-border bg-card p-3">
-                        {groupedMaterials.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No materials added to this project yet.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {groupedMaterials.map((entry: any, index: number) => (
-                              <div key={String(entry.key || entry.item?._id || index)} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2">
-                                <p className="truncate pr-2 text-sm font-medium text-foreground">
-                                  {entry.item?.name || 'Material'}
-                                  <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    {entry.source === 'personal' ? 'Personal' : 'Marketplace'}
-                                  </span>
-                                </p>
-                                <p className="whitespace-nowrap text-sm text-muted-foreground">
-                                  x{entry.quantity} • {formatAmount(Number(entry.item?.price || 0) * entry.quantity)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {selectedProject && materialsAmount <= 0 && (
-                  <Card className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
-                    <p className="mb-3 text-sm text-amber-800">
-                      This project has no materials yet. Use the same project flow to add materials, then come back to generate the quote.
+                  {quoteLines.length === 0 && (
+                    <p className="rounded-lg border border-dashed border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+                      {tr(
+                        'Add at least one line to build the quote.',
+                        'Ajoutez au moins une ligne pour construire le devis.',
+                        'أضف سطرًا واحدًا على الأقل لإنشاء العرض.'
+                      )}
                     </p>
-                    <div className="flex flex-wrap gap-3">
-                      <Button
-                        type="button"
-                        className="rounded-lg bg-secondary text-white shadow-sm hover:bg-secondary/90"
-                        onClick={() => {
-                          if (!selectedProject?._id) return;
-                          window.location.href = '/?artisanView=marketplace&projectId=' + selectedProject._id;
-                        }}
-                      >
-                        <ShoppingCart size={16} className="mr-2" /> Add Material
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-lg border border-border shadow-sm"
-                        onClick={() => {
-                          if (!selectedProject?._id) return;
-                          window.location.href = '/?artisanView=projects';
-                        }}
-                      >
-                        <FolderKanban size={16} className="mr-2" /> View Materials
-                      </Button>
-                    </div>
-                  </Card>
-                )}
+                  )}
 
-                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                  <p className="mb-2 text-sm text-muted-foreground">Total amount preview</p>
-                  <div className="grid w-full gap-4 text-sm md:grid-cols-3">
-                    <div className="rounded-lg border border-border bg-card p-3">
-                      <p className="text-muted-foreground">Labor hand</p>
-                      <p className="font-semibold text-foreground">{formatAmount(Number.isFinite(laborHandAmount) ? laborHandAmount : 0)}</p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-card p-3">
-                      <p className="text-muted-foreground">Materials</p>
-                      <p className="font-semibold text-foreground">{formatAmount(materialsAmount)}</p>
-                    </div>
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-900">
-                      <p className="font-medium">Total</p>
-                      <p className="text-lg font-bold">{formatAmount(totalAmount)}</p>
-                    </div>
+                  <div className="overflow-x-auto">
+                    {/*
+                      Les colonnes de droite portent des controles de largeur
+                      fixe ; `w-full` sur la designation lui fait absorber tout
+                      l'espace restant, et `min-w-[15rem]` garantit qu'elle ne
+                      soit jamais ecrasee.
+                      Le tableau n'a plus de `min-w` propre : la somme des
+                      minimums de colonnes (~817 px) le contraint deja. Deux
+                      nombres pour une seule regle finissaient par diverger,
+                      et celui du tableau declenchait le defilement horizontal
+                      60 px trop tot.
+                      Mesures relevees dans un navigateur : la designation
+                      recoit 677 px a 1280, 421 px a 1024, 297 px a 900, et ne
+                      descend jamais sous 240 px. La plus longue designation
+                      produite par les modeles tient sur une ligne des 1024 px,
+                      sur deux en dessous. Jamais tronquee.
+                    */}
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-muted-foreground">
+                          <th className="w-full min-w-[15rem] pb-2 pr-3 font-semibold">
+                            {tr('Designation', 'Désignation', 'التسمية')}
+                          </th>
+                          <th className="pb-2 pr-3 font-semibold">{tr('Qty', 'Qté', 'الكمية')}</th>
+                          <th className="pb-2 pr-3 font-semibold">{tr('Unit', 'Unité', 'الوحدة')}</th>
+                          <th className="pb-2 pr-3 font-semibold">{tr('Unit price', 'Prix unitaire', 'سعر الوحدة')}</th>
+                          <th className="pb-2 pr-3 font-semibold">{tr('Type', 'Type', 'النوع')}</th>
+                          <th className="pb-2 pr-3 font-semibold text-right">{tr('Total', 'Total', 'المجموع')}</th>
+                          <th className="pb-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {quoteLines.map((line, index) => (
+                          <tr key={index} className="border-t border-border">
+                            <td className="w-full min-w-[15rem] py-2 pr-3 align-top">
+                              {/*
+                                Un `<input>` ne revient jamais a la ligne : la
+                                designation « Peinture de finition mat (2
+                                couches) — ≈ 1 bidon de 10 L » se coupait apres
+                                le tiret et la quantite disparaissait. Elle fait
+                                partie de ce que l'artisan doit lire.
+                              */}
+                              <AutoGrowTextarea
+                                aria-label={tr('Designation', 'Désignation', 'التسمية')}
+                                value={line.designation}
+                                onChange={(e) => updateQuoteLine(index, { designation: e.target.value })}
+                              />
+                            </td>
+                            <td className="py-2 pr-3 align-top">
+                              <Input
+                                aria-label={tr('Quantity', 'Quantité', 'الكمية')}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={line.quantity}
+                                onChange={(e) => updateQuoteLine(index, { quantity: Number(e.target.value) })}
+                                className="h-10 w-20 rounded-lg"
+                              />
+                            </td>
+                            <td className="py-2 pr-3 align-top">
+                              <select
+                                aria-label={tr('Unit', 'Unité', 'الوحدة')}
+                                value={line.unit}
+                                onChange={(e) => updateQuoteLine(index, { unit: e.target.value })}
+                                className="h-10 w-24 rounded-lg border border-border bg-card px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {QUOTE_UNITS.map((unit) => (
+                                  <option key={unit} value={unit}>{unit}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="py-2 pr-3 align-top">
+                              <Input
+                                aria-label={tr('Unit price', 'Prix unitaire', 'سعر الوحدة')}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={line.unitPrice}
+                                onChange={(e) => updateQuoteLine(index, { unitPrice: Number(e.target.value) })}
+                                className="h-10 w-28 rounded-lg"
+                              />
+                            </td>
+                            <td className="py-2 pr-3 align-top">
+                              <select
+                                aria-label={tr('Line type', 'Type de ligne', 'نوع السطر')}
+                                value={line.lineType}
+                                onChange={(e) =>
+                                  updateQuoteLine(index, {
+                                    lineType: e.target.value as QuoteTemplateLine['lineType'],
+                                  })
+                                }
+                                className="h-10 w-32 rounded-lg border border-border bg-card px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="material">{tr('Material', 'Matériau', 'مادة')}</option>
+                                <option value="labor">{tr('Labor', "Main d'œuvre", 'يد عاملة')}</option>
+                              </select>
+                            </td>
+                            <td className="py-2 pr-3 text-right align-top font-semibold whitespace-nowrap">
+                              {formatAmount(line.total)}
+                            </td>
+                            <td className="py-2 align-top">
+                              <button
+                                type="button"
+                                aria-label={tr('Remove line', 'Supprimer la ligne', 'حذف السطر')}
+                                onClick={() => removeQuoteLine(index)}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
+
+                  <div className="flex flex-wrap justify-end gap-6 border-t border-border pt-3 text-sm">
+                    <p>
+                      <span className="text-muted-foreground mr-2">{tr('Labor', "Main d'œuvre", 'يد عاملة')}</span>
+                      <span className="font-semibold">{formatAmount(linesLaborTotal)}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground mr-2">{tr('Materials', 'Matériaux', 'مواد')}</span>
+                      <span className="font-semibold">{formatAmount(linesMaterialsTotal)}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground mr-2">{tr('Total', 'Total', 'المجموع')}</span>
+                      <span className="font-bold text-primary">{formatAmount(linesLaborTotal + linesMaterialsTotal)}</span>
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    {tr(
+                      'Labor and materials totals are computed from these lines.',
+                      "La main d'œuvre et les matériaux sont calculés à partir de ces lignes.",
+                      'يتم احتساب اليد العاملة والمواد من هذه السطور.'
+                    )}
+                  </p>
               </section>
+
 
               {/* Description */}
               <div className="space-y-2">
@@ -1969,93 +2798,137 @@ export default function ArtisanQuotes() {
                     <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.validUntil}</p>
                   )}
                 </div>
+              </div>
 
-                {/* Payment Terms (calculated) */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label className="text-base font-semibold">Payment Terms <span style={{ color: 'red' }}>*</span></Label>
-                    {renderSpeechButton('upfrontValue')}
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <label className={`flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm shadow-sm ${formData.paymentType === 'percentage' ? 'border-blue-500 bg-blue-50/60' : 'border-border bg-card'}`}>
-                      <input
-                        type="radio"
-                        name="paymentType"
-                        checked={formData.paymentType === 'percentage'}
-                        onChange={() => {
-                          setFormData({ ...formData, paymentType: 'percentage' });
-                          if (touched.paymentType) setErrors(prev => ({ ...prev, paymentType: validateField('paymentType', 'percentage') }));
-                          if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', formData.upfrontValue) }));
-                        }}
-                        onBlur={() => handleBlur('paymentType')}
-                      />
-                      Percentage (%)
-                    </label>
-                    <label className={`flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm shadow-sm ${formData.paymentType === 'fixed' ? 'border-blue-500 bg-blue-50/60' : 'border-border bg-card'}`}>
-                      <input
-                        type="radio"
-                        name="paymentType"
-                        checked={formData.paymentType === 'fixed'}
-                        onChange={() => {
-                          setFormData({ ...formData, paymentType: 'fixed' });
-                          if (touched.paymentType) setErrors(prev => ({ ...prev, paymentType: validateField('paymentType', 'fixed') }));
-                          if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', formData.upfrontValue) }));
-                        }}
-                        onBlur={() => handleBlur('paymentType')}
-                      />
-                      Fixed Amount
-                    </label>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="upfrontValue" className="text-sm font-medium text-muted-foreground">
-                      Upfront ({formData.paymentType === 'percentage' ? '%' : 'TND'})
-                    </Label>
-                    <Input
-                      id="upfrontValue"
-                      type="number"
-                      step="any"
-                      min={0}
-                      max={formData.paymentType === 'percentage' ? 100 : undefined}
-                      value={formData.upfrontValue}
-                      onChange={(e) => {
-                        setFormData({ ...formData, upfrontValue: e.target.value });
-                        if (touched.upfrontValue) setErrors(prev => ({ ...prev, upfrontValue: validateField('upfrontValue', e.target.value) }));
-                      }}
-                      onBlur={() => handleBlur('upfrontValue')}
-                      placeholder={formData.paymentType === 'percentage' ? 'e.g. 30' : 'e.g. 500'}
-                      className={`h-10 w-full rounded-lg border bg-card shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        touched.upfrontValue && errors.upfrontValue ? 'border-red-500' : 'border-border'
-                      }`}
-                    />
-                    {touched.upfrontValue && errors.upfrontValue && (
-                      <p style={{ color: 'red', fontSize: '0.875rem' }}>{errors.upfrontValue}</p>
-                    )}
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-muted/50 p-3 text-sm space-y-2">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Upfront</span>
-                      <span className="font-semibold text-foreground">
-                        {upfrontPercentage.toFixed(2)}% ({safeUpfrontAmount.toFixed(2)} TND)
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Upon Completion</span>
-                      <span className="font-semibold text-foreground">
-                        {uponCompletionPercentage.toFixed(2)}% ({uponCompletionAmount.toFixed(2)} TND)
-                      </span>
-                    </div>
-                  </div>
+              {/* Payment Schedule : N tranches librement definies */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <Label className="text-base font-semibold">
+                    {tr('Payment Schedule', 'Échéancier de paiement', 'جدول الدفع')}{' '}
+                    <span style={{ color: 'red' }}>*</span>
+                  </Label>
+                  <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={addTranche}>
+                    <Plus size={14} className="mr-1" />
+                    {tr('Add a tranche', 'Ajouter une tranche', 'أضف قسطًا')}
+                  </Button>
                 </div>
+
+                <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                  <table className="w-full min-w-[680px] text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="p-3 font-semibold">{tr('Label', 'Libellé', 'التسمية')}</th>
+                        <th className="p-3 font-semibold">{tr('Type', 'Type', 'النوع')}</th>
+                        <th className="p-3 font-semibold">{tr('Value', 'Valeur', 'القيمة')}</th>
+                        <th className="p-3 font-semibold text-right">{tr('Amount', 'Montant', 'المبلغ')}</th>
+                        <th className="p-3" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentSchedule.map((tranche, index) => {
+                        const computed = computedTranches[index];
+                        const isRemaining = tranche.type === 'remaining';
+                        return (
+                          <tr key={index} className="border-b last:border-0">
+                            <td className="p-3">
+                              <Input
+                                aria-label={tr('Tranche label', 'Libellé de la tranche', 'تسمية القسط')}
+                                value={tranche.label}
+                                onChange={(e) => updateTranche(index, { label: e.target.value })}
+                                placeholder={tr('Deposit', 'Acompte', 'دفعة')}
+                                className="h-10 rounded-lg"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <select
+                                aria-label={tr('Tranche type', 'Type de tranche', 'نوع القسط')}
+                                value={tranche.type}
+                                onChange={(e) => updateTranche(index, { type: e.target.value as TrancheType })}
+                                className="h-10 w-48 rounded-lg border border-border bg-card px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="fixed">{tr('Fixed amount (TND)', 'Montant fixe (TND)', 'مبلغ ثابت')}</option>
+                                <option value="percent">{tr('Percentage (%)', 'Pourcentage (%)', 'نسبة مئوية')}</option>
+                                <option value="percentOfRemaining">{tr('% of remaining', '% du restant', '% من المتبقي')}</option>
+                                <option value="remaining">{tr('Remaining balance', 'Solde restant', 'الرصيد المتبقي')}</option>
+                              </select>
+                            </td>
+                            <td className="p-3">
+                              <Input
+                                aria-label={tr('Tranche value', 'Valeur de la tranche', 'قيمة القسط')}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                disabled={isRemaining}
+                                value={isRemaining ? '' : tranche.value}
+                                onChange={(e) => updateTranche(index, { value: Number(e.target.value) })}
+                                className="h-10 w-28 rounded-lg disabled:bg-muted disabled:cursor-not-allowed"
+                              />
+                            </td>
+                            <td className="p-3 text-right font-semibold whitespace-nowrap">
+                              {formatAmount(computed?.amount || 0)}
+                              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                {(computed?.percentage || 0).toFixed(2)}%
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <button
+                                type="button"
+                                aria-label={tr('Remove tranche', 'Supprimer la tranche', 'حذف القسط')}
+                                onClick={() => removeTranche(index)}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-sm ${
+                    isScheduleBalanced
+                      ? 'border-border bg-muted/50'
+                      : 'border-destructive/40 bg-destructive/5'
+                  }`}
+                >
+                  <span className="text-muted-foreground">
+                    {tr('Scheduled total', 'Total des tranches', 'مجموع الأقساط')}
+                  </span>
+                  <span className={isScheduleBalanced ? 'font-semibold text-foreground' : 'font-semibold text-destructive'}>
+                    {formatAmount(scheduleSum)} / {formatAmount(totalAmount)}
+                  </span>
+                </div>
+
+                {!isScheduleBalanced && (
+                  <p className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertTriangle size={14} />
+                    {tr(
+                      'The tranches must add up to the quote total.',
+                      'La somme des tranches doit correspondre au total du devis.',
+                      'يجب أن يساوي مجموع الأقساط إجمالي العرض.'
+                    )}
+                  </p>
+                )}
+
+                {isScheduleBalanced && hasRemainingTranche && (
+                  <p className="text-xs text-muted-foreground">
+                    {tr(
+                      'The "Remaining balance" tranche absorbs any difference automatically.',
+                      'La tranche « Solde restant » absorbe automatiquement tout écart.',
+                      'يمتص قسط « الرصيد المتبقي » أي فرق تلقائيًا.'
+                    )}
+                  </p>
+                )}
               </div>
 
               {/* Boutons */}
               <div className="mt-8 flex flex-wrap justify-start gap-4">
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !validateForm()}
+                  disabled={isSubmitting || !validateForm() || !canSubmitSchedule}
                   className="rounded-lg !border-[#1E40AF] !bg-[#1E40AF] px-6 py-2.5 font-medium !text-white shadow-sm transition-colors hover:!bg-[#1B3A99] disabled:cursor-not-allowed disabled:!border-[#1E40AF] disabled:!bg-[#1E40AF] disabled:!text-white disabled:!opacity-100"
                 >
                   {isSubmitting ? 'Generating...' : 'Generate Quote'}
@@ -2294,10 +3167,72 @@ export default function ArtisanQuotes() {
             <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{selectedQuote.description}</p>
           </div>
 
-          {selectedQuote.paymentTerms && (
+          {Array.isArray(selectedQuote.paymentSchedule) && selectedQuote.paymentSchedule.length > 0 ? (
             <div className="mb-10 bg-muted/50 p-6 rounded-xl border">
-              <h4 className="font-bold text-foreground mb-4">Payment Terms:</h4>
-              <p className="whitespace-pre-wrap text-muted-foreground">{selectedQuote.paymentTerms}</p>
+              <h4 className="font-bold text-foreground mb-4">
+                {tr('Payment Schedule:', 'Échéancier de paiement :', 'جدول الدفع:')}
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[420px] text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="py-2 pr-3 font-semibold">{tr('Tranche', 'Tranche', 'القسط')}</th>
+                      <th className="py-2 pr-3 font-semibold text-right">%</th>
+                      <th className="py-2 font-semibold text-right">{tr('Amount', 'Montant', 'المبلغ')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedQuote.paymentSchedule.map((tranche: any, index: number) => (
+                      <tr key={index} className="border-b last:border-0">
+                        <td className="py-2 pr-3">{tranche.label}</td>
+                        <td className="py-2 pr-3 text-right">{Number(tranche.percentage || 0).toFixed(2)}%</td>
+                        <td className="py-2 text-right font-semibold">{formatAmount(Number(tranche.amount || 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            selectedQuote.paymentTerms && (
+              <div className="mb-10 bg-muted/50 p-6 rounded-xl border">
+                <h4 className="font-bold text-foreground mb-4">Payment Terms:</h4>
+                <p className="whitespace-pre-wrap text-muted-foreground">{selectedQuote.paymentTerms}</p>
+              </div>
+            )
+          )}
+
+          {/* Detail des lignes : uniquement pour un devis issu d'un modele metier.
+              Un devis libre n'a pas de quoteLines et garde l'affichage d'origine. */}
+          {Array.isArray(selectedQuote.quoteLines) && selectedQuote.quoteLines.length > 0 && (
+            <div className="mb-10">
+              <h4 className="font-bold text-foreground mb-4">
+                {tr('Quote lines', 'Lignes du devis', 'سطور العرض')}
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="py-2 pr-3 font-semibold">{tr('Designation', 'Désignation', 'التسمية')}</th>
+                      <th className="py-2 pr-3 font-semibold text-right">{tr('Qty', 'Qté', 'الكمية')}</th>
+                      <th className="py-2 pr-3 font-semibold">{tr('Unit', 'Unité', 'الوحدة')}</th>
+                      <th className="py-2 pr-3 font-semibold text-right">{tr('Unit price', 'Prix unitaire', 'سعر الوحدة')}</th>
+                      <th className="py-2 font-semibold text-right">{tr('Total', 'Total', 'المجموع')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedQuote.quoteLines.map((line: any, index: number) => (
+                      <tr key={index} className="border-b last:border-0">
+                        <td className="py-2 pr-3">{line.designation}</td>
+                        <td className="py-2 pr-3 text-right">{line.quantity}</td>
+                        <td className="py-2 pr-3 text-muted-foreground">{line.unit}</td>
+                        <td className="py-2 pr-3 text-right">{formatAmount(Number(line.unitPrice || 0))}</td>
+                        <td className="py-2 text-right font-semibold">{formatAmount(Number(line.total || 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
