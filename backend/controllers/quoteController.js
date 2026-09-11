@@ -4,19 +4,13 @@ const Project = require('../models/Project');
 const mongoose = require('mongoose');
 const { logAction } = require('../utils/actionLogger');
 const { generateQuoteAIDraft } = require('../services/quoteAIDraftService');
-const fs = require('fs');
+const { listQuoteTemplates, QUOTE_UNITS, QUOTE_LINE_TYPES } = require('../utils/quoteTemplates');
+const { computePaymentSchedule, TRANCHE_TYPES } = require('../utils/paymentSchedule');
+const { computeTemplateLines, hasCalculator } = require('../services/quoteCalculators');
+const { readPlan, mapReading } = require('../services/planReaderService');
+const { detectTrade } = require('../utils/tradeDetection');
 
-const resolveChromeExecutablePath = () => {
-  const candidates = [
-    process.env.CHROME_PATH,
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  ].filter(Boolean);
-
-  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
-};
+const { resolveChromeExecutablePath } = require('../utils/chromePath');
 
 const escapeHtml = (value) => String(value || '')
   .replace(/&/g, '&amp;')
@@ -105,16 +99,270 @@ const generateQuoteDraft = async (req, res) => {
 
 // @desc    Create a new quote
 // @route   POST /api/quotes
+/**
+ * Valide et normalise les lignes recues du client.
+ * Renvoie null si `quoteLines` est absent (devis libre) ; leve une Error avec un
+ * message exploitable si une ligne est invalide.
+ */
+const normalizeQuoteLines = (rawLines) => {
+  if (rawLines === undefined || rawLines === null) return null;
+  if (!Array.isArray(rawLines)) {
+    throw new Error('quoteLines must be an array');
+  }
+  if (rawLines.length === 0) return null;
+
+  return rawLines.map((line, index) => {
+    const designation = String(line?.designation || '').trim();
+    const quantity = Number(line?.quantity);
+    const unitPrice = Number(line?.unitPrice ?? 0);
+
+    if (!designation) {
+      throw new Error(`Line ${index + 1}: designation is required`);
+    }
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      throw new Error(`Line ${index + 1}: quantity must be a non-negative number`);
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new Error(`Line ${index + 1}: unit price must be a non-negative number`);
+    }
+    if (!QUOTE_UNITS.includes(line?.unit)) {
+      throw new Error(`Line ${index + 1}: unknown unit`);
+    }
+    if (!QUOTE_LINE_TYPES.includes(line?.lineType)) {
+      throw new Error(`Line ${index + 1}: lineType must be 'labor' or 'material'`);
+    }
+
+    return {
+      designation,
+      quantity,
+      unit: line.unit,
+      unitPrice,
+      lineType: line.lineType,
+      total: quantity * unitPrice,
+    };
+  });
+};
+
+/** Somme des lignes d'un type donne. */
+const sumLines = (lines, lineType) =>
+  lines.filter((line) => line.lineType === lineType).reduce((sum, line) => sum + line.total, 0);
+
+// @desc    Modeles de devis par corps de metier
+// @route   GET /api/quotes/templates
+// @access  Private
+const getQuoteTemplates = async (req, res) => {
+  try {
+    return res.status(200).json(listQuoteTemplates());
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * POST /api/quotes/templates/:id/compute
+ *
+ * Calcule les lignes d'un modele auto-calcule a partir des parametres saisis
+ * par l'artisan. Les lignes renvoyees sont un point de depart : elles restent
+ * entierement editables dans le formulaire, et les prix unitaires valent 0.
+ */
+const computeQuoteTemplateLines = async (req, res) => {
+  try {
+    const templateId = String(req.params.id || '');
+    const template = listQuoteTemplates().find((item) => item.id === templateId);
+
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    if (!hasCalculator(templateId)) {
+      return res.status(400).json({ message: 'This template is not auto-calculated' });
+    }
+
+    let lines;
+    try {
+      lines = computeTemplateLines(templateId, req.body || {});
+    } catch (paramError) {
+      // Parametre manquant ou hors des choix connus.
+      return res.status(400).json({ message: paramError.message });
+    }
+
+    return res.status(200).json({ id: template.id, title: template.title, lines });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * POST /api/quotes/plan-reading
+ *
+ * Corps multipart : `plan` (image ou PDF). Le fichier reste en memoire, il
+ * n'est jamais ecrit sur disque.
+ *
+ * SEUL appel au modele de tout le parcours, donc seul poste payant. Ne connait
+ * aucun metier : a ce stade l'artisan n'a pas encore choisi le sien.
+ */
+const readPlanFile = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'A plan file is required' });
+    }
+
+    let resultat;
+    try {
+      resultat = await readPlan(req.file.buffer, req.file.mimetype);
+    } catch (planError) {
+      // Resolution insuffisante ou type refuse : la faute vient de l'envoi,
+      // pas du serveur. Le message est destine a l'artisan.
+      if (planError.code === 'PLAN_RESOLUTION_TOO_LOW'
+        || planError.code === 'PLAN_TYPE_UNSUPPORTED'
+        || planError.code === 'PLAN_TOO_DENSE') {
+        return res.status(400).json({ message: planError.message, code: planError.code });
+      }
+      if (planError.code === 'GEMINI_QUOTA_EXHAUSTED') {
+        // 429 plutot que 502 : le service fonctionne, c'est le palier
+        // journalier qui est atteint. Le message est destine a l'artisan.
+        return res.status(429).json({ message: planError.message, code: planError.code });
+      }
+      if (planError.code === 'GEMINI_KEY_MISSING') {
+        return res.status(503).json({ message: 'La lecture de plan n\'est pas configurée sur ce serveur.' });
+      }
+      return res.status(502).json({
+        message: 'La lecture du plan a échoué.',
+        error: planError.message,
+      });
+    }
+
+    return res.status(200).json(resultat);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * POST /api/quotes/detect-trade
+ *
+ * Corps JSON : `description`, le texte libre de l artisan.
+ *
+ * Determine le metier par correspondance de mots-cles. AUCUN appel a l IA :
+ * classer un texte court sur deux categories ne le justifie pas, et une regle
+ * deterministe se teste.
+ *
+ * Un `templateId` a null n est pas une erreur : c est le signal que l appelant
+ * doit proposer la galerie de metiers plutot que de deviner.
+ */
+const detectTradeFromDescription = async (req, res) => {
+  try {
+    const { description } = req.body || {};
+    if (typeof description !== 'string') {
+      return res.status(400).json({ message: 'A description is required' });
+    }
+
+    const resultat = detectTrade(description);
+
+    // Un metier reconnu doit exister : sans quoi le frontend enverrait
+    // l artisan sur un modele fantome.
+    if (resultat.templateId) {
+      const template = listQuoteTemplates().find((t) => t.id === resultat.templateId);
+      if (!template) {
+        return res.status(200).json({ templateId: null, motsCles: [], raison: 'modèle introuvable' });
+      }
+      // Le modele complet accompagne la reponse : le frontend enchaine
+      // directement sur le formulaire sans avoir a recharger la galerie.
+      return res.status(200).json({ ...resultat, template });
+    }
+
+    return res.status(200).json(resultat);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * POST /api/quotes/templates/:id/map-reading
+ *
+ * Corps JSON : `lecture`, telle que renvoyee par /plan-reading.
+ *
+ * Projette la lecture sur les champs du modele choisi. AUCUN appel a l'IA :
+ * changer de metier ne relit jamais le plan. Le garde-fou de source est
+ * reapplique ici, cote serveur.
+ */
+const mapPlanReadingToTemplate = async (req, res) => {
+  try {
+    const templateId = String(req.params.id || '');
+    const template = listQuoteTemplates().find((item) => item.id === templateId);
+
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+
+    const { lecture } = req.body || {};
+    if (!lecture || typeof lecture !== 'object') {
+      return res.status(400).json({ message: 'A plan reading is required' });
+    }
+
+    const resultat = mapReading(lecture, templateId);
+    return res.status(200).json({ id: template.id, title: template.title, ...resultat });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Valide l'echeancier recu et recalcule les montants depuis le total.
+ * Renvoie null si absent (comportement d'origine a 2 tranches).
+ */
+const normalizePaymentSchedule = (rawSchedule, total) => {
+  if (rawSchedule === undefined || rawSchedule === null) return null;
+  if (!Array.isArray(rawSchedule)) {
+    throw new Error('paymentSchedule must be an array');
+  }
+  if (rawSchedule.length === 0) return null;
+
+  rawSchedule.forEach((tranche, index) => {
+    if (!String(tranche?.label || '').trim()) {
+      throw new Error(`Tranche ${index + 1}: label is required`);
+    }
+    if (!TRANCHE_TYPES.includes(tranche?.type)) {
+      throw new Error(`Tranche ${index + 1}: unknown payment type`);
+    }
+    if (tranche.type !== 'remaining') {
+      const value = Number(tranche?.value);
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error(`Tranche ${index + 1}: value must be a non-negative number`);
+      }
+    }
+  });
+
+  const { tranches, isBalanced } = computePaymentSchedule(rawSchedule, total);
+  if (!isBalanced) {
+    throw new Error('Payment schedule must add up to the quote total');
+  }
+
+  return tranches;
+};
+
 const createQuote = async (req, res) => {
   try {
-    const { project, clientName, laborHand, materialsAmount, description, validUntil, paymentTerms, upfrontPercent } = req.body;
+    const { project, clientName, laborHand, materialsAmount, description, validUntil, paymentTerms, upfrontPercent, quoteLines, paymentSchedule } = req.body;
 
     if (!project || !clientName || !description || !validUntil) {
       return res.status(400).json({ message: 'Please add all required fields' });
     }
 
-    const parsedLaborHand = Number(laborHand);
-    const parsedMaterialsAmount = Number(materialsAmount);
+    let normalizedLines = null;
+    try {
+      normalizedLines = normalizeQuoteLines(quoteLines);
+    } catch (lineError) {
+      return res.status(400).json({ message: lineError.message });
+    }
+
+    // Les lignes sont desormais l'unique source du montant, quel que soit le mode
+    // (devis libre ou modele metier). Les anciens champs laborHand/materialsAmount
+    // du body ne servent plus que de repli pour les integrations historiques qui
+    // n'envoient pas encore de lignes.
+    const parsedLaborHand = normalizedLines ? sumLines(normalizedLines, 'labor') : Number(laborHand || 0);
+    const parsedMaterialsAmount = normalizedLines
+      ? sumLines(normalizedLines, 'material')
+      : Number(materialsAmount || 0);
 
     if (!Number.isFinite(parsedLaborHand) || parsedLaborHand < 0) {
       return res.status(400).json({ message: 'Labor hand must be a valid non-negative number' });
@@ -128,6 +376,13 @@ const createQuote = async (req, res) => {
 
     if (amount <= 0) {
       return res.status(400).json({ message: 'Total amount must be greater than 0' });
+    }
+
+    let normalizedSchedule = null;
+    try {
+      normalizedSchedule = normalizePaymentSchedule(paymentSchedule, amount);
+    } catch (scheduleError) {
+      return res.status(400).json({ message: scheduleError.message });
     }
 
     // Générer un numéro de devis unique (ex: QT-2026-8452)
@@ -151,7 +406,11 @@ const createQuote = async (req, res) => {
       description,
       validUntil,
       paymentTerms,
-      upfrontPercent: safeUpfrontPercent,
+      // La premiere tranche devient l'acompte de reference : c'est ce que lisent
+      // invoiceController, quoteMLService et quoteAIDraftService.
+      upfrontPercent: normalizedSchedule ? normalizedSchedule[0].percentage : safeUpfrontPercent,
+      ...(normalizedLines ? { quoteLines: normalizedLines } : {}),
+      ...(normalizedSchedule ? { paymentSchedule: normalizedSchedule } : {}),
     });
 
     await logAction(req, {
@@ -370,7 +629,20 @@ const downloadQuotePdf = async (req, res) => {
 
             ${materialItems.length > 0 ? `<div class="material-list"><h4>Materials Included</h4>${materialRowsHtml}</div>` : ''}
 
-            ${quote.paymentTerms ? `<div class="section"><h4>Payment Terms</h4><p>${escapeHtml(quote.paymentTerms)}</p></div>` : ''}
+            ${Array.isArray(quote.paymentSchedule) && quote.paymentSchedule.length > 0
+              ? `<div class="section"><h4>Payment Schedule</h4><table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead><tr>
+                    <th style="text-align:left;border-bottom:1px solid #ccc;padding:4px;">Tranche</th>
+                    <th style="text-align:right;border-bottom:1px solid #ccc;padding:4px;">%</th>
+                    <th style="text-align:right;border-bottom:1px solid #ccc;padding:4px;">Amount (TND)</th>
+                  </tr></thead>
+                  <tbody>${quote.paymentSchedule.map((t) => `<tr>
+                    <td style="padding:4px;">${escapeHtml(t.label)}</td>
+                    <td style="padding:4px;text-align:right;">${Number(t.percentage || 0).toFixed(2)}%</td>
+                    <td style="padding:4px;text-align:right;">${Number(t.amount || 0).toFixed(2)}</td>
+                  </tr>`).join('')}</tbody>
+                </table></div>`
+              : (quote.paymentTerms ? `<div class="section"><h4>Payment Terms</h4><p>${escapeHtml(quote.paymentTerms)}</p></div>` : '')}
 
             <div class="totals">
               <div class="row"><span>Labor hand</span><strong>${laborHand.toLocaleString()} TND</strong></div>
@@ -459,6 +731,11 @@ const deleteQuote = async (req, res) => {
 };
 
 module.exports = {
+  getQuoteTemplates,
+  computeQuoteTemplateLines,
+  readPlanFile,
+  detectTradeFromDescription,
+  mapPlanReadingToTemplate,
   generateQuoteDraft,
   createQuote,
   getQuotes,

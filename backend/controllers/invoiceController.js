@@ -2,6 +2,11 @@ const Invoice = require('../models/Invoice');
 const Quote = require('../models/Quote');
 const Notification = require('../models/Notification');
 const { logAction } = require('../utils/actionLogger');
+const {
+  normalizePaymentPlan,
+  canSettleTranche,
+  resolveTrancheIndex,
+} = require('../utils/invoicePaymentPlan');
 const fs = require('fs');
 
 let stripeClient = null;
@@ -26,36 +31,15 @@ const getStripeCurrencyConfig = () => {
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
+/**
+ * Met la facture en etat avant toute lecture ou ecriture de paiement.
+ *
+ * Toute la logique d'echeancier vit desormais dans utils/invoicePaymentPlan :
+ * `paymentPlan.tranches` fait foi, `paidAmount` s'en deduit, et les champs
+ * historiques sont recopies en miroir pour les lecteurs pas encore repris.
+ */
 const normalizeInvoicePaymentFields = (invoice) => {
-  if (!invoice.paymentPlan) {
-    invoice.paymentPlan = {};
-  }
-
-  if (!Number.isFinite(Number(invoice.paymentPlan.firstTranchePercent))) {
-    invoice.paymentPlan.firstTranchePercent = 50;
-  }
-
-  const firstPercent = Number(invoice.paymentPlan.firstTranchePercent);
-  const secondPercent = 100 - firstPercent;
-  invoice.paymentPlan.secondTranchePercent = secondPercent;
-
-  const firstAmount = roundMoney((Number(invoice.amount || 0) * firstPercent) / 100);
-  const secondAmount = roundMoney(Number(invoice.amount || 0) - firstAmount);
-
-  invoice.paymentPlan.firstTrancheAmount = firstAmount;
-  invoice.paymentPlan.secondTrancheAmount = secondAmount;
-
-  if (!Number.isFinite(Number(invoice.paidAmount))) {
-    invoice.paidAmount = 0;
-  }
-
-  if (invoice.status === 'paid' && Number(invoice.paidAmount || 0) <= 0) {
-    invoice.paidAmount = Number(invoice.amount || 0);
-  }
-
-  invoice.paymentProgress = Number(invoice.amount || 0) > 0
-    ? Math.min(100, Math.round((Number(invoice.paidAmount || 0) / Number(invoice.amount || 0)) * 100))
-    : 0;
+  normalizePaymentPlan(invoice);
 
   if (!invoice.delivery) {
     invoice.delivery = { status: 'none', etaDate: null, timeline: [] };
@@ -64,6 +48,91 @@ const normalizeInvoicePaymentFields = (invoice) => {
   if (!Array.isArray(invoice.paymentSessions)) {
     invoice.paymentSessions = [];
   }
+};
+
+/**
+ * Traduit un refus de sequencement dans les termes historiques.
+ *
+ * Les appels existants passent `phase` et attendent les messages anglais qui
+ * ont toujours ete renvoyes ; les rompre casserait le frontend en place. Un
+ * appel par `trancheIndex` recoit, lui, le message generalise, qui nomme les
+ * rangs concernes.
+ */
+const messageRefusReglement = (refus, phase, contexte) => {
+  const HISTORIQUE = {
+    session: {
+      dejaReglee: 'Upfront tranche already paid.',
+      dejaRegleeFin: 'Completion tranche already paid.',
+      ordre: 'Upfront tranche must be paid first.',
+    },
+    manuel: {
+      dejaReglee: 'Upfront tranche already marked as paid.',
+      dejaRegleeFin: 'Completion tranche already marked as paid.',
+      ordre: 'Upfront tranche must be confirmed first.',
+    },
+  };
+
+  const mots = HISTORIQUE[contexte];
+  if (!mots || !phase) return refus.message;
+
+  if (/déjà réglée/.test(refus.message)) {
+    return phase === 'upfront' ? mots.dejaReglee : mots.dejaRegleeFin;
+  }
+  if (/doit être réglée avant/.test(refus.message)) {
+    return mots.ordre;
+  }
+  return refus.message;
+};
+
+/**
+ * Encaisse une tranche : drapeau, date, echeance de la suivante, notification.
+ *
+ * Un seul endroit pour Stripe et le marquage manuel — les deux chemins
+ * faisaient exactement la meme chose en double, et une correction sur l'un
+ * pouvait oublier l'autre.
+ *
+ * `paidAmount` et `paymentProgress` ne sont PAS incrementes ici : ils se
+ * deduisent des tranches dans `refreshInvoiceStatus`.
+ */
+const settleTranche = async (invoice, index, userId) => {
+  const tranches = invoice.paymentPlan.tranches;
+  tranches[index].paid = true;
+  tranches[index].paidAt = new Date();
+
+  const suivante = tranches[index + 1];
+  if (suivante) {
+    // Deux semaines pour la tranche suivante, comme le faisait le solde.
+    const echeance = new Date();
+    echeance.setDate(echeance.getDate() + 14);
+    suivante.dueDate = echeance;
+
+    await Notification.create({
+      type: 'invoice_second_tranche_due',
+      title: 'Second Tranche Deadline Scheduled',
+      message: `Second tranche for ${invoice.invoiceNumber} is due by ${echeance.toLocaleDateString('en-GB')}.`,
+      recipient: userId,
+      recipientRole: 'artisan',
+      icon: 'Clock3',
+      metadata: { invoiceId: String(invoice._id), dueDate: echeance },
+    });
+  }
+
+  refreshInvoiceStatus(invoice);
+};
+
+/** Montant d'une tranche, par son rang. */
+const trancheAmount = (invoice, index) => {
+  const tranches = invoice?.paymentPlan?.tranches || [];
+  return Number(tranches[index]?.amount || 0);
+};
+
+/**
+ * Met a jour le statut apres un mouvement de paiement.
+ * `paidAmount` et `paymentProgress` viennent deja des tranches.
+ */
+const refreshInvoiceStatus = (invoice) => {
+  normalizePaymentPlan(invoice);
+  invoice.status = invoice.paymentProgress >= 100 ? 'paid' : 'pending';
 };
 
 const buildDeliveryTimeline = (fromDate = new Date()) => {
@@ -83,13 +152,6 @@ const buildDeliveryTimeline = (fromDate = new Date()) => {
       { title: 'Delivery deadline', date: day7, status: 'upcoming' },
     ],
   };
-};
-
-const phaseAmount = (invoice, phase) => {
-  normalizeInvoicePaymentFields(invoice);
-  return phase === 'upfront'
-    ? Number(invoice.paymentPlan.firstTrancheAmount || 0)
-    : Number(invoice.paymentPlan.secondTrancheAmount || 0);
 };
 
 const resolveChromeExecutablePath = () => {
@@ -179,10 +241,12 @@ const createInvoice = async (req, res) => {
       paidAmount: 0,
       paymentProgress: 0,
       paymentPlan: {
-        firstTranchePercent: firstPct,
-        secondTranchePercent: secondPct,
-        firstTranchePaid: false,
-        secondTranchePaid: false,
+        // Deux tranches par defaut sur une facture saisie a la main : c'est
+        // ce que le formulaire propose, et `upfrontPercent` en donne le partage.
+        tranches: [
+          { label: 'Acompte', percent: firstPct, amount: 0, paid: false, paidAt: null, dueDate: null },
+          { label: 'Solde', percent: secondPct, amount: 0, paid: false, paidAt: null, dueDate: null },
+        ],
       },
       delivery: {
         status: 'none',
@@ -267,6 +331,7 @@ const createInvoiceFromQuote = async (req, res) => {
       return res.status(400).json({ message: 'Only approved quotes can generate invoices' });
     }
 
+
     const existingInvoice = await Invoice.findOne({ quote: quote._id });
     if (existingInvoice) {
       return res.status(409).json({ message: 'Invoice already exists for this quote', invoice: existingInvoice });
@@ -308,11 +373,31 @@ const createInvoiceFromQuote = async (req, res) => {
       dueDate: parsedDueDate,
       paidAmount: 0,
       paymentProgress: 0,
+      /**
+       * L'echeancier du devis passe TEL QUEL dans la facture.
+       *
+       * C'etait le bug de fond : la facture ne retenait que `upfrontPercent`,
+       * donc un devis en 30/40/30 devenait une facture 30/70 et la tranche du
+       * milieu disparaissait. Les montants sont recalcules ensuite par
+       * `normalizePaymentPlan`, comme partout ailleurs.
+       *
+       * Un devis sans echeancier — les plus anciens — retombe sur la
+       * repartition historique en deux tranches.
+       */
       paymentPlan: {
-        firstTranchePercent: Number(quote.upfrontPercent) || 50,
-        secondTranchePercent: 100 - (Number(quote.upfrontPercent) || 50),
-        firstTranchePaid: false,
-        secondTranchePaid: false,
+        tranches: Array.isArray(quote.paymentSchedule) && quote.paymentSchedule.length > 0
+          ? quote.paymentSchedule.map((tranche) => ({
+            label: String(tranche.label || '').trim(),
+            percent: Number(tranche.percentage) || 0,
+            amount: Number(tranche.amount) || 0,
+            paid: false,
+            paidAt: null,
+            dueDate: null,
+          }))
+          : [
+            { label: 'Acompte', percent: Number(quote.upfrontPercent) || 50, amount: 0, paid: false, paidAt: null, dueDate: null },
+            { label: 'Solde', percent: 100 - (Number(quote.upfrontPercent) || 50), amount: 0, paid: false, paidAt: null, dueDate: null },
+          ],
       },
       delivery: {
         status: 'none',
@@ -403,7 +488,10 @@ const downloadInvoicePdf = async (req, res) => {
 
     // Payment plan info
     const pp = invoice.paymentPlan || {};
-    const hasPaymentPlan = pp.firstTrancheAmount > 0 || pp.secondTrancheAmount > 0;
+    // Le PDF lit les tranches reelles : il en imprime autant que la facture
+    // en porte, et non plus deux lignes figees.
+    const pdfTranches = Array.isArray(pp.tranches) ? pp.tranches : [];
+    const hasPaymentPlan = pdfTranches.some((t) => Number(t?.amount) > 0);
 
     const html = `
       <!doctype html>
@@ -584,16 +672,12 @@ const downloadInvoicePdf = async (req, res) => {
           <!-- Payment Plan -->
           <div class="payment-plan">
             <h4>Plan de paiement</h4>
+            ${pdfTranches.map((t, i) => `
             <div class="tranche">
-              <span class="tranche-label">Acompte (${pp.firstTranchePercent || 50}%)</span>
-              <span class="tranche-amount">${fmt(pp.firstTrancheAmount || 0)} TND</span>
-              <span class="tranche-status ${pp.firstTranchePaid ? 'tranche-paid' : 'tranche-unpaid'}">${pp.firstTranchePaid ? 'Payé' : 'Non payé'}</span>
-            </div>
-            <div class="tranche">
-              <span class="tranche-label">Solde (${pp.secondTranchePercent || 50}%)</span>
-              <span class="tranche-amount">${fmt(pp.secondTrancheAmount || 0)} TND</span>
-              <span class="tranche-status ${pp.secondTranchePaid ? 'tranche-paid' : 'tranche-unpaid'}">${pp.secondTranchePaid ? 'Payé' : 'Non payé'}</span>
-            </div>
+              <span class="tranche-label">${escapeHtml(t.label || `Tranche ${i + 1}`)} (${Number(t.percent) || 0}%)</span>
+              <span class="tranche-amount">${fmt(Number(t.amount) || 0)} TND</span>
+              <span class="tranche-status ${t.paid ? 'tranche-paid' : 'tranche-unpaid'}">${t.paid ? 'Payé' : 'Non payé'}</span>
+            </div>`).join('')}
           </div>
           ` : ''}
 
@@ -698,26 +782,22 @@ const createInvoicePaymentSession = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
+    normalizeInvoicePaymentFields(invoice);
+
+    // `trancheIndex` est la forme generale ; `phase` reste acceptee et designe
+    // la premiere ou la derniere tranche, ce qu'elle a toujours voulu dire.
     const phase = String(req.body?.phase || '').trim();
-    if (!['upfront', 'completion'].includes(phase)) {
+    const index = resolveTrancheIndex(invoice, req.body || {});
+    if (index === -1) {
       return res.status(400).json({ message: 'Invalid phase. Use upfront or completion.' });
     }
 
-    normalizeInvoicePaymentFields(invoice);
-
-    if (phase === 'upfront' && invoice.paymentPlan.firstTranchePaid) {
-      return res.status(400).json({ message: 'Upfront tranche already paid.' });
+    const refus = canSettleTranche(invoice, index);
+    if (!refus.ok) {
+      return res.status(400).json({ message: messageRefusReglement(refus, phase, 'session') });
     }
 
-    if (phase === 'completion' && !invoice.paymentPlan.firstTranchePaid) {
-      return res.status(400).json({ message: 'Upfront tranche must be paid first.' });
-    }
-
-    if (phase === 'completion' && invoice.paymentPlan.secondTranchePaid) {
-      return res.status(400).json({ message: 'Completion tranche already paid.' });
-    }
-
-    const amount = phaseAmount(invoice, phase);
+    const amount = trancheAmount(invoice, index);
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ message: 'Invalid installment amount.' });
     }
@@ -734,7 +814,8 @@ const createInvoicePaymentSession = async (req, res) => {
           price_data: {
             currency,
             product_data: {
-              name: `${invoice.invoiceNumber} - ${phase === 'upfront' ? 'Upfront Tranche' : 'Upon Completion Tranche'}`,
+              // Le libelle de la tranche est celui que l'artisan a choisi.
+              name: `${invoice.invoiceNumber} - ${invoice.paymentPlan.tranches[index].label || `Tranche ${index + 1}`}`,
             },
             unit_amount: Math.round(amount * minorUnit),
           },
@@ -745,7 +826,10 @@ const createInvoicePaymentSession = async (req, res) => {
       cancel_url: `${appUrl}/?artisanView=invoices&invoicePayment=cancel`,
       metadata: {
         invoiceId: String(invoice._id),
-        phase,
+        // Les deux reperes voyagent : `phase` pour les sessions deja ouvertes
+        // avant la bascule, `trancheIndex` pour tout ce qui suit.
+        phase: phase || '',
+        trancheIndex: String(index),
         userId: String(req.user._id),
       },
     });
@@ -755,6 +839,7 @@ const createInvoicePaymentSession = async (req, res) => {
       url: session.url,
       amount,
       phase,
+      trancheIndex: index,
     });
   } catch (error) {
     console.error('createInvoicePaymentSession error:', error);
@@ -777,7 +862,11 @@ const confirmInvoicePaymentSession = async (req, res) => {
 
     const invoiceId = String(session?.metadata?.invoiceId || '').trim();
     const phase = String(session?.metadata?.phase || '').trim();
-    if (!invoiceId || !['upfront', 'completion'].includes(phase)) {
+    const indexBrut = session?.metadata?.trancheIndex;
+    // Une session ouverte avant la bascule n'a que `phase` : elle doit
+    // continuer d'aboutir.
+    const metadonneeUtilisable = Boolean(indexBrut) || ['upfront', 'completion'].includes(phase);
+    if (!invoiceId || !metadonneeUtilisable) {
       return res.status(400).json({ message: 'Invalid Stripe metadata for invoice payment.' });
     }
 
@@ -794,42 +883,19 @@ const confirmInvoicePaymentSession = async (req, res) => {
       return res.status(200).json({ message: 'Payment already processed', invoice });
     }
 
-    const amount = phaseAmount(invoice, phase);
-    invoice.paymentSessions.push({ sessionId, phase, amount, paidAt: new Date() });
-    invoice.paidAmount = roundMoney(Number(invoice.paidAmount || 0) + amount);
-
-    if (phase === 'upfront') {
-      invoice.paymentPlan.firstTranchePaid = true;
-      invoice.paymentPlan.firstTranchePaidAt = new Date();
-
-      const secondDue = new Date();
-      secondDue.setDate(secondDue.getDate() + 14);
-      invoice.paymentPlan.secondTrancheDueDate = secondDue;
-
-      await Notification.create({
-        type: 'invoice_second_tranche_due',
-        title: 'Second Tranche Deadline Scheduled',
-        message: `Second tranche for ${invoice.invoiceNumber} is due by ${secondDue.toLocaleDateString('en-GB')}.`,
-        recipient: req.user._id,
-        recipientRole: 'artisan',
-        icon: 'Clock3',
-        metadata: {
-          invoiceId: String(invoice._id),
-          dueDate: secondDue,
-        },
-      });
+    const index = resolveTrancheIndex(invoice, { phase, trancheIndex: indexBrut });
+    if (index === -1) {
+      return res.status(400).json({ message: 'Invalid Stripe metadata for invoice payment.' });
     }
 
-    if (phase === 'completion') {
-      invoice.paymentPlan.secondTranchePaid = true;
-      invoice.paymentPlan.secondTranchePaidAt = new Date();
-    }
+    const amount = trancheAmount(invoice, index);
+    invoice.paymentSessions.push({
+      sessionId, phase: phase || null, trancheIndex: index, amount, paidAt: new Date(),
+    });
 
-    invoice.paymentProgress = Number(invoice.amount || 0) > 0
-      ? Math.min(100, Math.round((Number(invoice.paidAmount || 0) / Number(invoice.amount || 0)) * 100))
-      : 0;
+    await settleTranche(invoice, index, req.user._id);
 
-    if (invoice.paymentProgress >= 100 || invoice.paymentPlan.secondTranchePaid) {
+    if (invoice.paymentProgress >= 100) {
       invoice.status = 'paid';
 
       await Notification.create({
@@ -884,55 +950,23 @@ const markTranchePaid = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
+    normalizeInvoicePaymentFields(invoice);
+
     const phase = String(req.body?.phase || '').trim();
-    if (!['upfront', 'completion'].includes(phase)) {
+    const index = resolveTrancheIndex(invoice, req.body || {});
+    if (index === -1) {
       return res.status(400).json({ message: 'Invalid phase. Use upfront or completion.' });
     }
 
-    normalizeInvoicePaymentFields(invoice);
-
-    if (phase === 'upfront' && invoice.paymentPlan.firstTranchePaid) {
-      return res.status(400).json({ message: 'Upfront tranche already marked as paid.' });
-    }
-    if (phase === 'completion' && !invoice.paymentPlan.firstTranchePaid) {
-      return res.status(400).json({ message: 'Upfront tranche must be confirmed first.' });
-    }
-    if (phase === 'completion' && invoice.paymentPlan.secondTranchePaid) {
-      return res.status(400).json({ message: 'Completion tranche already marked as paid.' });
+    const refus = canSettleTranche(invoice, index);
+    if (!refus.ok) {
+      return res.status(400).json({ message: messageRefusReglement(refus, phase, 'manuel') });
     }
 
-    const amount = phaseAmount(invoice, phase);
-    invoice.paidAmount = roundMoney(Number(invoice.paidAmount || 0) + amount);
+    const amount = trancheAmount(invoice, index);
+    await settleTranche(invoice, index, req.user._id);
 
-    if (phase === 'upfront') {
-      invoice.paymentPlan.firstTranchePaid = true;
-      invoice.paymentPlan.firstTranchePaidAt = new Date();
-
-      const secondDue = new Date();
-      secondDue.setDate(secondDue.getDate() + 14);
-      invoice.paymentPlan.secondTrancheDueDate = secondDue;
-
-      await Notification.create({
-        type: 'invoice_second_tranche_due',
-        title: 'Second Tranche Deadline Scheduled',
-        message: `Second tranche for ${invoice.invoiceNumber} is due by ${secondDue.toLocaleDateString('en-GB')}.`,
-        recipient: req.user._id,
-        recipientRole: 'artisan',
-        icon: 'Clock3',
-        metadata: { invoiceId: String(invoice._id), dueDate: secondDue },
-      });
-    }
-
-    if (phase === 'completion') {
-      invoice.paymentPlan.secondTranchePaid = true;
-      invoice.paymentPlan.secondTranchePaidAt = new Date();
-    }
-
-    invoice.paymentProgress = Number(invoice.amount || 0) > 0
-      ? Math.min(100, Math.round((Number(invoice.paidAmount || 0) / Number(invoice.amount || 0)) * 100))
-      : 0;
-
-    if (invoice.paymentProgress >= 100 || invoice.paymentPlan.secondTranchePaid) {
+    if (invoice.paymentProgress >= 100) {
       invoice.status = 'paid';
       await Notification.create({
         type: 'invoice_payment_completed',
@@ -978,41 +1012,44 @@ const unmarkTranchePaid = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
+    normalizeInvoicePaymentFields(invoice);
+
     const phase = String(req.body?.phase || '').trim();
-    if (!['upfront', 'completion'].includes(phase)) {
+    const index = resolveTrancheIndex(invoice, req.body || {});
+    if (index === -1) {
       return res.status(400).json({ message: 'Invalid phase. Use upfront or completion.' });
     }
 
-    normalizeInvoicePaymentFields(invoice);
-
-    if (phase === 'upfront') {
-      if (!invoice.paymentPlan.firstTranchePaid) {
-        return res.status(400).json({ message: 'Upfront tranche is not marked as paid.' });
-      }
-      if (invoice.paymentPlan.secondTranchePaid) {
-        return res.status(400).json({ message: 'Cannot cancel upfront while completion is already received. Cancel completion first.' });
-      }
-      const amount = phaseAmount(invoice, 'upfront');
-      invoice.paidAmount = roundMoney(Math.max(0, Number(invoice.paidAmount || 0) - amount));
-      invoice.paymentPlan.firstTranchePaid = false;
-      invoice.paymentPlan.firstTranchePaidAt = null;
-      invoice.paymentPlan.secondTrancheDueDate = null;
+    const tranches = invoice.paymentPlan.tranches;
+    if (!tranches[index].paid) {
+      return res.status(400).json({
+        message: phase === 'completion'
+          ? 'Completion tranche is not marked as paid.'
+          : 'Upfront tranche is not marked as paid.',
+      });
     }
 
-    if (phase === 'completion') {
-      if (!invoice.paymentPlan.secondTranchePaid) {
-        return res.status(400).json({ message: 'Completion tranche is not marked as paid.' });
-      }
-      const amount = phaseAmount(invoice, 'completion');
-      invoice.paidAmount = roundMoney(Math.max(0, Number(invoice.paidAmount || 0) - amount));
-      invoice.paymentPlan.secondTranchePaid = false;
-      invoice.paymentPlan.secondTranchePaidAt = null;
+    /**
+     * Sequencement en sens inverse : on ne retire pas une marche du bas.
+     * Annuler une tranche alors qu'une suivante est encaissee laisserait un
+     * trou dans l'echeancier, et un `paidAmount` qui ne correspond plus a
+     * rien de continu.
+     */
+    const suivanteReglee = tranches.findIndex((t, i) => i > index && t.paid);
+    if (suivanteReglee !== -1) {
+      return res.status(400).json({
+        message: phase
+          ? 'Cannot cancel upfront while completion is already received. Cancel completion first.'
+          : `La tranche ${suivanteReglee + 1} est déjà réglée : annulez-la d'abord.`,
+      });
     }
 
-    invoice.paymentProgress = Number(invoice.amount || 0) > 0
-      ? Math.min(100, Math.round((Number(invoice.paidAmount || 0) / Number(invoice.amount || 0)) * 100))
-      : 0;
-    invoice.status = invoice.paymentProgress >= 100 ? 'paid' : 'pending';
+    tranches[index].paid = false;
+    tranches[index].paidAt = null;
+    // L'echeance de la tranche suivante n'a plus lieu d'etre.
+    if (tranches[index + 1]) tranches[index + 1].dueDate = null;
+
+    refreshInvoiceStatus(invoice);
 
     await invoice.save();
 

@@ -58,19 +58,40 @@ const invoiceSchema = new mongoose.Schema({
     max: 100,
   },
   paymentPlan: {
-    firstTranchePercent: { type: Number, default: 50, min: 1, max: 99 },
-    secondTranchePercent: { type: Number, default: 50, min: 1, max: 99 },
-    firstTrancheAmount: { type: Number, default: 0 },
-    secondTrancheAmount: { type: Number, default: 0 },
-    firstTranchePaid: { type: Boolean, default: false },
-    secondTranchePaid: { type: Boolean, default: false },
-    firstTranchePaidAt: { type: Date, default: null },
-    secondTranchePaidAt: { type: Date, default: null },
-    secondTrancheDueDate: { type: Date, default: null },
+    /**
+     * Echeancier a N tranches — SOURCE DE VERITE.
+     *
+     * Les champs `firstTranche*` / `secondTranche*` qui suivent sont conserves
+     * en MIROIR, alimentes par `mirrorLegacyFields`, pour les lecteurs pas
+     * encore repris (PDF de facture, ecran des factures). Ne jamais s'en
+     * servir comme source : sur un echeancier a trois tranches, `secondTranche`
+     * agrege tout ce qui suit la premiere et ne designe aucune tranche reelle.
+     *
+     * Vide sur les factures anterieures : `normalizePaymentPlan` le
+     * reconstruit a la lecture depuis les anciens champs.
+     */
+    tranches: [{
+      label: { type: String, default: '' },
+      percent: { type: Number, default: 0, min: 0, max: 100 },
+      amount: { type: Number, default: 0, min: 0 },
+      paid: { type: Boolean, default: false },
+      paidAt: { type: Date, default: null },
+      dueDate: { type: Date, default: null },
+    }],
+    /**
+     * Les champs `firstTranche*` / `secondTranche*` ont ete retires : plus
+     * aucun lecteur n'en depend. Les documents deja en base les portent encore,
+     * et `buildTranchesFromLegacy` sait les relire pour reconstituer le
+     * tableau — c'est justement a ca qu'il sert.
+     */
   },
   paymentSessions: [{
     sessionId: { type: String, required: true },
-    phase: { type: String, enum: ['upfront', 'completion'], required: true },
+    // `phase` reste accepte pour les sessions deja enregistrees ; les
+    // nouvelles portent le rang de la tranche, seul repere fiable au-dela
+    // de deux echeances.
+    phase: { type: String, enum: ['upfront', 'completion'], default: null },
+    trancheIndex: { type: Number, default: null, min: 0 },
     amount: { type: Number, required: true },
     paidAt: { type: Date, default: Date.now },
   }],

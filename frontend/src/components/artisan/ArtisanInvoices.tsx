@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, Trash2, Search, Filter, ShoppingBag } from 'lucide-react';
+import { Receipt, Download, Eye, Check, Clock, AlertCircle, ArrowRight, Trash2, Search, Filter, ShoppingBag, Lock } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import StatsCard from '../common/StatsCard';
 import CheckoutWizard from './CheckoutWizard';
@@ -357,38 +357,32 @@ export default function ArtisanInvoices() {
     }
   };
 
-  const getFirstTranchePercent = (invoice: any) => {
-    return Math.round(Number(invoice?.paymentPlan?.firstTranchePercent) || 50);
-  };
+  /** Tranches de la facture, telles que le serveur les renvoie. */
+  const getTranches = (invoice: any): any[] =>
+    (Array.isArray(invoice?.paymentPlan?.tranches) ? invoice.paymentPlan.tranches : []);
 
-  const getSecondTranchePercent = (invoice: any) => {
-    return 100 - getFirstTranchePercent(invoice);
-  };
-
+  /**
+   * Progression du paiement.
+   *
+   * Elle se lit sur les tranches reglees, comme cote serveur, au lieu d'etre
+   * reconstituee a partir d'un acompte et d'un solde. Sur trois tranches, la
+   * version precedente affichait 30 % ou 100 % et rien entre les deux.
+   */
   const getPaymentProgress = (invoice: any) => {
     if (!invoice) return 0;
-    const upfrontPaid = Boolean(invoice.paymentPlan?.firstTranchePaid);
-    const completionPaid = Boolean(invoice.paymentPlan?.secondTranchePaid);
-    const invoiceFullyPaid = String(invoice.status || '').toLowerCase() === 'paid';
+    if (String(invoice.status || '').toLowerCase() === 'paid') return 100;
 
-    if (invoiceFullyPaid || (upfrontPaid && completionPaid)) return 100;
-    if (upfrontPaid) return getFirstTranchePercent(invoice);
-    return 0;
-  };
+    const serveur = Number(invoice.paymentProgress);
+    if (Number.isFinite(serveur) && serveur > 0) return Math.min(100, Math.round(serveur));
 
-  const getUpfrontAmount = (invoice: any) => {
-    const planAmount = Number(invoice?.paymentPlan?.firstTrancheAmount || 0);
-    if (planAmount > 0) return planAmount;
-    const total = Number(invoice?.amount || 0);
-    const pct = getFirstTranchePercent(invoice) / 100;
-    return Number((total * pct).toFixed(2));
-  };
+    const tranches = getTranches(invoice);
+    const total = Number(invoice.amount || 0);
+    if (tranches.length === 0 || total <= 0) return 0;
 
-  const getCompletionAmount = (invoice: any) => {
-    const planAmount = Number(invoice?.paymentPlan?.secondTrancheAmount || 0);
-    if (planAmount > 0) return planAmount;
-    const total = Number(invoice?.amount || 0);
-    return Number((total - getUpfrontAmount(invoice)).toFixed(2));
+    const regle = tranches
+      .filter((t) => t?.paid)
+      .reduce((acc, t) => acc + (Number(t?.amount) || 0), 0);
+    return Math.min(100, Math.round((regle / total) * 100));
   };
 
   const handlePayMaterialsClick = async () => {
@@ -854,21 +848,38 @@ export default function ArtisanInvoices() {
   // ==========================================
   if (view === 'details' && selectedInvoice) {
     const progress = getPaymentProgress(selectedInvoice);
-    const upfrontAmount = getUpfrontAmount(selectedInvoice);
-    const completionAmount = getCompletionAmount(selectedInvoice);
     const invoiceMarkedPaid = String(selectedInvoice.status || '').toLowerCase() === 'paid' || progress >= 100;
-    const upfrontPaid = Boolean(selectedInvoice.paymentPlan?.firstTranchePaid) || invoiceMarkedPaid;
-    const completionPaid = Boolean(selectedInvoice.paymentPlan?.secondTranchePaid) || invoiceMarkedPaid;
     const materialsPaid = localStorage.getItem(`materials-paid:${selectedInvoice._id}`) === 'true';
 
-    const handleMarkTranche = async (phase: 'upfront' | 'completion') => {
+    /**
+     * Tranches reelles de la facture.
+     *
+     * Le serveur les renvoie toujours (`normalizeInvoicePaymentFields` tourne
+     * sur chaque lecture). Le repli ne sert qu'a ne pas afficher une page vide
+     * si une facture arrivait d'ailleurs.
+     */
+    const tranches: any[] = Array.isArray(selectedInvoice.paymentPlan?.tranches)
+      && selectedInvoice.paymentPlan.tranches.length > 0
+      ? selectedInvoice.paymentPlan.tranches
+      : [];
+
+    /** Une tranche est reglee, ou verrouillee tant que la precedente ne l'est pas. */
+    const trancheEstReglee = (index: number) =>
+      Boolean(tranches[index]?.paid) || invoiceMarkedPaid;
+    const trancheEstVerrouillee = (index: number) =>
+      index > 0 && !trancheEstReglee(index - 1);
+    /** On ne retire pas une marche du bas : meme regle que le serveur. */
+    const trancheEstAnnulable = (index: number) =>
+      trancheEstReglee(index) && !tranches.some((t, i) => i > index && Boolean(t?.paid));
+
+    const handleMarkTranche = async (trancheIndex: number) => {
       try {
         setIsPaymentLoading(true);
         const token = getToken();
         if (!token) return;
         const res = await axios.patch(
           `${API_URL}/invoices/${selectedInvoice._id}/mark-tranche-paid`,
-          { phase },
+          { trancheIndex },
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const updated = res.data?.invoice;
@@ -884,14 +895,14 @@ export default function ArtisanInvoices() {
       }
     };
 
-    const handleUnmarkTranche = async (phase: 'upfront' | 'completion') => {
+    const handleUnmarkTranche = async (trancheIndex: number) => {
       try {
         setIsPaymentLoading(true);
         const token = getToken();
         if (!token) return;
         const res = await axios.patch(
           `${API_URL}/invoices/${selectedInvoice._id}/unmark-tranche-paid`,
-          { phase },
+          { trancheIndex },
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const updated = res.data?.invoice;
@@ -907,8 +918,6 @@ export default function ArtisanInvoices() {
       }
     };
 
-    const firstPct = getFirstTranchePercent(selectedInvoice);
-    const secondPct = getSecondTranchePercent(selectedInvoice);
 
     return (
       <div className="max-w-4xl mx-auto space-y-6">
@@ -974,186 +983,155 @@ export default function ArtisanInvoices() {
             {/* Marker labels below bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
               <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>0%</span>
-              <span style={{ fontSize: 12, color: 'var(--muted-foreground)', position: 'relative', left: `${firstPct - 50}%` }}>{firstPct}%</span>
+              {/* Un repere par frontiere de tranche, plutot qu'un seul a 50 %. */}
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                {tranches
+                  .slice(0, -1)
+                  .map((t: any, i: number) => tranches
+                    .slice(0, i + 1)
+                    .reduce((acc: number, x: any) => acc + (Number(x?.percent) || 0), 0))
+                  .map((cumul: number) => `${Math.round(cumul)}%`)
+                  .join(' · ')}
+              </span>
               <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>100%</span>
             </div>
           </div>
 
           {/* ── Tranche cards ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--muted)' }}>
+          {/*
+            Une carte par tranche reelle, et non plus deux blocs figes.
+            Trois etats, alignes sur `canSettleTranche` cote serveur :
+            reglee, a regler, ou verrouillee tant que la precedente ne l'est
+            pas. L'UI n'invente aucune regle : elle montre celle qui s'applique.
+          */}
+          <div
+            data-testid="tranche-cards"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(tranches.length || 1, 3)}, minmax(0, 1fr))`,
+              borderTop: '1px solid var(--muted)',
+            }}
+          >
+            {tranches.map((tranche: any, index: number) => {
+              const reglee = trancheEstReglee(index);
+              const verrouillee = trancheEstVerrouillee(index);
+              const montant = Number(tranche?.amount || 0);
+              const pourcent = Number(tranche?.percent || 0);
+              const libelle = String(tranche?.label || `Tranche ${index + 1}`);
 
-            {/* Tranche 1 */}
-            <div style={{
-              padding: '28px 32px',
-              borderRight: '1px solid var(--muted)',
-              backgroundColor: upfrontPaid ? 'rgba(5,150,105,0.1)' : 'var(--card)',
-            }}>
-              {/* Top row: number + badge */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: upfrontPaid ? '#10b981' : '#1e40af',
-                    color: '#fff', fontSize: 14, fontWeight: 700,
-                  }}>
-                    {upfrontPaid ? <Check size={18} /> : '1'}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>Upfront</p>
-                    <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>First payment</p>
-                  </div>
-                </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
-                  backgroundColor: upfrontPaid ? 'rgba(16,185,129,0.15)' : 'rgba(37,99,235,0.1)',
-                  color: upfrontPaid ? '#065f46' : '#1e40af',
-                }}>
-                  {upfrontPaid ? 'Received' : 'Pending'}
-                </span>
-              </div>
-
-              {/* Amount */}
-              <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--foreground)', margin: '0 0 2px' }}>
-                {upfrontAmount.toLocaleString('en', { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>TND</span>
-              </p>
-              <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '0 0 20px' }}>
-                {firstPct}% of {selectedInvoice.amount?.toLocaleString()} TND
-              </p>
-
-              {/* Action / status */}
-              {upfrontPaid ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'rgba(16,185,129,0.15)', marginBottom: 10 }}>
-                    <Check size={16} style={{ color: '#059669' }} />
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
-                      {selectedInvoice.paymentPlan?.firstTranchePaidAt
-                        ? `Received ${formatDate(selectedInvoice.paymentPlan.firstTranchePaidAt)}`
-                        : 'Payment received'}
-                    </span>
-                  </div>
-                  {!completionPaid && (
-                    <button
-                      onClick={() => handleUnmarkTranche('upfront')}
-                      disabled={isPaymentLoading}
-                      style={{
-                        width: '100%', padding: '10px 0', borderRadius: 12, border: '1.5px solid #fca5a5',
-                        background: '#fff5f5', color: '#dc2626', fontSize: 13, fontWeight: 600,
-                        cursor: 'pointer', opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
-                      }}
-                    >
-                      Cancel Reception
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleMarkTranche('upfront')}
-                  disabled={isPaymentLoading}
+              return (
+                <div
+                  key={index}
+                  data-testid={`tranche-card-${index}`}
                   style={{
-                    width: '100%', height: 36, borderRadius: 10, border: 'none', cursor: 'pointer',
-                    background: '#1e40af', color: '#fff', fontSize: 13, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
+                    padding: '28px 32px',
+                    borderRight: index < tranches.length - 1 ? '1px solid var(--muted)' : 'none',
+                    borderTop: index >= 3 ? '1px solid var(--muted)' : 'none',
+                    backgroundColor: reglee ? 'rgba(5,150,105,0.1)' : 'var(--card)',
+                    opacity: verrouillee ? 0.65 : 1,
                   }}
                 >
-                  {isPaymentLoading
-                    ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving...</>
-                    : <><Check size={15} />Mark as Received</>
-                  }
-                </button>
-              )}
-            </div>
-
-            {/* Tranche 2 */}
-            <div style={{
-              padding: '28px 32px',
-              backgroundColor: completionPaid ? 'rgba(5,150,105,0.1)' : 'var(--card)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: completionPaid ? '#10b981' : !upfrontPaid ? '#d1d5db' : '#1e40af',
-                    color: !upfrontPaid && !completionPaid ? 'var(--muted-foreground)' : '#fff',
-                    fontSize: 14, fontWeight: 700,
-                  }}>
-                    {completionPaid ? <Check size={18} /> : '2'}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: !upfrontPaid && !completionPaid ? '#9ca3af' : 'var(--foreground)', margin: 0 }}>Completion</p>
-                    <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>Final payment</p>
-                  </div>
-                </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
-                  backgroundColor: completionPaid ? 'rgba(16,185,129,0.15)' : !upfrontPaid ? 'var(--muted)' : 'rgba(37,99,235,0.1)',
-                  color: completionPaid ? '#065f46' : !upfrontPaid ? '#9ca3af' : '#1e40af',
-                }}>
-                  {completionPaid ? 'Received' : !upfrontPaid ? 'Locked' : 'Ready'}
-                </span>
-              </div>
-
-              <p style={{ fontSize: 26, fontWeight: 800, color: !upfrontPaid && !completionPaid ? '#9ca3af' : 'var(--foreground)', margin: '0 0 2px' }}>
-                {completionAmount.toLocaleString('en', { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>TND</span>
-              </p>
-              <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '0 0 20px' }}>
-                {secondPct}% of {selectedInvoice.amount?.toLocaleString()} TND
-              </p>
-
-              {completionPaid ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'rgba(16,185,129,0.15)', marginBottom: 10 }}>
-                    <Check size={16} style={{ color: '#059669' }} />
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
-                      {selectedInvoice.paymentPlan?.secondTranchePaidAt
-                        ? `Received ${formatDate(selectedInvoice.paymentPlan.secondTranchePaidAt)}`
-                        : 'Payment received'}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: reglee ? '#10b981' : verrouillee ? '#9ca3af' : '#1e40af',
+                        color: '#fff', fontSize: 14, fontWeight: 700,
+                      }}>
+                        {reglee ? <Check size={18} /> : verrouillee ? <Lock size={16} /> : String(index + 1)}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>{libelle}</p>
+                        <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>
+                          {tr(
+                            `Instalment ${index + 1} of ${tranches.length}`,
+                            `Tranche ${index + 1} sur ${tranches.length}`,
+                            `${index + 1}/${tranches.length}`
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
+                      backgroundColor: reglee ? 'rgba(16,185,129,0.15)' : verrouillee ? 'rgba(107,114,128,0.15)' : 'rgba(37,99,235,0.1)',
+                      color: reglee ? '#065f46' : verrouillee ? '#4b5563' : '#1e40af',
+                    }}>
+                      {reglee
+                        ? tr('Received', 'Réglée', 'مستلمة')
+                        : verrouillee
+                          ? tr('Locked', 'Verrouillée', 'مقفلة')
+                          : tr('Pending', 'À venir', 'قيد الانتظار')}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleUnmarkTranche('completion')}
-                    disabled={isPaymentLoading}
-                    style={{
-                      width: '100%', padding: '10px 0', borderRadius: 12, border: '1.5px solid #fca5a5',
-                      background: '#fff5f5', color: '#dc2626', fontSize: 13, fontWeight: 600,
-                      cursor: 'pointer', opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
-                    }}
-                  >
-                    Cancel Reception
-                  </button>
-                </div>
-              ) : !upfrontPaid ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'var(--muted)', border: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 16 }}>🔒</span>
-                  <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>Pay first tranche to unlock</span>
-                </div>
-              ) : (
-                <div>
-                  <button
-                    onClick={() => handleMarkTranche('completion')}
-                    disabled={isPaymentLoading}
-                    style={{
-                      width: '100%', height: 36, borderRadius: 10, border: 'none', cursor: 'pointer',
-                      background: '#1e40af', color: '#fff', fontSize: 13, fontWeight: 600,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
-                    }}
-                  >
-                    {isPaymentLoading
-                      ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2 align-middle" />Saving...</>
-                      : <><Check size={15} />Mark as Received</>
-                    }
-                  </button>
-                  {selectedInvoice.paymentPlan?.secondTrancheDueDate && (
-                    <p style={{ fontSize: 12, fontWeight: 500, padding: '8px 12px', borderRadius: 8, marginTop: 12, backgroundColor: 'rgba(217,119,6,0.1)', color: 'rgba(245,158,11,0.9)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                      Due by {formatDate(selectedInvoice.paymentPlan.secondTrancheDueDate)}
-                    </p>
+
+                  <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--foreground)', margin: '0 0 2px' }}>
+                    {montant.toLocaleString('en', { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>TND</span>
+                  </p>
+                  <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '0 0 20px' }}>
+                    {pourcent}% {tr('of', 'de', 'من')} {selectedInvoice.amount?.toLocaleString()} TND
+                  </p>
+
+                  {reglee ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'rgba(16,185,129,0.15)', marginBottom: 10 }}>
+                        <Check size={16} style={{ color: '#059669' }} />
+                        <span style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
+                          {tranche?.paidAt
+                            ? `${tr('Received', 'Reçue le', 'مستلمة')} ${formatDate(tranche.paidAt)}`
+                            : tr('Payment received', 'Paiement reçu', 'تم الاستلام')}
+                        </span>
+                      </div>
+                      {trancheEstAnnulable(index) && (
+                        <button
+                          onClick={() => handleUnmarkTranche(index)}
+                          disabled={isPaymentLoading}
+                          style={{
+                            width: '100%', padding: '10px 0', borderRadius: 12, border: '1.5px solid #fca5a5',
+                            background: '#fff5f5', color: '#dc2626', fontSize: 13, fontWeight: 600,
+                            cursor: 'pointer', opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
+                          }}
+                        >
+                          {tr('Cancel Reception', 'Annuler la réception', 'إلغاء')}
+                        </button>
+                      )}
+                    </div>
+                  ) : verrouillee ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, backgroundColor: 'var(--muted)' }}>
+                      <Lock size={15} style={{ color: 'var(--muted-foreground)' }} />
+                      <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>
+                        {tr(
+                          `Settle instalment ${index} to unlock`,
+                          `Réglez la tranche ${index} pour débloquer`,
+                          `${index}`
+                        )}
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <button
+                        onClick={() => handleMarkTranche(index)}
+                        disabled={isPaymentLoading}
+                        style={{
+                          width: '100%', height: 36, borderRadius: 10, border: 'none', cursor: 'pointer',
+                          background: '#1e40af', color: '#fff', fontSize: 13, fontWeight: 600,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          opacity: isPaymentLoading ? 0.5 : 1, transition: 'opacity 0.15s',
+                        }}
+                      >
+                        <Check size={15} />
+                        {tr('Mark as Received', 'Marquer comme reçue', 'تم الاستلام')}
+                      </button>
+                      {tranche?.dueDate && (
+                        <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '10px 0 0', textAlign: 'center' }}>
+                          {tr('Due by', 'À régler avant le', 'قبل')} {formatDate(tranche.dueDate)}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
 

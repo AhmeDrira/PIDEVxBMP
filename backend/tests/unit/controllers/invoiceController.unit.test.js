@@ -3,6 +3,7 @@ const { buildReq, buildRes, chainableQuery } = require('../mocks/http.mock');
 jest.mock('../../../models/Invoice', () => ({
   create: jest.fn(),
   findById: jest.fn(),
+  findOne: jest.fn(),
   find: jest.fn(),
 }));
 
@@ -22,9 +23,11 @@ jest.mock('../../../utils/actionLogger', () => ({
 const Invoice = require('../../../models/Invoice');
 const Notification = require('../../../models/Notification');
 const { logAction } = require('../../../utils/actionLogger');
+const Quote = require('../../../models/Quote');
 const {
   createInvoice,
   markTranchePaid,
+  createInvoiceFromQuote,
 } = require('../../../controllers/invoiceController');
 
 describe('invoiceController', () => {
@@ -142,4 +145,118 @@ describe('invoiceController', () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.body.message).toMatch(/Failed to mark tranche as paid/i);
   });
+
+  describe('createInvoiceFromQuote with a multi-tranche quote', () => {
+    /**
+     * L'echeancier du devis passe tel quel dans la facture, quel que soit le
+     * nombre de tranches. C'etait le bug de fond : la facture ne retenait que
+     * `upfrontPercent` et un devis 30/20/50 devenait une facture 30/70.
+     */
+    const buildQuote = (overrides = {}) => ({
+      _id: 'q1',
+      quoteNumber: 'QT-2026-1111',
+      artisan: 'u1',
+      status: 'approved',
+      amount: 1000,
+      clientName: 'Client A',
+      description: 'Work',
+      project: { _id: 'p1', title: 'Villa' },
+      upfrontPercent: 30,
+      paymentSchedule: [
+        { label: 'Acompte', type: 'percent', value: 30, amount: 300, percentage: 30 },
+        { label: 'Apres pose', type: 'fixed', value: 200, amount: 200, percentage: 20 },
+        { label: 'Solde', type: 'remaining', value: 0, amount: 500, percentage: 50 },
+      ],
+      ...overrides,
+    });
+
+    /** Toujours dans le futur : le controleur refuse une echeance passee. */
+    const futureDueDate = () => {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 1);
+      return d.toISOString().slice(0, 10);
+    };
+
+    beforeEach(() => {
+      Quote.findById.mockReturnValue({ populate: jest.fn().mockResolvedValue(buildQuote()) });
+      Invoice.findOne.mockResolvedValue(null);
+      Invoice.create.mockImplementation(async (doc) => ({
+        ...doc,
+        _id: 'inv1',
+        save: jest.fn().mockResolvedValue(undefined),
+      }));
+    });
+
+    test('carries the three tranches of the quote into the invoice', async () => {
+      /**
+       * Ce test remplace un garde-fou temporaire qui REFUSAIT ce cas, lui-meme
+       * ayant remplace deux tests qui verifiaient que la troncature en 30/70
+       * « ne plantait pas ». La chaine sait desormais compter au-dela de deux :
+       * l'echeancier du devis passe tel quel dans la facture.
+       */
+      const req = buildReq({
+        user: { _id: 'u1' },
+        params: { quoteId: 'q1' },
+        body: { dueDate: futureDueDate() },
+      });
+      const res = buildRes();
+
+      await createInvoiceFromQuote(req, res);
+
+      expect(res.statusCode).not.toBe(400);
+      const created = Invoice.create.mock.calls.at(-1)[0];
+      expect(created.paymentPlan.tranches).toHaveLength(3);
+      expect(created.paymentPlan.tranches.map((t) => t.percent)).toEqual([30, 20, 50]);
+      expect(created.paymentPlan.tranches.map((t) => t.label))
+        .toEqual(['Acompte', 'Apres pose', 'Solde']);
+      // Aucune tranche n'est reglee a la creation.
+      expect(created.paymentPlan.tranches.every((t) => t.paid === false)).toBe(true);
+    });
+
+    test('still invoices a quote with exactly two tranches', async () => {
+      Quote.findById.mockReturnValue({
+        populate: jest.fn().mockResolvedValue(buildQuote({
+          upfrontPercent: 40,
+          paymentSchedule: [
+            { label: 'Acompte', type: 'percent', value: 40, amount: 400, percentage: 40 },
+            { label: 'Solde', type: 'remaining', value: 0, amount: 600, percentage: 60 },
+          ],
+        })),
+      });
+
+      const req = buildReq({
+        user: { _id: 'u1' },
+        params: { quoteId: 'q1' },
+        body: { dueDate: futureDueDate() },
+      });
+      const res = buildRes();
+
+      await createInvoiceFromQuote(req, res);
+
+      expect(res.statusCode).not.toBe(400);
+      const created = Invoice.create.mock.calls.at(-1)[0];
+      expect(created.paymentPlan.tranches.map((t) => t.percent)).toEqual([40, 60]);
+    });
+
+    test('still invoices a quote with no schedule at all', async () => {
+      // Les devis anterieurs a l'echeancier n'ont pas de `paymentSchedule` :
+      // le garde-fou ne doit pas les bloquer.
+      Quote.findById.mockReturnValue({
+        populate: jest.fn().mockResolvedValue(buildQuote({ paymentSchedule: undefined })),
+      });
+
+      const req = buildReq({
+        user: { _id: 'u1' },
+        params: { quoteId: 'q1' },
+        body: { dueDate: futureDueDate() },
+      });
+      const res = buildRes();
+
+      await createInvoiceFromQuote(req, res);
+
+      expect(res.statusCode).not.toBe(400);
+      expect(Invoice.create).toHaveBeenCalled();
+    });
+  });
+
 });

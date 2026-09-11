@@ -31,8 +31,10 @@ describe('Invoice model', () => {
     expect(doc.status).toBe('pending');
     expect(doc.paidAmount).toBe(0);
     expect(doc.paymentProgress).toBe(0);
-    expect(doc.paymentPlan.firstTranchePercent).toBe(50);
-    expect(doc.paymentPlan.secondTranchePercent).toBe(50);
+    // Les champs figes ont disparu : le plan se remplit a la creation de la
+    // facture, ou se reconstitue a la lecture pour les documents anterieurs.
+    expect(Array.isArray(doc.paymentPlan.tranches)).toBe(true);
+    expect(doc.paymentPlan.tranches).toHaveLength(0);
   });
 
   test('validateSync -> rejects invalid status enum', () => {
