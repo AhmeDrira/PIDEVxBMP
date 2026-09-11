@@ -34,12 +34,22 @@ export default function ArtisanMarketplace() {
   const [view, setView] = useState<'products' | 'cart' | 'checkout' | 'confirmation' | 'detail'>('products');
   const [cart, setCart] = useState<any[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
+  /**
+   * Brouillon de devis d'ou vient l'artisan.
+   *
+   * Sa presence bascule la page en mode selection : cases a cocher, barre de
+   * validation, retour vers le devis. Absent, la page se comporte exactement
+   * comme avant — panier, paiement et avis compris.
+   */
+  const [quoteDraftId, setQuoteDraftId] = useState<string | null>(null);
+  const [quoteSelection, setQuoteSelection] = useState<string[]>([]);
   const CART_STORAGE_KEY = getUserCartKey();
   const CART_CONTEXT_KEY = `${CART_STORAGE_KEY}-context`;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setProjectId(params.get('projectId'));
+    setQuoteDraftId(params.get('quoteDraftId'));
 
     const shouldOpenCart = params.get('openCart') === '1';
     if (shouldOpenCart) {
@@ -136,6 +146,43 @@ export default function ArtisanMarketplace() {
   const isCurrentProductAlreadyRated = selectedProduct
     ? ratedProductKeys.has(getProductRatingKey(selectedProduct))
     : false;
+
+  /** Cle de transport de la selection entre le marketplace et le devis. */
+  const QUOTE_SELECTION_KEY = 'bmp:quote-marketplace-selection';
+
+  const basculerSelectionDevis = (id: string) => {
+    setQuoteSelection((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  /** Revient au devis, avec ou sans selection selon le bouton emprunte. */
+  const retournerAuDevis = (avecSelection: boolean) => {
+    if (!quoteDraftId) return;
+
+    if (avecSelection) {
+      // On n'emporte que ce qui sert a batir une ligne. `draftId` accompagne
+      // la selection pour qu'elle ne puisse pas atterrir dans un autre devis.
+      const retenus = products
+        .filter((p: any) => quoteSelection.includes(String(p._id)))
+        .map((p: any) => ({
+          _id: String(p._id),
+          name: String(p.name || ''),
+          price: Number(p.price) || 0,
+          category: String(p.category || ''),
+        }));
+
+      try {
+        sessionStorage.setItem(QUOTE_SELECTION_KEY, JSON.stringify({
+          draftId: quoteDraftId,
+          produits: retenus,
+          timestamp: Date.now(),
+        }));
+      } catch (error) {
+        console.error('Selection marketplace non transmise:', error);
+      }
+    }
+
+    window.location.href = `/?artisanView=quotes&quoteDraftId=${encodeURIComponent(quoteDraftId)}`;
+  };
 
   // --- CHARGEMENT DES PRODUITS ---
   const fetchProducts = async () => {
@@ -1080,10 +1127,18 @@ export default function ArtisanMarketplace() {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">{projectId ? tr('Select Materials for Project', 'Selectionner des materiaux pour le projet', 'اختر مواد للمشروع') : tr('Marketplace', 'Marketplace', 'سوق البناء')}</h1>
-          <p className="text-lg text-muted-foreground">{projectId ? tr('Add construction materials directly to your project.', 'Ajoutez des materiaux de construction directement a votre projet.', 'أضف مواد بناء مباشرة لمشروعك.') : tr('Browse and order construction materials', 'Parcourez et commandez des materiaux de construction', 'استعرض واطلب مواد البناء')}</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{quoteDraftId
+            ? tr('Select materials for the quote', 'Sélectionner des matériaux pour le devis', 'اختر مواد للعرض')
+            : projectId ? tr('Select Materials for Project', 'Selectionner des materiaux pour le projet', 'اختر مواد للمشروع') : tr('Marketplace', 'Marketplace', 'سوق البناء')}</h1>
+          <p className="text-lg text-muted-foreground">{quoteDraftId
+            ? tr('Tick the materials to add as quote lines, then confirm.', 'Cochez les matériaux à ajouter comme lignes de devis, puis validez.', 'حدد المواد لإضافتها إلى العرض.')
+            : projectId ? tr('Add construction materials directly to your project.', 'Ajoutez des materiaux de construction directement a votre projet.', 'أضف مواد بناء مباشرة لمشروعك.') : tr('Browse and order construction materials', 'Parcourez et commandez des materiaux de construction', 'استعرض واطلب مواد البناء')}</p>
         </div>
-        {projectId && (
+        {quoteDraftId ? (
+          <Button onClick={() => retournerAuDevis(false)} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-card shadow-sm">
+            <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to the quote', 'Retour au devis', 'العودة إلى العرض')}
+          </Button>
+        ) : projectId && (
           <Button onClick={() => window.location.href = '/?artisanView=projects'} variant="outline" className="h-12 px-6 rounded-xl border-2 relative hover:border-primary hover:text-primary transition-colors bg-card shadow-sm">
             <ArrowRight size={20} className="mr-2 rotate-180" /> {tr('Back to Projects', 'Retour aux projets', 'العودة للمشاريع')}
           </Button>
@@ -1211,6 +1266,29 @@ export default function ArtisanMarketplace() {
                       >
                         <Eye size={16} className="mr-1" aria-hidden="true" /> {tr('View', 'Voir', 'عرض')}
                       </Button>
+                      {quoteDraftId ? (
+                        /*
+                          En mode devis, la case remplace l'ajout au panier :
+                          l'artisan compose une liste, il n'achete pas encore.
+                          Elle n'est JAMAIS desactivee, meme en rupture — un
+                          devis peut porter un produit qu'on commandera, et le
+                          badge de stock suffit a le signaler.
+                        */
+                        <label
+                          className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-secondary bg-secondary/5 px-3 text-sm font-semibold text-secondary transition-colors hover:bg-secondary/10"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={quoteSelection.includes(String(product._id))}
+                            onChange={() => basculerSelectionDevis(String(product._id))}
+                            aria-label={tr(`Select ${product.name}`, `Sélectionner ${product.name}`, `اختر ${product.name}`)}
+                          />
+                          {quoteSelection.includes(String(product._id))
+                            ? tr('Selected', 'Sélectionné', 'محدد')
+                            : tr('Select', 'Sélectionner', 'اختر')}
+                        </label>
+                      ) : (
                       <Button
                         disabled={product.stock === 0}
                         className="h-11 text-white bg-secondary hover:bg-secondary/90 rounded-xl shadow-md transition-colors"
@@ -1221,6 +1299,7 @@ export default function ArtisanMarketplace() {
                       >
                         <ShoppingCart size={16} className="mr-1" aria-hidden="true" /> {projectId ? tr('Add to Project', 'Ajouter au projet', 'إضافة إلى المشروع') : tr('Add', 'Ajouter', 'إضافة')}
                       </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -1270,6 +1349,42 @@ export default function ArtisanMarketplace() {
           )}
         </div>
       </div>
+      {quoteDraftId && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              {tr(
+                'Quantity starts at 1 and stays editable on the quote line.',
+                'La quantité démarre à 1 et reste modifiable sur la ligne du devis.',
+                'تبدأ الكمية من 1 وتظل قابلة للتعديل.'
+              )}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-xl border-2"
+                onClick={() => retournerAuDevis(false)}
+              >
+                {tr('Cancel', 'Annuler', 'إلغاء')}
+              </Button>
+              <Button
+                type="button"
+                className="h-11 rounded-xl bg-secondary text-white hover:bg-secondary/90"
+                disabled={quoteSelection.length === 0}
+                onClick={() => retournerAuDevis(true)}
+              >
+                <ShoppingCart size={16} className="mr-2" aria-hidden="true" />
+                {tr(
+                  `Add ${quoteSelection.length} products to the quote`,
+                  `Ajouter les ${quoteSelection.length} produits au devis`,
+                  `أضف ${quoteSelection.length} منتجات إلى العرض`
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {PopupElement}
     </div>
   );
